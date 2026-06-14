@@ -1,0 +1,39 @@
+{
+  "name": "blockend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint . --cache --max-warnings=0",
+    "lint:fix": "eslint . --cache --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "typecheck": "tsc -p tsconfig.base.json --noEmit",
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.33.2",
+  "dependencies": {
+    "prettier": "^3.8.4",
+    "turbo": "^2.9.18",
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "@eslint/js": "^10.0.0",
+    "@types/node": "^25.9.3",
+    "eslint": "^10.0.0",
+    "globals": "^16.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.7",
+    "typescript-eslint": "^8.61.0"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,ts,tsx,jsx,json,jsonc,md,mdx,yml,yaml,css,scss,html}": "prettier --write",
+    "*.{js,cjs,mjs,ts,tsx,jsx}": "eslint --cache --fix --max-warnings=0"
+  }
+}
