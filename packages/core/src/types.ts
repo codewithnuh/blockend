@@ -13,7 +13,7 @@ export interface ProjectContext {
   runtime: "node" | "bun" | "deno";
 
   /** The detected HTTP framework, or 'none' if not found */
-  framework: "express" | "fastify" | "hono" | "none";
+  framework: "express" | "fastify" | "hono" | "next" | "none";
 
   /** The package manager detected from lockfiles */
   packageManager: "npm" | "pnpm" | "yarn" | "bun";

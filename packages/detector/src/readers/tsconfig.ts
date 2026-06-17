@@ -20,11 +20,22 @@ export async function readTsConfig(cwd: string): Promise<TsConfig | null> {
 
   try {
     const content = await readFile(tsconfigPath, "utf-8");
-    // Strip JSON comments — tsconfig allows them, JSON.parse does not
-    const stripped = content.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
-    return JSON.parse(stripped) as TsConfig;
+
+    // Process line-by-line to avoid destroying URLs within strings
+    const cleanLines = content
+      .split(/\r?\n/)
+      .filter((line) => {
+        const trimmed = line.trim();
+        // Drop purely single-line comments
+        return !trimmed.startsWith("//") && !trimmed.startsWith("/*");
+      })
+      .join("\n")
+      // Safely handle trailing commas which standard JSON.parse rejects
+      .replace(/,(\s*[}\]])/g, "$1");
+
+    return JSON.parse(cleanLines) as TsConfig;
   } catch {
-    // Malformed tsconfig — treat as no tsconfig rather than crashing the CLI
+    // console.log("⚠️ Failed to parse tsconfig.json:", error);
     return null;
   }
 }
