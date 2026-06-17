@@ -6,7 +6,6 @@ import { inferSrcDir } from "./readers/filesystem.js";
 import { detectFramework } from "./detectors/framework.js";
 import { detectRuntime } from "./detectors/runtime.js";
 import { detectPackageManager } from "./detectors/package-manager.js";
-// import { readTemplate } from "./readers/read-template.js";
 
 /**
  * Analyzes a project directory and returns a ProjectContext.
@@ -53,9 +52,3 @@ function flattenTsPaths(paths: Record<string, string[]>): Record<string, string>
   }
   return result;
 }
-
-/*export async function executeAddBlockCommand(cwd: string, blockName: string) {
-  const context = await detectProject(cwd);
-  const rawCode = await readTemplate(blockName);
-  console.log(rawCode);
-}*/
