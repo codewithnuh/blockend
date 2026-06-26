@@ -1,10 +1,8 @@
 /* eslint-disable no-console */
-// apps/cli/src/commands/init.ts
-
 import path, { join } from "path";
 import fs from "fs/promises";
 import { existsSync } from "fs";
-import { intro, outro, select, text, confirm, spinner } from "@clack/prompts";
+import { intro, outro, select, text, confirm, spinner, isCancel } from "@clack/prompts";
 
 import { detectProject } from "@blockend/detector";
 import { format } from "../ui/format.js";
@@ -17,10 +15,10 @@ export async function initCommand() {
   // Banner / Intro
   // -------------------------
   console.log(`
-██████╗ ██╗      ██████╗  ██████╗██╗  ██╗███████╗███╗   ██╗██████╗
-██╔══██╗██║     ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝████╗  ██║██╔══██╗
-██████╔╝██║     ██║   ██║██║     █████╔╝ █████╗  ██╔██╗ ██║██║  ██║
-██╔══██╗██║     ██║   ██║██║     ██╔═██╗ ██╔══╝  ██║╚██╗██║██║  ██║
+██████╗ ██╗       ██████╗  ██████╗██╗  ██╗███████╗███╗   ██╗██████╗ 
+██╔══██╗██║      ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝████╗  ██║██╔══██╗
+██████╔╝██║      ██║   ██║██║     █████╔╝ █████╗  ██╔██╗ ██║██║  ██║
+██╔══██╗██║      ██║   ██║██║     ██╔═██╗ ██╔══╝  ██║╚██╗██║██║  ██║
 ██████╔╝███████╗╚██████╔╝╚██████╗██║  ██╗███████╗██║ ╚████║██████╔╝
 ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═════╝
 `);
@@ -40,7 +38,7 @@ export async function initCommand() {
       ]
     });
 
-    if (action === "keep") {
+    if (isCancel(action) || action === "keep") {
       outro(format.muted("Initialization cancelled. Existing config preserved."));
       return;
     }
@@ -52,7 +50,7 @@ export async function initCommand() {
   }
 
   // -------------------------
-  // AI boot phase
+  // Project Fingerprinting Phase
   // -------------------------
   const s = spinner();
 
@@ -77,7 +75,7 @@ export async function initCommand() {
   );
 
   // -------------------------
-  // Framework selection
+  // Framework & Language Selections
   // -------------------------
   const framework = await select({
     message: "Confirm framework environment",
@@ -90,63 +88,79 @@ export async function initCommand() {
     ]
   });
 
+  if (isCancel(framework)) {
+    outro(format.muted("Initialization cancelled."));
+    return;
+  }
+
   const language = await select({
     message: "Confirm primary language",
-    initialValue: context.language,
+    initialValue: context.language === "typescript" ? "typescript" : "javascript",
     options: [
       { value: "typescript", label: "TypeScript" },
       { value: "javascript", label: "JavaScript" }
     ]
   });
 
+  if (isCancel(language)) {
+    outro(format.muted("Initialization cancelled."));
+    return;
+  }
+
   // -------------------------
-  // Alias configuration
+  // Alias & Path Resolution Strategy
   // -------------------------
   const availableAliases = Object.keys(context.aliasMap || {});
-  const detectedAlias = availableAliases.length > 0 ? availableAliases[0] : "@/";
+  const baseAliasToken = availableAliases.length > 0 ? availableAliases[0] : "@/";
 
-  const blockAlias = await text({
+  const blockAliasInput = await text({
     message: "Configure blocks import alias",
-    initialValue: `${detectedAlias}blocks`,
-    placeholder: `${detectedAlias}blocks`
+    initialValue: `${baseAliasToken}blocks`,
+    placeholder: `${baseAliasToken}blocks`
   });
 
-  const aliasPrefix = availableAliases.find((a) => String(blockAlias).startsWith(a)) || "";
+  if (isCancel(blockAliasInput)) {
+    outro(format.muted("Initialization cancelled."));
+    return;
+  }
 
+  const blockAlias = String(blockAliasInput);
+  const aliasPrefix = availableAliases.find((a) => blockAlias.startsWith(a)) || "";
   const physicalPrefix = aliasPrefix ? context.aliasMap[aliasPrefix] : "./";
 
-  const resolvedSubDir = String(blockAlias).replace(aliasPrefix, "");
+  const resolvedSubDir = blockAlias.replace(aliasPrefix, "");
   const assumedPhysicalDir = join(physicalPrefix, resolvedSubDir);
 
   const relativeBlocksPath = path.relative(cwd, path.resolve(cwd, assumedPhysicalDir));
-
   const normalizedPath = relativeBlocksPath.replace(/\\/g, "/");
   const finalPath = normalizedPath.startsWith(".") ? normalizedPath : `./${normalizedPath}`;
 
   // -------------------------
-  // Redis flag
+  // Infrastructure Flags (Redis)
   // -------------------------
   let includeRedis = false;
 
   if (context.hasRedis) {
-    includeRedis = Boolean(
-      await confirm({
-        message: "Redis detected. Enable Redis-backed block variants automatically?",
-        initialValue: true
-      })
-    );
+    const redisConfirm = await confirm({
+      message: "Redis detected. Enable Redis-backed block variants automatically?",
+      initialValue: true
+    });
+
+    if (!isCancel(redisConfirm)) {
+      includeRedis = Boolean(redisConfirm);
+    }
   }
 
   // -------------------------
-  // Payload
+  // Construct Configuration Payload
   // -------------------------
-  const configPayload = {
+  const configPayload: configPayloadType = {
     $schema: "https://blockend.dev/schema.json",
-    environment: framework,
-    language,
+    environment: framework as "express" | "fastify" | "hono" | "next",
+    language: language as "typescript" | "javascript",
     includeRedis,
     aliases: {
-      blocks: String(blockAlias)
+      blocks: blockAlias
     },
     paths: {
       blocks: finalPath
@@ -154,15 +168,13 @@ export async function initCommand() {
   };
 
   // -------------------------
-  // Write config
+  // Write Config Target payload
   // -------------------------
   const writeSpinner = spinner();
-
   writeSpinner.start("Finalizing configuration...");
 
   try {
     await fs.writeFile(configPath, JSON.stringify(configPayload, null, 2), "utf-8");
-
     writeSpinner.stop(format.success("blockend.json ready"));
 
     outro(format.title("Blockend initialized successfully. Run: npx blockend add <block>"));
@@ -170,3 +182,16 @@ export async function initCommand() {
     writeSpinner.stop(format.error("Failed to write configuration"));
   }
 }
+
+export type configPayloadType = {
+  $schema: string;
+  environment: "express" | "fastify" | "hono" | "next" | "none";
+  language: "typescript" | "javascript";
+  includeRedis: boolean;
+  aliases: {
+    blocks: string;
+  };
+  paths: {
+    blocks: string;
+  };
+};

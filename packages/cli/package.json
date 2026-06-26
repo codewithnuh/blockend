@@ -1,17 +1,27 @@
 {
-  "name": "cli",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "blockend-cli",
+  "version": "1.0.1",
+  "description": "Intelligent, modular backend blocks right inside your terminal",
+  "main": "./dist/index.js",
   "type": "module",
   "bin": {
     "blockend": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "readme.md"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --out-dir dist"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "cli",
+    "backend",
+    "express",
+    "nextjs",
+    "architecture"
+  ],
+  "author": "codewithnuh",
   "license": "ISC",
   "packageManager": "pnpm@10.33.2",
   "dependencies": {
