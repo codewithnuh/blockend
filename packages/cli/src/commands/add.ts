@@ -1,30 +1,59 @@
 /* eslint-disable no-console */
 import path, { join } from "path";
 import fs from "fs/promises";
-import { execSync } from "child_process";
-import { intro, outro, select, spinner, confirm } from "@clack/prompts";
+import { exec } from "child_process";
+import { intro, outro, select, spinner, confirm, isCancel } from "@clack/prompts";
 import pc from "picocolors";
 import { configPayloadType } from "./init.js";
 
-// Global Registry CDN Configuration Layouts
-const REPO_OWNER = "codewitnuh";
+interface BlockendExtendedConfig extends configPayloadType {
+  redisEnabled?: boolean;
+}
+
+const REPO_OWNER = "codewithnuh";
 const REPO_NAME = "blockend";
 const BRANCH = "master";
+const LOCAL_DEV_URL = "http://localhost:5000";
 
 const RAW_CDN_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
 const MANIFEST_URL = `${RAW_CDN_BASE}/registry/index.json`;
+
+interface VariantConfig {
+  dependencies: string[];
+  path: string;
+}
+
+interface EnvironmentConfig {
+  core: string;
+  variants?: {
+    [variantKey: string]: VariantConfig;
+  };
+  dependencies?: string[];
+}
 
 interface RegistryManifest {
   [blockKey: string]: {
     name: string;
     description: string;
     environments: {
-      [envKey in "express" | "fastify" | "hono" | "next"]?: {
-        dependencies: string[];
-        path: string; // This points to the .txt file on GitHub (e.g. "registry/.../file.ts.txt")
-      };
+      express?: EnvironmentConfig;
+      fastify?: EnvironmentConfig;
+      hono?: EnvironmentConfig;
+      next?: EnvironmentConfig;
     };
   };
+}
+
+interface LocalPackageJson {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}
+
+function handleCancel(value: unknown) {
+  if (isCancel(value)) {
+    outro(pc.yellow("⚠ Operation cancelled. Exiting Blockend CLI cleanly."));
+    process.exit(0);
+  }
 }
 
 export async function addCommand(blockName: string | undefined) {
@@ -33,11 +62,11 @@ export async function addCommand(blockName: string | undefined) {
 
   // 1. Read and Parse blockend.json
   const configPath = join(cwd, "blockend.json");
-  let config: configPayloadType;
+  let config: BlockendExtendedConfig;
 
   try {
     const configFile = await fs.readFile(configPath, "utf-8");
-    config = JSON.parse(configFile);
+    config = JSON.parse(configFile) as BlockendExtendedConfig;
   } catch {
     outro(pc.red("✖ blockend.json not found. Run 'npx blockend init' first."));
     return;
@@ -63,7 +92,7 @@ export async function addCommand(blockName: string | undefined) {
   if (!targetBlock) {
     const availableOptions = Object.keys(registry).map((key) => ({
       value: key,
-      label: `${key} - pc.dim(${registry[key].description})`
+      label: `${key} - ${pc.dim(registry[key].description)}`
     }));
 
     if (availableOptions.length === 0) {
@@ -71,10 +100,12 @@ export async function addCommand(blockName: string | undefined) {
       return;
     }
 
-    targetBlock = (await select({
+    const selectBlockPrompt = await select({
       message: "Which backend block would you like to inject?",
       options: availableOptions
-    })) as string;
+    });
+    handleCancel(selectBlockPrompt);
+    targetBlock = selectBlockPrompt as string;
   }
 
   const blockMeta = registry[targetBlock];
@@ -88,21 +119,40 @@ export async function addCommand(blockName: string | undefined) {
   const envConfig = blockMeta.environments[envKey];
   if (!envConfig) {
     outro(
-      pc.red(
-        `✖ The block "${targetBlock}" does not support your environment layout: ${String(config.environment)}`
-      )
+      pc.red(`✖ The block "${targetBlock}" does not support your environment layout: ${envKey}`)
     );
     return;
   }
 
-  // 5. Automated Missing Dependency Detection
-  let packageJson: {
-    dependencies?: Record<string, string>;
-    devDependencies?: Record<string, string>;
-    [key: string]: unknown;
-  };
+  // Determine and resolve the storage variant dynamically
+  let selectedVariant: string | undefined;
+  let variantMeta: VariantConfig | undefined = undefined;
+
+  if (envConfig.variants && Object.keys(envConfig.variants).length > 0) {
+    const variantKeys = Object.keys(envConfig.variants);
+
+    if (variantKeys.includes("redis") && config.redisEnabled) {
+      selectedVariant = "redis";
+    } else {
+      const selectVariantPrompt = await select({
+        message: "Which architectural storage variant do you want to back this block?",
+        options: variantKeys.map((vKey) => ({
+          value: vKey,
+          label: vKey.toUpperCase()
+        }))
+      });
+      handleCancel(selectVariantPrompt);
+      selectedVariant = selectVariantPrompt as string;
+    }
+    variantMeta = envConfig.variants[selectedVariant];
+  }
+
+  // 5. Automated Missing Dependency Detection (Aggregating Core + Variant)
+  let packageJson: LocalPackageJson;
   try {
-    packageJson = JSON.parse(await fs.readFile(join(cwd, "package.json"), "utf-8"));
+    packageJson = JSON.parse(
+      await fs.readFile(join(cwd, "package.json"), "utf-8")
+    ) as LocalPackageJson;
   } catch {
     outro(pc.red("✖ Could not locate package.json in your current workspace directory."));
     return;
@@ -112,75 +162,120 @@ export async function addCommand(blockName: string | undefined) {
     ...(packageJson.dependencies ?? {}),
     ...(packageJson.devDependencies ?? {})
   };
-  const missingDeps = envConfig.dependencies.filter((dep) => !(dep in installedDeps));
+
+  const allRequiredDeps = [...(envConfig.dependencies ?? []), ...(variantMeta?.dependencies ?? [])];
+  const missingDeps = allRequiredDeps.filter((dep) => !(dep in installedDeps));
 
   if (missingDeps.length > 0) {
     console.log(
       pc.yellow(`\n⚠️ Missing required infrastructure packages: ${missingDeps.join(", ")}`)
     );
-    const shouldInstall = await confirm({
+    const shouldInstallPrompt = await confirm({
       message: "Would you like the CLI to automatically install these dependencies?",
       initialValue: true
     });
+    handleCancel(shouldInstallPrompt);
 
-    if (shouldInstall) {
-      s.start(`Installing dependencies via your native package manager...`);
+    if (shouldInstallPrompt) {
+      // Look up and determine active layout file systems
+      const packageManager = await fs
+        .access(join(cwd, "pnpm-lock.yaml"))
+        .then(() => "pnpm")
+        .catch(() => "npm");
+
+      s.start(`Preparing native workspace via ${packageManager}...`);
       try {
-        const lockfileCheck = await fs
-          .access(join(cwd, "pnpm-lock.yaml"))
-          .then(() => "pnpm")
-          .catch(() => "npm");
         const installCmd =
-          lockfileCheck === "pnpm"
+          packageManager === "pnpm"
             ? `pnpm add ${missingDeps.join(" ")}`
             : `npm install ${missingDeps.join(" ")}`;
 
-        execSync(installCmd, { stdio: "ignore", cwd });
-        s.stop(pc.green("✔ Dependencies installed cleanly."));
+        s.stop(pc.cyan(`Executing: ${installCmd}\n`));
+
+        // Use standard non-blocking exec loop streams to print direct lines out cleanly
+        await new Promise<void>((resolve, reject) => {
+          const child = exec(installCmd, { cwd });
+
+          child.stdout?.on("data", (data: string) => {
+            process.stdout.write(pc.dim(data));
+          });
+
+          child.stderr?.on("data", (data: string) => {
+            process.stdout.write(pc.dim(pc.red(data)));
+          });
+
+          child.on("close", (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`Exit code ${code}`));
+          });
+        });
+
+        console.log(""); // Clean carriage space jump
+        s.start(pc.green("✔ Dependencies installed cleanly. Continuing components build..."));
+        s.stop();
       } catch {
         s.stop(pc.red("✖ Automated dependency installation failed. Please run setup manually."));
       }
     }
   }
 
-  // 6. Ingest Remote Code Block String Stream directly from GitHub (.txt source)
+  // 6. Ingest Remote Code Block Streams (.txt sources)
   s.start(`Downloading clean production template block [${targetBlock}]...`);
 
   try {
-    // Generates e.g., https://raw.githubusercontent.com/.../express-error.ts.txt
-    const targetFileUrl = `${RAW_CDN_BASE}/${envConfig.path}`;
-    const codeFetchResponse = await fetch(targetFileUrl);
+    const BASE_URL = MANIFEST_URL.includes("localhost") ? LOCAL_DEV_URL : RAW_CDN_BASE;
 
-    if (!codeFetchResponse.ok) {
-      throw new Error(`Failed downloading component source file: ${codeFetchResponse.statusText}`);
+    // Fetch core middleware payload
+    const coreFileUrl = `${BASE_URL}/${envConfig.core}`;
+    const coreFetchResponse = await fetch(coreFileUrl);
+    if (!coreFetchResponse.ok) {
+      throw new Error(`Failed downloading core component file: ${coreFetchResponse.statusText}`);
     }
+    const coreCodeTemplate = await coreFetchResponse.text();
 
-    // Grabs the content from GitHub as a raw, clean text string
-    const targetCodeTemplate = await codeFetchResponse.text();
-
-    // SAFETY CHECK: Target physical path only to prevent creating folders named '@'
+    // SAFETY CHECK: Target physical path configurations
     let physicalPath = config.paths.blocks;
-
     if (physicalPath.startsWith("@")) {
       physicalPath = "./src/blocks";
     }
 
-    const targetFolder = path.resolve(cwd, physicalPath);
+    // Set up targeted folder path. If variants exist, wrap files inside a dedicated component folder!
+    let targetFolder = path.resolve(cwd, physicalPath);
+    if (variantMeta && selectedVariant) {
+      targetFolder = join(targetFolder, targetBlock);
+    }
     await fs.mkdir(targetFolder, { recursive: true });
 
-    // THE MAGIC STEP: Even though we fetched a .txt file, we write it back to the
-    // client's machine as a fully working .ts or .js file depending on their config language!
     const fileExtension = config.language === "typescript" ? "ts" : "js";
-    const outputFilename = `${targetBlock}.${fileExtension}`;
 
-    await fs.writeFile(join(targetFolder, outputFilename), targetCodeTemplate, "utf-8");
+    // Write out the core base framework file cleanly
+    const coreOutputFilename = `${targetBlock}.${fileExtension}`;
+    await fs.writeFile(join(targetFolder, coreOutputFilename), coreCodeTemplate, "utf-8");
 
-    const cleanDisplayPath = physicalPath.replace(/\\/g, "/");
+    // If variant data is active, write it to its own file inside the same isolated folder
+    if (variantMeta && selectedVariant) {
+      const variantFileUrl = `${BASE_URL}/${variantMeta.path}`;
+      const variantFetchResponse = await fetch(variantFileUrl);
+      if (!variantFetchResponse.ok) {
+        throw new Error(
+          `Failed downloading storage variant file: ${variantFetchResponse.statusText}`
+        );
+      }
+      const variantCodeTemplate = await variantFetchResponse.text();
 
-    s.stop(pc.green(`✔ ${outputFilename} successfully injected into codebase.`));
+      const variantOutputFilename = `store-${selectedVariant}.${fileExtension}`;
+      await fs.writeFile(join(targetFolder, variantOutputFilename), variantCodeTemplate, "utf-8");
+    }
+
+    const cleanDisplayPath =
+      variantMeta && selectedVariant
+        ? `${physicalPath.replace(/\\/g, "/")}/${targetBlock}`
+        : physicalPath.replace(/\\/g, "/");
+
+    s.stop(pc.green("✔ Component isolation structures written smoothly."));
     outro(
       pc.cyan(
-        `✨ Source blocks written to ${cleanDisplayPath}/${outputFilename}. Code ownership transferred!`
+        `✨ Source blocks written to ${cleanDisplayPath}/ layout. Code ownership transferred!`
       )
     );
   } catch (error) {
