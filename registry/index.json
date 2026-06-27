@@ -1,1 +1,22 @@
-{}
+{
+  "blocks": [
+    {
+      "name": "rate-limit",
+      "description": "IP-based rate limiting middleware with pluggable storage strategies",
+      "dependencies": [],
+      "files": {
+        "core": "registry/rate-limiter/express/base.ts.txt"
+      },
+      "storageVariants": {
+        "memory": {
+          "dependencies": [],
+          "path": "registry/rate-limiter/express/store-memory.ts.txt"
+        },
+        "redis": {
+          "dependencies": ["ioredis"],
+          "path": "registry/rate-limiter/express/store-redis.ts.txt"
+        }
+      }
+    }
+  ]
+}
