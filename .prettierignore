@@ -4,3 +4,4 @@ build
 coverage
 .turbo
 pnpm-lock.yaml
+.next

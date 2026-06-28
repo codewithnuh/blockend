@@ -15,19 +15,6 @@
             "path": "blocks/rate-limiter/express/store-redis.ts.txt"
           }
         }
-      },
-      "fastify": {
-        "core": "blocks/rate-limiter/fastify/base.ts.txt",
-        "variants": {
-          "memory": {
-            "dependencies": [],
-            "path": "blocks/rate-limiter/fastify/store-memory.ts.txt"
-          },
-          "redis": {
-            "dependencies": ["ioredis"],
-            "path": "blocks/rate-limiter/fastify/store-redis.ts.txt"
-          }
-        }
       }
     }
   }
