@@ -1,0 +1,24 @@
+"use client";
+
+import { useEffect } from "react";
+
+export function useReveal() {
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("in-view");
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: "-40px 0px" }
+    );
+
+    document.querySelectorAll<HTMLElement>(".reveal").forEach((el) => {
+      io.observe(el);
+    });
+
+    return () => io.disconnect();
+  }, []);
+}

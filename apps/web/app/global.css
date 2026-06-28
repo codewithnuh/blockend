@@ -1,0 +1,360 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  /* ── LIGHT MODE (Default) ── */
+  :root {
+    --void: #fafafa;
+    --surface: #ffffff;
+    --surface-2: #f4f4f5;
+    --border: #e4e4e7;
+    --fg: #09090b;
+    --muted: #f4f4f5;
+    --muted-foreground: #71717a;
+    --accent: #e2724a;
+    --accent-rgb: 226 114 74;
+    --ready: #16a34a;
+    --ready-rgb: 22 163 74;
+
+    /* shadcn/ui token overrides */
+    --background: var(--void);
+    --foreground: var(--fg);
+    --card: var(--surface);
+    --card-foreground: var(--fg);
+    --input: var(--border);
+    --ring: var(--accent);
+    --primary: var(--accent);
+    --primary-foreground: #ffffff;
+  }
+
+  /* ── DARK MODE ── */
+  :root[class~="dark"] {
+    --void: #0b0c0e;
+    --surface: #15171a;
+    --surface-2: #1b1d21;
+    --border: #262830;
+    --fg: #ededef;
+    --muted: #15171a;
+    --muted-foreground: #8b8d93;
+    --accent: #e2724a;
+    --accent-rgb: 226 114 74;
+    --ready: #5fbf77;
+    --ready-rgb: 95 191 119;
+
+    /* shadcn/ui token overrides */
+    --background: var(--void);
+    --foreground: var(--fg);
+    --card: var(--surface);
+    --card-foreground: var(--fg);
+    --input: #262830;
+    --ring: #e2724a;
+    --primary: #e2724a;
+    --primary-foreground: #1b0d05;
+  }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--void);
+    color: var(--fg);
+    font-family: "Manrope", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+  }
+
+  ::selection {
+    background: rgb(var(--accent-rgb) / 0.35);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--void);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #e4e4e7;
+    border-radius: 6px;
+  }
+
+  :root[class~="dark"] ::-webkit-scrollbar-thumb {
+    background: #26282c;
+  }
+}
+
+/* ── Typography ── */
+.font-display {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.font-mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Backgrounds ── */
+.noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  opacity: 0.015;
+}
+:root[class~="dark"] .noise {
+  opacity: 0.035;
+}
+
+.glow-radial {
+  background: radial-gradient(
+    ellipse 70% 50% at 50% -10%,
+    rgb(var(--accent-rgb) / 0.08),
+    transparent 60%
+  );
+}
+:root[class~="dark"] .glow-radial {
+  background: radial-gradient(
+    ellipse 70% 50% at 50% -10%,
+    rgb(var(--accent-rgb) / 0.16),
+    transparent 60%
+  );
+}
+
+.dot-grid {
+  background-image: radial-gradient(circle, rgb(0 0 0 / 0.04) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+:root[class~="dark"] .dot-grid {
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+}
+
+/* ── Reveal animation ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px) blur(4px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0) blur(0px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── Cards ── */
+.glow-border {
+  border: 1px solid var(--border);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.01) inset,
+    0 24px 60px -20px rgb(0 0 0 / 0.05);
+}
+:root[class~="dark"] .glow-border {
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.02) inset,
+    0 24px 60px -20px rgb(0 0 0 / 0.6);
+}
+
+.glow-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 0.02),
+    0 12px 32px rgb(0 0 0 / 0.04);
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease,
+    border-color 0.35s ease;
+}
+:root[class~="dark"] .glow-card {
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 0.18),
+    0 12px 32px rgb(0 0 0 / 0.35);
+}
+
+.glow-card:hover {
+  transform: translateY(-3px);
+  border-color: rgb(var(--accent-rgb) / 0.4);
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 0.05),
+    0 20px 48px -10px rgb(var(--accent-rgb) / 0.08);
+}
+:root[class~="dark"] .glow-card:hover {
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 0.2),
+    0 20px 48px -10px rgb(var(--accent-rgb) / 0.18);
+}
+
+/* ── Buttons ── */
+.btn-primary {
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 8px 28px -6px rgb(var(--accent-rgb) / 0.3);
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease,
+    filter 0.25s ease;
+}
+:root[class~="dark"] .btn-primary {
+  color: #1b0d05;
+  box-shadow: 0 8px 28px -6px rgb(var(--accent-rgb) / 0.55);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+:root[class~="dark"] .btn-primary:hover {
+  box-shadow: 0 10px 34px -4px rgb(var(--accent-rgb) / 0.7);
+}
+
+.btn-ghost {
+  border: 1px solid var(--border);
+  background: rgb(0 0 0 / 0.01);
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease,
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+:root[class~="dark"] .btn-ghost {
+  background: rgb(255 255 255 / 0.02);
+}
+
+.btn-ghost:hover {
+  border-color: rgb(0 0 0 / 0.15);
+  background: rgb(0 0 0 / 0.03);
+}
+:root[class~="dark"] .btn-ghost:hover {
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.05);
+}
+
+/* ── Terminal ── */
+.terminal-window {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  box-shadow:
+    0 30px 80px -20px rgb(0 0 0 / 0.08),
+    0 0 60px -10px rgb(var(--accent-rgb) / 0.03),
+    inset 0 1px 0 rgb(255 255 255 / 0.8);
+}
+:root[class~="dark"] .terminal-window {
+  background: #0e0f11;
+  box-shadow:
+    0 30px 80px -20px rgb(0 0 0 / 0.7),
+    0 0 60px -10px rgb(var(--accent-rgb) / 0.08),
+    inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+.terminal-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+}
+
+.caret {
+  display: inline-block;
+  width: 8px;
+  height: 1.1em;
+  background: var(--accent);
+  vertical-align: -2px;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ── Bricks (roadmap) ── */
+.brick {
+  border-radius: 6px;
+  position: relative;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.3s ease;
+}
+
+.brick:hover {
+  transform: translateY(-2px);
+}
+
+.brick-ready {
+  background: linear-gradient(160deg, rgb(var(--accent-rgb) / 0.08), rgb(var(--accent-rgb) / 0.02));
+  border: 1px solid rgb(var(--accent-rgb) / 0.3);
+}
+:root[class~="dark"] .brick-ready {
+  background: linear-gradient(160deg, rgb(var(--accent-rgb) / 0.18), rgb(var(--accent-rgb) / 0.06));
+  border: 1px solid rgb(var(--accent-rgb) / 0.45);
+}
+
+.brick-planned {
+  background: rgb(0 0 0 / 0.005);
+  border: 1px dashed rgb(0 0 0 / 0.1);
+}
+:root[class~="dark"] .brick-planned {
+  background: rgb(255 255 255 / 0.015);
+  border: 1px dashed rgb(255 255 255 / 0.16);
+}
+
+/* ── Step connector ── */
+.step-line {
+  background: linear-gradient(to right, rgb(var(--accent-rgb) / 0.4), rgb(0 0 0 / 0.02));
+}
+:root[class~="dark"] .step-line {
+  background: linear-gradient(to right, rgb(var(--accent-rgb) / 0.6), rgb(255 255 255 / 0.06));
+}
+
+/* ── Focus ring ── */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ── Init CLI simulation ── */
+.cli-step {
+  border-left: 2px solid rgb(var(--accent-rgb) / 0.2);
+  transition: border-color 0.3s ease;
+}
+
+.cli-step.active {
+  border-left-color: var(--accent);
+}
+
+.cli-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

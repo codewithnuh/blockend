@@ -4,11 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint . --cache --max-warnings=0",
-    "lint:fix": "eslint . --cache --fix",
+    "lint": "pnpm -r lint",
+    "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "typecheck": "tsc -p tsconfig.base.json --noEmit",
+    "typecheck": "pnpm -r typecheck",
     "validate": "pnpm format:check && pnpm lint && pnpm typecheck",
     "prepare": "husky"
   },
@@ -24,9 +24,9 @@
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
-    "@eslint/js": "^10.0.0",
+    "@eslint/js": "^9.39.4",
     "@types/node": "^25.9.3",
-    "eslint": "^10.0.0",
+    "eslint": "^9.39.4",
     "globals": "^16.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.7",

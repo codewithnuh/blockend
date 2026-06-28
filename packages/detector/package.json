@@ -14,7 +14,8 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --out-dir dist",
     "dev": "tsup src/index.ts --format esm --dts --out-dir dist --watch",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@blockend/core": "workspace:*"
