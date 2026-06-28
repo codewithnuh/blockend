@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import path, { join } from "path";
+import path, { join, dirname } from "path";
 import fs from "fs/promises";
 import { exec } from "child_process";
 import { intro, outro, select, spinner, confirm, isCancel } from "@clack/prompts";
@@ -13,7 +13,6 @@ interface BlockendExtendedConfig extends configPayloadType {
 const REPO_OWNER = "codewithnuh";
 const REPO_NAME = "blockend";
 const BRANCH = "master";
-const LOCAL_DEV_URL = "http://localhost:5000";
 
 const RAW_CDN_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
 const MANIFEST_URL = `${RAW_CDN_BASE}/registry/index.json`;
@@ -56,19 +55,53 @@ function handleCancel(value: unknown) {
   }
 }
 
+// Helper to look up file trees recursively for monorepos or nested directories
+async function findUp(filename: string, startDir: string): Promise<string | null> {
+  let dir = startDir;
+  while (true) {
+    const checkPath = join(dir, filename);
+    try {
+      await fs.access(checkPath);
+      return checkPath;
+    } catch {
+      const parent = dirname(dir);
+      if (parent === dir) break; // Reached filesystem root
+      dir = parent;
+    }
+  }
+  return null;
+}
+
 export async function addCommand(blockName: string | undefined) {
   intro(pc.bgBlack(pc.magenta(" Blockend Component Ingestion ")));
   const cwd = process.cwd();
 
-  // 1. Read and Parse blockend.json
-  const configPath = join(cwd, "blockend.json");
-  let config: BlockendExtendedConfig;
+  // 1. Recursive Resolution of blockend.json Location
+  const configPath = await findUp("blockend.json", cwd);
+  if (!configPath) {
+    outro(pc.red("✖ blockend.json not found. Run 'npx blockend init' first."));
+    return;
+  }
+  const rootDir = dirname(configPath);
 
+  let config: BlockendExtendedConfig;
   try {
     const configFile = await fs.readFile(configPath, "utf-8");
     config = JSON.parse(configFile) as BlockendExtendedConfig;
   } catch {
-    outro(pc.red("✖ blockend.json not found. Run 'npx blockend init' first."));
+    outro(pc.red("✖ Failed to parse blockend.json layout configuration."));
+    return;
+  }
+
+  // FORCE MODERN BEST PRACTICES: Reject non-TypeScript workspaces immediately
+  if (config.language !== "typescript") {
+    outro(
+      pc.yellow(
+        `\nℹ Blockend forces modern architectural standards.\n` +
+          `  To ensure strict type safety and absolute code ownership, the registry exclusively supports TypeScript.\n` +
+          `  Please migrate your project configuration to TypeScript to ingest blocks.`
+      )
+    );
     return;
   }
 
@@ -87,16 +120,25 @@ export async function addCommand(blockName: string | undefined) {
     return;
   }
 
-  // 3. Select block dynamically from fetched manifest keys
+  const envKey = String(config.environment) as "express" | "fastify" | "hono" | "next";
+
+  // 3. Framework-Targeted Filtered Prompt Selection
   let targetBlock = blockName;
   if (!targetBlock) {
-    const availableOptions = Object.keys(registry).map((key) => ({
-      value: key,
-      label: `${key} - ${pc.dim(registry[key].description)}`
-    }));
+    // Dynamically filter registry options based on the user's selected framework environment layout
+    const availableOptions = Object.keys(registry)
+      .filter((key) => registry[key].environments[envKey] !== undefined)
+      .map((key) => ({
+        value: key,
+        label: `${key} - ${pc.dim(registry[key].description)}`
+      }));
 
     if (availableOptions.length === 0) {
-      outro(pc.yellow("⚠ The remote block registry is currently empty."));
+      outro(
+        pc.yellow(
+          `⚠ No backend blocks are currently available for your framework layer: [${envKey}].`
+        )
+      );
       return;
     }
 
@@ -115,7 +157,6 @@ export async function addCommand(blockName: string | undefined) {
   }
 
   // 4. Resolve environmental configuration variants
-  const envKey = String(config.environment) as "express" | "fastify" | "hono" | "next";
   const envConfig = blockMeta.environments[envKey];
   if (!envConfig) {
     outro(
@@ -147,14 +188,19 @@ export async function addCommand(blockName: string | undefined) {
     variantMeta = envConfig.variants[selectedVariant];
   }
 
-  // 5. Automated Missing Dependency Detection (Aggregating Core + Variant)
+  // 5. Recursive Resolution of package.json Location (Handling Ghost Scenario)
+  const packageJsonPath = await findUp("package.json", rootDir);
+  if (!packageJsonPath) {
+    outro(pc.red("✖ Could not locate package.json in your current directory layout hierarchy."));
+    return;
+  }
+  const packageJsonDir = dirname(packageJsonPath);
+
   let packageJson: LocalPackageJson;
   try {
-    packageJson = JSON.parse(
-      await fs.readFile(join(cwd, "package.json"), "utf-8")
-    ) as LocalPackageJson;
+    packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf-8")) as LocalPackageJson;
   } catch {
-    outro(pc.red("✖ Could not locate package.json in your current workspace directory."));
+    outro(pc.red("✖ Failed parsing file data configurations from target package.json location."));
     return;
   }
 
@@ -177,9 +223,8 @@ export async function addCommand(blockName: string | undefined) {
     handleCancel(shouldInstallPrompt);
 
     if (shouldInstallPrompt) {
-      // Look up and determine active layout file systems
       const packageManager = await fs
-        .access(join(cwd, "pnpm-lock.yaml"))
+        .access(join(packageJsonDir, "pnpm-lock.yaml"))
         .then(() => "pnpm")
         .catch(() => "npm");
 
@@ -192,9 +237,8 @@ export async function addCommand(blockName: string | undefined) {
 
         s.stop(pc.cyan(`Executing: ${installCmd}\n`));
 
-        // Use standard non-blocking exec loop streams to print direct lines out cleanly
         await new Promise<void>((resolve, reject) => {
-          const child = exec(installCmd, { cwd });
+          const child = exec(installCmd, { cwd: packageJsonDir });
 
           child.stdout?.on("data", (data: string) => {
             process.stdout.write(pc.dim(data));
@@ -210,7 +254,7 @@ export async function addCommand(blockName: string | undefined) {
           });
         });
 
-        console.log(""); // Clean carriage space jump
+        console.log("");
         s.start(pc.green("✔ Dependencies installed cleanly. Continuing components build..."));
         s.stop();
       } catch {
@@ -219,40 +263,59 @@ export async function addCommand(blockName: string | undefined) {
     }
   }
 
-  // 6. Ingest Remote Code Block Streams (.txt sources)
+  // 6. Ingest Remote Code Block Streams
   s.start(`Downloading clean production template block [${targetBlock}]...`);
 
   try {
-    const BASE_URL = MANIFEST_URL.includes("localhost") ? LOCAL_DEV_URL : RAW_CDN_BASE;
+    const BASE_URL = RAW_CDN_BASE;
 
     // Fetch core middleware payload
     const coreFileUrl = `${BASE_URL}/${envConfig.core}`;
+
     const coreFetchResponse = await fetch(coreFileUrl);
     if (!coreFetchResponse.ok) {
       throw new Error(`Failed downloading core component file: ${coreFetchResponse.statusText}`);
     }
     const coreCodeTemplate = await coreFetchResponse.text();
 
-    // SAFETY CHECK: Target physical path configurations
+    // TARGET STRUCTURE SETUPS: Handle configuration maps safely
     let physicalPath = config.paths.blocks;
     if (physicalPath.startsWith("@")) {
       physicalPath = "./src/blocks";
     }
 
-    // Set up targeted folder path. If variants exist, wrap files inside a dedicated component folder!
-    let targetFolder = path.resolve(cwd, physicalPath);
+    let targetFolder = path.resolve(rootDir, physicalPath);
     if (variantMeta && selectedVariant) {
       targetFolder = join(targetFolder, targetBlock);
     }
     await fs.mkdir(targetFolder, { recursive: true });
 
-    const fileExtension = config.language === "typescript" ? "ts" : "js";
+    // File writes are hardcoded directly to clean TypeScript paths (.ts)
+    const coreOutputFilename = `${targetBlock}.ts`;
+    const coreTargetFileLocation = join(targetFolder, coreOutputFilename);
 
-    // Write out the core base framework file cleanly
-    const coreOutputFilename = `${targetBlock}.${fileExtension}`;
-    await fs.writeFile(join(targetFolder, coreOutputFilename), coreCodeTemplate, "utf-8");
+    // IDEMPOTENCY SAFETY: Check if target block file exists before overwriting
+    try {
+      await fs.access(coreTargetFileLocation);
+      s.stop(); // Stop spinner to display clear user prompt cleanly
+      const overwritePrompt = await confirm({
+        message: `⚠ Block component file [${coreOutputFilename}] already exists. Overwrite custom code revisions?`,
+        initialValue: false
+      });
+      handleCancel(overwritePrompt);
+      if (!overwritePrompt) {
+        outro(pc.yellow("ℹ Operation aborted safely. Local code modifications preserved."));
+        return;
+      }
+      s.start(`Re-downloading template block [${targetBlock}]...`);
+    } catch {
+      // File does not exist, safe to proceed natively
+    }
 
-    // If variant data is active, write it to its own file inside the same isolated folder
+    // Write out core base framework code blocks
+    await fs.writeFile(coreTargetFileLocation, coreCodeTemplate, "utf-8");
+
+    // Process variant updates if structured records are active
     if (variantMeta && selectedVariant) {
       const variantFileUrl = `${BASE_URL}/${variantMeta.path}`;
       const variantFetchResponse = await fetch(variantFileUrl);
@@ -263,7 +326,7 @@ export async function addCommand(blockName: string | undefined) {
       }
       const variantCodeTemplate = await variantFetchResponse.text();
 
-      const variantOutputFilename = `store-${selectedVariant}.${fileExtension}`;
+      const variantOutputFilename = `store-${selectedVariant}.ts`;
       await fs.writeFile(join(targetFolder, variantOutputFilename), variantCodeTemplate, "utf-8");
     }
 
@@ -278,8 +341,10 @@ export async function addCommand(blockName: string | undefined) {
         `✨ Source blocks written to ${cleanDisplayPath}/ layout. Code ownership transferred!`
       )
     );
+    process.exit(0);
   } catch (error) {
     s.stop(pc.red("✖ Fatal crash occurred while downloading or transferring file layouts."));
     console.error(error);
+    process.exit(1);
   }
 }

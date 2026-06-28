@@ -15,7 +15,7 @@ export async function initCommand() {
   // Banner / Intro
   // -------------------------
   console.log(`
-██████╗ ██╗       ██████╗  ██████╗██╗  ██╗███████╗███╗   ██╗██████╗ 
+██████╗ ██╗       ██████╗  ██████╗██╗  ██╗███████╗███╗   ██╗██████╗
 ██╔══██╗██║      ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝████╗  ██║██╔══██╗
 ██████╔╝██║      ██║   ██║██║     █████╔╝ █████╗  ██╔██╗ ██║██║  ██║
 ██╔══██╗██║      ██║   ██║██║     ██╔═██╗ ██╔══╝  ██║╚██╗██║██║  ██║
@@ -93,20 +93,6 @@ export async function initCommand() {
     return;
   }
 
-  const language = await select({
-    message: "Confirm primary language",
-    initialValue: context.language === "typescript" ? "typescript" : "javascript",
-    options: [
-      { value: "typescript", label: "TypeScript" },
-      { value: "javascript", label: "JavaScript" }
-    ]
-  });
-
-  if (isCancel(language)) {
-    outro(format.muted("Initialization cancelled."));
-    return;
-  }
-
   // -------------------------
   // Alias & Path Resolution Strategy
   // -------------------------
@@ -157,7 +143,7 @@ export async function initCommand() {
   const configPayload: configPayloadType = {
     $schema: "https://blockend.dev/schema.json",
     environment: framework as "express" | "fastify" | "hono" | "next",
-    language: language as "typescript" | "javascript",
+    language: "typescript",
     includeRedis,
     aliases: {
       blocks: blockAlias
