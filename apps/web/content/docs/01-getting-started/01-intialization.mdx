@@ -1,0 +1,228 @@
+---
+title: Initialize Blockend
+description: Automatically configure Blockend for your project.
+---
+
+The `init` command bootstraps Blockend by analyzing your project and generating a `blockend.json` configuration file tailored to your application's structure.
+
+Run the following command from the root of your project:
+
+```bash
+npx blockend init
+```
+
+The initialization process is interactive and only needs to be completed once.
+
+---
+
+## What `init` Does
+
+During initialization, Blockend automatically:
+
+- Detects your backend framework
+- Detects whether your project uses TypeScript or JavaScript
+- Discovers your import aliases from `tsconfig.json` or `jsconfig.json`
+- Detects Redis support
+- Configures where generated blocks will be placed
+- Creates a `blockend.json` configuration file
+
+This eliminates manual configuration and ensures generated blocks follow your project's conventions.
+
+---
+
+## Interactive Setup
+
+### Framework Detection
+
+Blockend scans your project and attempts to detect the framework automatically.
+
+Supported frameworks include:
+
+- Express.js
+- Fastify
+- Next.js (App Router)
+- Hono
+
+If detection is correct, simply press **Enter**. Otherwise, choose the appropriate framework.
+
+---
+
+### Blocks Import Alias
+
+Next, Blockend asks where generated blocks should be imported from.
+
+Example:
+
+```text
+@/blocks
+```
+
+or
+
+```text
+~/blocks
+```
+
+The alias is resolved automatically to the correct physical directory using your project's path mappings.
+
+---
+
+### Redis Support
+
+If Redis is detected, Blockend will ask whether Redis-enabled block variants should be generated.
+
+```text
+Redis detected.
+Enable Redis-backed block variants automatically?
+```
+
+Choosing **Yes** enables Redis integrations for supported blocks.
+
+---
+
+## Generated Configuration
+
+After setup, Blockend creates a `blockend.json` file in your project's root.
+
+Example:
+
+```json
+{
+  "$schema": "https://blockend.dev/schema.json",
+  "environment": "express",
+  "language": "typescript",
+  "includeRedis": true,
+  "aliases": {
+    "blocks": "@/blocks"
+  },
+  "paths": {
+    "blocks": "./src/blocks"
+  }
+}
+```
+
+---
+
+## Configuration Fields
+
+### `$schema`
+
+Specifies the JSON schema used by editors for validation and autocomplete.
+
+### `environment`
+
+The backend framework Blockend should target.
+
+Supported values:
+
+- `express`
+- `fastify`
+- `next`
+- `hono`
+
+### `language`
+
+The language used by your project.
+
+Supported values:
+
+- `typescript`
+- `javascript`
+
+### `includeRedis`
+
+Controls whether Redis-enabled block templates should be generated.
+
+### `aliases.blocks`
+
+The import alias used when generating blocks.
+
+Example:
+
+```text
+@/blocks
+```
+
+### `paths.blocks`
+
+The filesystem location where Blockend will generate new blocks.
+
+Example:
+
+```text
+./src/blocks
+```
+
+---
+
+## Existing Configuration
+
+If a `blockend.json` file already exists, Blockend will ask how you want to proceed.
+
+Available options:
+
+| Option                | Description                                               |
+| --------------------- | --------------------------------------------------------- |
+| Keep existing config  | Cancel initialization and keep the current configuration. |
+| Overwrite config      | Replace the existing configuration file.                  |
+| Delete and regenerate | Remove the current configuration and generate a new one.  |
+
+---
+
+## Example
+
+```text
+$ npx blockend init
+
+✔ Project structure detected
+✔ Detected Express environment
+✔ Import strategy mapped
+
+? Confirm framework environment
+❯ Express.js
+
+? Configure blocks import alias
+❯ @/blocks
+
+? Redis detected.
+Enable Redis-backed block variants automatically?
+❯ Yes
+
+✔ blockend.json ready
+
+Blockend initialized successfully.
+Run: npx blockend add <block>
+```
+
+---
+
+## Next Steps
+
+Once initialization is complete, you can start generating backend blocks.
+
+```bash
+npx blockend add <block>
+```
+
+For example:
+
+```bash
+npx blockend add auth
+```
+
+```bash
+npx blockend add pagination
+```
+
+```bash
+npx blockend add upload
+```
+
+---
+
+## Related Commands
+
+<Cards>
+  <Card title="Add Blocks" href="/docs/commands/add" />
+  <Card title="Configuration" href="/docs/reference/configuration" />
+</Cards>

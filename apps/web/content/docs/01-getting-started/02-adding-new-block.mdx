@@ -1,0 +1,290 @@
+---
+title: Add Blocks
+description: Add production-ready backend blocks to your project.
+---
+
+The `add` command downloads a backend block from the Blockend registry and installs it directly into your project.
+
+Each block is framework-aware, TypeScript-first, and follows your project's existing configuration defined in `blockend.json`.
+
+```bash
+npx blockend add <block>
+```
+
+For example:
+
+```bash
+npx blockend add auth
+```
+
+If no block name is provided, Blockend launches an interactive block picker.
+
+```bash
+npx blockend add
+```
+
+---
+
+## How It Works
+
+When you run the command, Blockend performs several steps automatically.
+
+1. Finds your `blockend.json` configuration.
+2. Connects to the Blockend Registry.
+3. Retrieves all blocks available for your framework.
+4. Lets you select a block (if one isn't provided).
+5. Detects the appropriate storage variant.
+6. Installs missing dependencies.
+7. Downloads the block source code.
+8. Writes the files into your configured blocks directory.
+
+Everything happens automatically—no copying files or manually installing packages.
+
+---
+
+## Interactive Block Selection
+
+Running the command without a block name opens an interactive selector.
+
+```bash
+npx blockend add
+```
+
+Example:
+
+```text
+? Which backend block would you like to inject?
+
+❯ auth
+  pagination
+  upload
+  cache
+  logger
+```
+
+Only blocks compatible with your configured framework are displayed.
+
+---
+
+## Framework Aware
+
+Every block is generated specifically for your backend framework.
+
+Currently supported environments include:
+
+- Express.js
+- Fastify
+- Next.js (App Router)
+- Hono
+
+If a block is unavailable for your framework, Blockend will notify you before downloading anything.
+
+---
+
+## Storage Variants
+
+Some blocks support multiple storage implementations.
+
+For example:
+
+- Memory
+- Redis
+- Database
+
+If multiple variants are available, Blockend asks which implementation you want.
+
+```text
+? Which architectural storage variant do you want?
+
+❯ Memory
+  Redis
+```
+
+If Redis is enabled in your `blockend.json`, the Redis variant is selected automatically whenever available.
+
+---
+
+## Automatic Dependency Installation
+
+Many backend blocks require external packages.
+
+Before downloading a block, Blockend checks your project's dependencies.
+
+If required packages are missing, you'll be prompted to install them.
+
+Example:
+
+```text
+Missing required infrastructure packages:
+
+- redis
+- zod
+
+Would you like the CLI to install them automatically?
+
+❯ Yes
+```
+
+Blockend automatically detects your package manager.
+
+Supported package managers:
+
+- pnpm
+- npm
+
+After installation completes, the block download continues automatically.
+
+---
+
+## Generated Files
+
+Downloaded files are placed inside the blocks directory configured during initialization.
+
+Example:
+
+```text
+src/
+└── blocks/
+    └── auth/
+        ├── auth.ts
+        └── store-redis.ts
+```
+
+Simple blocks may generate a single file.
+
+```text
+src/
+└── blocks/
+    └── pagination.ts
+```
+
+---
+
+## Existing Files
+
+If a block already exists, Blockend never overwrites it without confirmation.
+
+Example:
+
+```text
+Block component already exists.
+
+Overwrite existing files?
+
+❯ No
+```
+
+Selecting **No** safely aborts the operation and preserves your code.
+
+---
+
+## Examples
+
+Generate an authentication block:
+
+```bash
+npx blockend add auth
+```
+
+Generate a pagination block:
+
+```bash
+npx blockend add pagination
+```
+
+Generate an upload block:
+
+```bash
+npx blockend add upload
+```
+
+Open the interactive selector:
+
+```bash
+npx blockend add
+```
+
+---
+
+## Requirements
+
+Before using the `add` command, make sure your project has been initialized.
+
+```bash
+npx blockend init
+```
+
+Blockend also requires:
+
+- A valid `blockend.json`
+- A TypeScript project
+- A supported backend framework
+- Internet access to download blocks from the Blockend Registry
+
+---
+
+## Common Errors
+
+### blockend.json not found
+
+```text
+blockend.json not found.
+Run 'npx blockend init' first.
+```
+
+Initialize your project before adding blocks.
+
+```bash
+npx blockend init
+```
+
+---
+
+### Block not found
+
+```text
+Block "auth" does not exist.
+```
+
+The requested block either doesn't exist or hasn't been published yet.
+
+Run the interactive command to see all available blocks.
+
+```bash
+npx blockend add
+```
+
+---
+
+### Unsupported Framework
+
+```text
+The block "upload" does not support your environment.
+```
+
+Some blocks are framework-specific and may not be available for every backend.
+
+---
+
+### Failed to Download Registry
+
+```text
+Failed to fetch the component registry.
+```
+
+Verify your internet connection and try again.
+
+---
+
+## Next Steps
+
+After generating a block, import it into your application and customize it as needed.
+
+Every generated block is fully owned by you—there are no runtime dependencies on Blockend.
+
+---
+
+<Cards>
+  <Card title="Initialize Blockend" href="/docs/commands/init" />
+  <Card title="Available Blocks" href="/docs/blocks" />
+</Cards>

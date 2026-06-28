@@ -1,0 +1,277 @@
+---
+title: Rate Limiter
+description: Protect your APIs from abuse with a flexible, production-ready rate limiting middleware.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Steps } from "fumadocs-ui/components/steps";
+import { File, Files, Folder } from "fumadocs-ui/components/files";
+
+The **Rate Limiter** block protects your application from abuse by limiting how many requests a client can make within a configurable time window.
+
+It supports multiple storage engines through a pluggable architecture, allowing you to start with an in-memory store during development and seamlessly migrate to Redis for production.
+
+---
+
+## Features
+
+- IP-based request limiting
+- Configurable request window
+- Configurable request limit
+- Memory and Redis storage variants
+- Custom key generation
+- Standard RateLimit headers
+- Framework-native Express middleware
+- TypeScript support
+- Production-ready architecture
+
+---
+
+## Installation
+
+Choose your preferred package manager.
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm dlx blockend-cli add rate-limit
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npx blockend-cli add rate-limit
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn dlx blockend-cli add rate-limit
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bunx blockend-cli add rate-limit
+```
+
+</Tab>
+
+</Tabs>
+
+> During installation Blockend will automatically detect your project configuration and ask which storage variant you'd like to install.
+
+---
+
+## Installation Flow
+
+<Steps>
+
+### Select Storage
+
+Choose which implementation best fits your application.
+
+```text
+? Which storage variant would you like?
+
+❯ Memory
+  Redis
+```
+
+### Install Dependencies
+
+If the selected variant requires additional packages, Blockend will install them automatically.
+
+Example:
+
+```text
+✔ Installing ioredis...
+```
+
+### Generate Files
+
+The block is generated inside your configured blocks directory.
+
+</Steps>
+
+---
+
+## Generated Files
+
+### Memory Variant
+
+<Files>
+  <Folder name="blocks" defaultOpen>
+    <Folder name="rate-limit" defaultOpen>
+      <File name="index.ts" />
+      <File name="store-memory.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+### Redis Variant
+
+<Files>
+  <Folder name="blocks" defaultOpen>
+    <Folder name="rate-limit" defaultOpen>
+      <File name="index.ts" />
+      <File name="store-redis.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+---
+
+## Basic Usage
+
+```ts
+import { rateLimit, MemoryStore } from "@/blocks/rate-limit";
+
+app.use(
+  "/api",
+  rateLimit({
+    max: 100,
+    windowMs: 60_000,
+    store: new MemoryStore()
+  })
+);
+```
+
+---
+
+## Redis Example
+
+```ts
+import Redis from "ioredis";
+
+import { rateLimit, RedisStore } from "@/blocks/rate-limit";
+
+const redis = new Redis(process.env.REDIS_URL);
+
+app.use(
+  "/api",
+  rateLimit({
+    max: 100,
+    windowMs: 60_000,
+    store: new RedisStore(redis)
+  })
+);
+```
+
+---
+
+## Configuration
+
+| Option            | Type               | Default                             | Description                              |
+| ----------------- | ------------------ | ----------------------------------- | ---------------------------------------- |
+| `windowMs`        | `number`           | `60000`                             | Request window in milliseconds           |
+| `max`             | `number`           | `100`                               | Maximum requests allowed                 |
+| `message`         | `string \| object` | `{ error: "Too many requests..." }` | Response sent when the limit is exceeded |
+| `statusCode`      | `number`           | `429`                               | HTTP response status                     |
+| `standardHeaders` | `boolean`          | `true`                              | Send RateLimit response headers          |
+| `keyGenerator`    | `(req) => string`  | Client IP                           | Generates a unique client key            |
+| `store`           | `RateLimitStore`   | **Required**                        | Storage implementation                   |
+
+---
+
+## Response Headers
+
+When `standardHeaders` is enabled, the middleware automatically includes:
+
+```http
+RateLimit-Limit: 100
+RateLimit-Remaining: 94
+RateLimit-Reset: 1717344000
+```
+
+These headers allow clients to monitor their remaining request quota.
+
+---
+
+## Manual Installation
+
+Prefer copying the source code instead of using the CLI?
+
+Simply copy the following files into your project.
+
+### Memory
+
+<Files>
+  <Folder name="blocks" defaultOpen>
+    <Folder name="rate-limit" defaultOpen>
+      <File name="index.ts" />
+      <File name="store-memory.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+### Redis
+
+<Files>
+  <Folder name="blocks" defaultOpen>
+    <Folder name="rate-limit" defaultOpen>
+      <File name="index.ts" />
+      <File name="store-redis.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+---
+
+## Storage Variants
+
+### Memory
+
+Recommended for:
+
+- Development
+- Small applications
+- Single-server deployments
+
+Pros:
+
+- Zero dependencies
+- Extremely fast
+- Simple setup
+
+---
+
+### Redis
+
+Recommended for:
+
+- Production
+- Multiple application instances
+- Load-balanced deployments
+
+Pros:
+
+- Shared request counters
+- Distributed rate limiting
+- Horizontal scalability
+
+Requires:
+
+```bash
+pnpm add ioredis
+```
+
+---
+
+## Production Recommendations
+
+- Use the Redis variant in production.
+- Apply stricter limits to authentication endpoints.
+- Use a custom `keyGenerator` for authenticated APIs.
+- Monitor rejected requests.
+- Combine with authentication and logging middleware.
+
+---

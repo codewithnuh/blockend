@@ -1,13 +1,38 @@
 ---
-title: Hello World
-description: Your first document
+title: Introduction
+description: Discover Blockend — an open-source library providing modular, type-safe backend blocks for rapid product development.
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+Welcome to the **Blockend** documentation! Blockend shifts absolute code ownership back to the developer by providing production-grade, framework-agnostic backend blocks. Instead of installing heavy, restrictive npm packages that cloud your node_modules, Blockend injects clean, type-safe TypeScript directly into your workspace layout.
 
-## What is Next?
+## Core Philosophies
+
+- **Code Ownership:** Once a block is injected into your architecture, it is completely yours. Modify, extend, or refactor it natively without configuration overrides.
+- **Modern Standards:** Built exclusively for TypeScript environments with native type safety supported by Zod validations.
+- **Zero Overhead:** No bloated wrappers. Blockend downloads only what your target infrastructure demands, keeping your runtime fast and predictable.
+
+## Quick Navigation
 
 <Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
+  <Card
+    title="CLI Initialization"
+    description="Learn how to configure your local workspace layout using blockend.json."
+    href="/docs/cli-init"
+  />
+  <Card
+    title="Ingesting Components"
+    description="Explore how to download core middleware and storage variants seamlessly."
+    href="/docs/add-command"
+  />
+</Cards>
+
+## Ecosystem Frameworks
+
+Blockend filters components dynamically based on your targeted framework layer. Learn more about the underlying ecosystems we optimize for:
+
+<Cards>
+  <Card title="Next.js App Router" href="https://nextjs.org/docs" />
+  <Card title="Hono Framework" href="https://hono.dev" />
+  <Card title="Fastify Engine" href="https://fastify.dev" />
+  <Card title="Express layer" href="https://expressjs.com" />
 </Cards>

@@ -50,12 +50,10 @@ export function HeroSection() {
           >
             <CopyButton command="npx blockend-cli init" />
             <Link
-              href="https://github.com/codewithnuh/blockend"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/docs"
               className="rounded-lg px-5 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground"
             >
-              View on GitHub →
+              Read Docs →
             </Link>
           </div>
 
