@@ -17,9 +17,11 @@ const BRANCH = "master";
 const RAW_CDN_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
 const MANIFEST_URL = `${RAW_CDN_BASE}/registry/index.json`;
 
+// Updated to enforce the new architectural standard
 interface VariantConfig {
   dependencies: string[];
-  path: string;
+  devDependencies?: string[];
+  files: string[];
 }
 
 interface EnvironmentConfig {
@@ -123,10 +125,9 @@ export async function addCommand(blockName: string | undefined) {
 
   const envKey = String(config.environment) as "express" | "fastify" | "hono" | "next";
 
-  // 3. Framework-Targeted Filtered Prompt Selection
+  // 3. Framework-Target Filtered Prompt Selection
   let targetBlock = blockName;
   if (!targetBlock) {
-    // Dynamically filter registry options based on the user's selected framework environment layout
     const availableOptions = Object.keys(registry)
       .filter((key) => registry[key].environments[envKey] !== undefined)
       .map((key) => ({
@@ -189,7 +190,7 @@ export async function addCommand(blockName: string | undefined) {
     variantMeta = envConfig.variants[selectedVariant];
   }
 
-  // 5. Recursive Resolution of package.json Location (Handling Ghost Scenario)
+  // 5. Recursive Resolution of package.json Location
   const packageJsonPath = await findUp("package.json", rootDir);
   if (!packageJsonPath) {
     outro(pc.red("✖ Could not locate package.json in your current directory layout hierarchy."));
@@ -268,16 +269,14 @@ export async function addCommand(blockName: string | undefined) {
   s.start(`Downloading clean production template block [${targetBlock}]...`);
 
   try {
-    const BASE_URL = RAW_CDN_BASE;
-
-    // Fetch core middleware payload
-    const coreFileUrl = `${BASE_URL}/${envConfig.core}`;
-
-    const coreFetchResponse = await fetch(coreFileUrl);
-    if (!coreFetchResponse.ok) {
-      throw new Error(`Failed downloading core component file: ${coreFetchResponse.statusText}`);
+    // Collect all remote paths to download
+    const remoteFilesToDownload: string[] = [];
+    if (envConfig.core) {
+      remoteFilesToDownload.push(envConfig.core);
     }
-    const coreCodeTemplate = await coreFetchResponse.text();
+    if (variantMeta && Array.isArray(variantMeta.files)) {
+      remoteFilesToDownload.push(...variantMeta.files);
+    }
 
     // TARGET STRUCTURE SETUPS: Handle configuration maps safely
     let physicalPath = config.paths.blocks;
@@ -285,22 +284,30 @@ export async function addCommand(blockName: string | undefined) {
       physicalPath = "./src/blocks";
     }
 
+    // Standard block component folder location
     let targetFolder = path.resolve(rootDir, physicalPath);
     if (variantMeta && selectedVariant) {
       targetFolder = join(targetFolder, targetBlock);
     }
-    await fs.mkdir(targetFolder, { recursive: true });
 
-    // File writes are hardcoded directly to clean TypeScript paths (.ts)
-    const coreOutputFilename = `${targetBlock}.ts`;
-    const coreTargetFileLocation = join(targetFolder, coreOutputFilename);
+    // Check configuration idempotency for any files that might overwrite existing work
+    let fileExistsConflict = false;
+    for (const remoteFile of remoteFilesToDownload) {
+      const parsedFilename = path.basename(remoteFile, ".txt"); // drops '.txt' extension safely
+      const checkFileLocation = join(targetFolder, parsedFilename);
+      try {
+        await fs.access(checkFileLocation);
+        fileExistsConflict = true;
+        break;
+      } catch {
+        // File does not exist yet
+      }
+    }
 
-    // IDEMPOTENCY SAFETY: Check if target block file exists before overwriting
-    try {
-      await fs.access(coreTargetFileLocation);
-      s.stop(); // Stop spinner to display clear user prompt cleanly
+    if (fileExistsConflict) {
+      s.stop(); // Temporarily halt spinner to prompt user clearly
       const overwritePrompt = await confirm({
-        message: `⚠ Block component file [${coreOutputFilename}] already exists. Overwrite custom code revisions?`,
+        message: `⚠ Components in [${targetBlock}] already exist. Overwrite custom revisions?`,
         initialValue: false
       });
       handleCancel(overwritePrompt);
@@ -308,27 +315,26 @@ export async function addCommand(blockName: string | undefined) {
         outro(pc.yellow("ℹ Operation aborted safely. Local code modifications preserved."));
         return;
       }
-      s.start(`Re-downloading template block [${targetBlock}]...`);
-    } catch {
-      // File does not exist, safe to proceed natively
+      s.start(`Re-downloading template block files [${targetBlock}]...`);
     }
 
-    // Write out core base framework code blocks
-    await fs.writeFile(coreTargetFileLocation, coreCodeTemplate, "utf-8");
+    // Create container folder structures securely
+    await fs.mkdir(targetFolder, { recursive: true });
 
-    // Process variant updates if structured records are active
-    if (variantMeta && selectedVariant) {
-      const variantFileUrl = `${BASE_URL}/${variantMeta.path}`;
-      const variantFetchResponse = await fetch(variantFileUrl);
-      if (!variantFetchResponse.ok) {
-        throw new Error(
-          `Failed downloading storage variant file: ${variantFetchResponse.statusText}`
-        );
+    // Stream and write every queued file layout
+    for (const remoteFilePath of remoteFilesToDownload) {
+      const fileUrl = `${RAW_CDN_BASE}/${remoteFilePath}`;
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error(`Failed downloading file: ${remoteFilePath} (${response.statusText})`);
       }
-      const variantCodeTemplate = await variantFetchResponse.text();
+      const rawCodeTemplate = await response.text();
 
-      const variantOutputFilename = `store-${selectedVariant}.ts`;
-      await fs.writeFile(join(targetFolder, variantOutputFilename), variantCodeTemplate, "utf-8");
+      // Form local filename path drops '.txt' suffix to lock .ts formats
+      const targetFilename = path.basename(remoteFilePath, ".txt");
+      const localWriteLocation = join(targetFolder, targetFilename);
+
+      await fs.writeFile(localWriteLocation, rawCodeTemplate, "utf-8");
     }
 
     const cleanDisplayPath =

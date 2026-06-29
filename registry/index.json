@@ -8,11 +8,11 @@
         "variants": {
           "memory": {
             "dependencies": [],
-            "path": "blocks/rate-limiter/express/store-memory.ts.txt"
+            "files": ["blocks/rate-limiter/express/store-memory.ts.txt"]
           },
           "redis": {
             "dependencies": ["ioredis"],
-            "path": "blocks/rate-limiter/express/store-redis.ts.txt"
+            "files": ["blocks/rate-limiter/express/store-redis.ts.txt"]
           }
         }
       }
@@ -20,21 +20,25 @@
   },
   "error-handler": {
     "name": "Global Error Handler",
-    "description": "Centralized Express error handling with typed AppError, async route wrapping, and Zod validation error formatting. Framework for your own errors, zero database assumptions.",
+    "description": "Centralized Express error handling...",
     "environments": {
       "express": {
         "core": "blocks/error-handler/express/base.ts.txt",
-        "files": [
-          "blocks/error-handler/express/app-error.ts.txt",
-          "blocks/error-handler/express/errors.ts.txt",
-          "blocks/error-handler/express/http-status.ts.txt",
-          "blocks/error-handler/express/throw-error.ts.txt",
-          "blocks/error-handler/express/global-error-handler.ts.txt",
-          "blocks/error-handler/express/async-handler.ts.txt",
-          "blocks/error-handler/express/index.ts.txt"
-        ],
-        "dependencies": ["zod"],
-        "devDependencies": ["@types/express"]
+        "variants": {
+          "default": {
+            "dependencies": ["zod"],
+            "devDependencies": ["@types/express"],
+            "files": [
+              "blocks/error-handler/express/app-error.ts.txt",
+              "blocks/error-handler/express/errors.ts.txt",
+              "blocks/error-handler/express/http-status.ts.txt",
+              "blocks/error-handler/express/throw-error.ts.txt",
+              "blocks/error-handler/express/global-error-handler.ts.txt",
+              "blocks/error-handler/express/async-handler.ts.txt",
+              "blocks/error-handler/express/index.ts.txt"
+            ]
+          }
+        }
       }
     }
   }
