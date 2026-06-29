@@ -1,0 +1,17 @@
+import { AppError } from './app-error.js'
+import { ERRORS } from './errors.js'
+
+/**
+ * Throws an AppError from a catalog entry in ERRORS.
+ *
+ * Usage: throwError(ERRORS.NOT_FOUND)
+ * Equivalent to: throw new AppError(404, 'Not found')
+ *
+ * Use this for catalog errors. Use `new AppError(status, message)`
+ * directly for one-off errors that don't belong in the shared catalog.
+ */
+export function throwError(error: { message: string; status: number }): never {
+  throw new AppError(error.status, error.message)
+}
+
+export { ERRORS }

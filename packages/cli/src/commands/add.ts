@@ -28,6 +28,7 @@ interface EnvironmentConfig {
     [variantKey: string]: VariantConfig;
   };
   dependencies?: string[];
+  devDependencies?: string[];
 }
 
 interface RegistryManifest {

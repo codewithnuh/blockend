@@ -1,0 +1,20 @@
+import { Request, Response, NextFunction } from 'express'
+
+/**
+ * Wraps an async Express route handler so rejected promises are passed
+ * to `next()` and reach the global error handler, instead of crashing
+ * the process or hanging the request.
+ *
+ * Pairs directly with globalErrorHandler — use both together.
+ *
+ * router.get('/users/:id', asyncHandler(async (req, res) => {
+ *   const user = await db.user.findUnique({ where: { id: req.params.id } })
+ *   if (!user) throwError(ERRORS.NOT_FOUND)
+ *   res.json(user)
+ * }))
+ */
+export const asyncHandler =
+  (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
+  (req: Request, res: Response, next: NextFunction): void => {
+    Promise.resolve(fn(req, res, next)).catch(next)
+  }

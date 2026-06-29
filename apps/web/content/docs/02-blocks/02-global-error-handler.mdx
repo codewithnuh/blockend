@@ -1,0 +1,679 @@
+---
+title: Error Handler
+description: A centralized, type-safe error handling pipeline for Express applications.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Steps } from "fumadocs-ui/components/steps";
+import { File, Files, Folder } from "fumadocs-ui/components/files";
+
+The **Error Handler** block gives your Express application a single, predictable place to handle every error — expected or not.
+
+It separates errors you anticipate (bad input, missing resources, failed auth) from bugs you don't, returning a clean JSON response for the former and a safe, logged fallback for the latter. No database assumptions, no framework lock-in beyond Express — just a typed `AppError` class, an error catalog, and the middleware that ties them together.
+
+---
+
+## Features
+
+- Centralized Express error-handling middleware
+- Typed `AppError` class with status code and operational flag
+- Shared error catalog for consistent messages across your app
+- Built-in Zod validation error formatting
+- Async route wrapper so rejected promises never get swallowed
+- Zero database assumptions — wire in your own DB error mapping
+- TypeScript support
+- Production-ready architecture
+
+---
+
+## Installation
+
+Choose your preferred package manager.
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm dlx blockend-cli add error-handler
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npx blockend-cli add error-handler
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn dlx blockend-cli add error-handler
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bunx blockend-cli add error-handler
+```
+
+</Tab>
+
+</Tabs>
+
+> Error Handler has no storage variants — Blockend detects your project configuration and installs the full block directly, no prompts required.
+
+---
+
+## Installation Flow
+
+<Steps>
+
+### Detect Configuration
+
+Blockend reads your project's language, framework, and alias setup — no manual config needed.
+
+### Install Dependencies
+
+`zod` is required for validation error formatting. Blockend installs it automatically if it isn't already present.
+
+```text
+✔ Installing zod...
+```
+
+### Generate Files
+
+The block is generated inside your configured blocks directory.
+
+</Steps>
+
+---
+
+## Generated Files
+
+<Files>
+  <Folder name="blocks" defaultOpen>
+    <Folder name="error-handler" defaultOpen>
+      <File name="index.ts" />
+      <File name="app-error.ts" />
+      <File name="errors.ts" />
+      <File name="http-status.ts" />
+      <File name="throw-error.ts" />
+      <File name="global-error-handler.ts" />
+      <File name="async-handler.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+---
+
+## Basic Usage
+
+Register the handler **last**, after all your routes and other middleware. Express identifies error-handling middleware by its 4-argument signature and only invokes the first one that matches.
+
+```ts
+import express from "express";
+import { globalErrorHandler } from "@/blocks/error-handler";
+
+const app = express();
+
+// ...your routes go here
+
+app.use(globalErrorHandler);
+
+app.listen(3000);
+```
+
+---
+
+## Throwing Errors
+
+### Using the catalog
+
+```ts
+import { asyncHandler, throwError, ERRORS } from "@/blocks/error-handler";
+
+router.get(
+  "/users/:id",
+  asyncHandler(async (req, res) => {
+    const user = await db.user.findUnique({ where: { id: req.params.id } });
+
+    if (!user) throwError(ERRORS.NOT_FOUND);
+
+    res.json(user);
+  })
+);
+```
+
+### Using `AppError` directly
+
+For one-off errors that don't belong in the shared catalog:
+
+```ts
+import { AppError } from "@/blocks/error-handler";
+
+if (!isValidPlan(plan)) {
+  throw new AppError(400, `Unsupported plan: ${plan}`);
+}
+```
+
+---
+
+## Async Routes
+
+Express does not catch rejected promises in route handlers by default — an unhandled rejection inside an `async` handler will hang the request or crash the process. `asyncHandler` wraps your handler so any rejection is passed to `next()` and reaches `globalErrorHandler`.
+
+```ts
+import { asyncHandler } from "@/blocks/error-handler";
+
+router.post(
+  "/orders",
+  asyncHandler(async (req, res) => {
+    const order = await createOrder(req.body);
+    res.status(201).json(order);
+  })
+);
+```
+
+> Wrap every async route handler. Without it, thrown errors and rejected promises never reach `globalErrorHandler`.
+
+---
+
+## Validation Errors
+
+If you throw or pass a `ZodError` to `next()`, the handler automatically formats it using `z.treeifyError`:
+
+```ts
+import { z } from "zod";
+import { asyncHandler } from "@/blocks/error-handler";
+
+const createUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8)
+});
+
+router.post(
+  "/users",
+  asyncHandler(async (req, res) => {
+    const data = createUserSchema.parse(req.body); // throws ZodError on failure
+    const user = await db.user.create({ data });
+    res.status(201).json(user);
+  })
+);
+```
+
+Response on failure:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Validation failed",
+  "errors": {
+    "errors": [],
+    "properties": {
+      "email": { "errors": ["Invalid email"] }
+    }
+  }
+}
+```
+
+---
+
+## Response Shape
+
+Every error response follows the same shape, whether it came from `AppError`, Zod, or an unhandled exception:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Resource not found"
+}
+```
+
+Unhandled errors never leak a stack trace or internal details to the client — they're logged server-side and returned as a generic `500`.
+
+---
+
+## A Note on Import Extensions
+
+If your project uses `"module": "NodeNext"` (or `"Node16"`) in `tsconfig.json` together with `"type": "module"` in `package.json`, Node's ESM loader requires explicit file extensions on relative imports — `.js`, even though the source file is `.ts`. This is a Node.js requirement, not a Blockend one.
+
+If you're unsure which applies to you, check `package.json` for `"type": "module"` and `tsconfig.json` for `"moduleResolution": "NodeNext"`. If neither is present, you don't need the extension.
+
+---
+
+## Manual Installation
+
+Prefer copying the source code instead of using the CLI?
+
+Install the one dependency and one devDependecy this block needs:
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm add zod
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npm install zod
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn add zod
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bun add zod
+```
+
+</Tab>
+
+</Tabs>
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm add -D @types/express
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npm install -D @types/express
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn add -D @types/express
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bun add -d @types/express
+```
+
+</Tab>
+
+</Tabs>
+
+Then create the following files in your project.
+
+<Files>
+  <Folder name="blocks" defaultOpen>
+    <Folder name="error-handler" defaultOpen>
+      <File name="index.ts" />
+      <File name="app-error.ts" />
+      <File name="errors.ts" />
+      <File name="http-status.ts" />
+      <File name="throw-error.ts" />
+      <File name="global-error-handler.ts" />
+      <File name="async-handler.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+### `http-status.ts`
+
+```ts title="blocks/error-handler/http-status.ts"
+export const HTTP_STATUS = {
+  OK: 200,
+  CREATED: 201,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  UNPROCESSABLE_ENTITY: 422,
+  INTERNAL_SERVER_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503
+} as const;
+
+export type HttpStatus = (typeof HTTP_STATUS)[keyof typeof HTTP_STATUS];
+```
+
+### `app-error.ts`
+
+```ts title="blocks/error-handler/app-error.ts"
+/**
+ * Base class for all expected, handled application errors.
+ *
+ * Use this for errors you anticipate — bad input, missing resources,
+ * auth failures. The global error handler checks `instanceof AppError`
+ * and returns a clean, predictable JSON shape for these.
+ *
+ * Anything that is NOT an AppError is treated as a bug, logged in full,
+ * and never leaked to the client beyond a generic message.
+ */
+export class AppError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    message: string,
+    /**
+     * Operational errors are expected and safe to expose to the client.
+     * Set to false for errors that are technically anticipated but
+     * shouldn't reveal details (rare — defaults to true for normal use).
+     */
+    public readonly isOperational: boolean = true
+  ) {
+    super(message);
+    this.name = "AppError";
+
+    // Required when extending built-ins like Error in TypeScript —
+    // without this, `instanceof AppError` can silently return false
+    // depending on the consuming project's compile target.
+    Object.setPrototypeOf(this, AppError.prototype);
+  }
+}
+```
+
+### `errors.ts`
+
+```ts title="blocks/error-handler/errors.ts"
+import { HTTP_STATUS } from "./http-status";
+
+/**
+ * Common error catalog. Use with `throwError(ERRORS.NOT_FOUND)` or
+ * reference `.message` / `.status` directly when building your own AppError.
+ *
+ * This is a starting set, not an exhaustive one — add your own entries
+ * as your domain needs them. It's your file now.
+ */
+export const ERRORS = {
+  VALIDATION_FAILED: {
+    message: "Validation failed",
+    status: HTTP_STATUS.BAD_REQUEST
+  },
+  BAD_REQUEST: {
+    message: "Bad request",
+    status: HTTP_STATUS.BAD_REQUEST
+  },
+  INVALID_CREDENTIALS: {
+    message: "Invalid credentials",
+    status: HTTP_STATUS.UNAUTHORIZED
+  },
+  UNAUTHORIZED: {
+    message: "Unauthorized access",
+    status: HTTP_STATUS.UNAUTHORIZED
+  },
+  FORBIDDEN: {
+    message: "You do not have permission to perform this action",
+    status: HTTP_STATUS.FORBIDDEN
+  },
+  TOKEN_EXPIRED: {
+    message: "Session expired. Please log in again.",
+    status: HTTP_STATUS.UNAUTHORIZED
+  },
+  INVALID_TOKEN: {
+    message: "Invalid token",
+    status: HTTP_STATUS.UNAUTHORIZED
+  },
+  TOKEN_TYPE_MISMATCH: {
+    message: "Token type mismatch",
+    status: HTTP_STATUS.UNAUTHORIZED
+  },
+  TOKEN_REVOKED: {
+    message: "Token has been revoked",
+    status: HTTP_STATUS.UNAUTHORIZED
+  },
+  NOT_FOUND: {
+    message: "Not found",
+    status: HTTP_STATUS.NOT_FOUND
+  },
+  USER_ALREADY_EXISTS: {
+    message: "User already exists",
+    status: HTTP_STATUS.CONFLICT
+  },
+  DUPLICATE_RESOURCE: {
+    message: "Resource already exists",
+    status: HTTP_STATUS.CONFLICT
+  },
+  UNPROCESSABLE: {
+    message: "Unable to process the request",
+    status: HTTP_STATUS.UNPROCESSABLE_ENTITY
+  },
+  INTERNAL_SERVER_ERROR: {
+    message: "Internal server error",
+    status: HTTP_STATUS.INTERNAL_SERVER_ERROR
+  },
+  SERVICE_UNAVAILABLE: {
+    message: "Service temporarily unavailable",
+    status: HTTP_STATUS.SERVICE_UNAVAILABLE
+  }
+} as const;
+
+export type ErrorKey = keyof typeof ERRORS;
+```
+
+### `throw-error.ts`
+
+```ts title="blocks/error-handler/throw-error.ts"
+import { AppError } from "./app-error";
+import { ERRORS } from "./errors";
+
+/**
+ * Throws an AppError from a catalog entry in ERRORS.
+ *
+ * Usage: throwError(ERRORS.NOT_FOUND)
+ * Equivalent to: throw new AppError(404, 'Not found')
+ *
+ * Use this for catalog errors. Use `new AppError(status, message)`
+ * directly for one-off errors that don't belong in the shared catalog.
+ */
+export function throwError(error: { message: string; status: number }): never {
+  throw new AppError(error.status, error.message);
+}
+
+export { ERRORS };
+```
+
+### `async-handler.ts`
+
+```ts title="blocks/error-handler/async-handler.ts"
+import { Request, Response, NextFunction } from "express";
+
+/**
+ * Wraps an async Express route handler so rejected promises are passed
+ * to `next()` and reach the global error handler, instead of crashing
+ * the process or hanging the request.
+ *
+ * Pairs directly with globalErrorHandler — use both together.
+ *
+ * router.get('/users/:id', asyncHandler(async (req, res) => {
+ *   const user = await db.user.findUnique({ where: { id: req.params.id } })
+ *   if (!user) throwError(ERRORS.NOT_FOUND)
+ *   res.json(user)
+ * }))
+ */
+export const asyncHandler =
+  (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
+  (req: Request, res: Response, next: NextFunction): void => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+```
+
+### `global-error-handler.ts`
+
+```ts title="blocks/error-handler/global-error-handler.ts"
+import { Request, Response, NextFunction } from "express";
+import { z, ZodError } from "zod";
+
+import { AppError } from "./app-error";
+import { HTTP_STATUS } from "./http-status";
+import { ERRORS } from "./errors";
+
+/**
+ * Express error-handling middleware. Register this LAST, after all routes
+ * and other middleware — Express identifies error handlers by their
+ * 4-argument signature, and only calls the first one that matches.
+ *
+ * app.use(globalErrorHandler)
+ */
+export const globalErrorHandler = (
+  err: unknown,
+  req: Request,
+  res: Response,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  next: NextFunction
+) => {
+  // -------------------------
+  // Custom AppError — expected, operational errors
+  // -------------------------
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      data: null,
+      message: err.message
+    });
+  }
+
+  // -------------------------
+  // Zod validation error
+  // -------------------------
+  if (err instanceof ZodError) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      data: null,
+      message: ERRORS.VALIDATION_FAILED.message,
+      errors: z.treeifyError(err)
+    });
+  }
+
+  // -------------------------
+  // Unknown / unhandled errors — never leak details to the client
+  // -------------------------
+  logUnhandledError(err, req);
+
+  return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+    success: false,
+    data: null,
+    message: ERRORS.INTERNAL_SERVER_ERROR.message
+  });
+};
+
+/**
+ * Single seam for unhandled-error logging. Swap this out for a
+ * structured logger (e.g. Blockend's `logger` block) without touching
+ * the control flow above.
+ */
+function logUnhandledError(err: unknown, req: Request): void {
+  console.error("[UNHANDLED ERROR]", {
+    method: req.method,
+    path: req.path,
+    error: err
+  });
+}
+```
+
+### `index.ts`
+
+```ts title="blocks/error-handler/index.ts"
+export { AppError } from "./app-error";
+export { ERRORS } from "./errors";
+export type { ErrorKey } from "./errors";
+export { HTTP_STATUS } from "./http-status";
+export type { HttpStatus } from "./http-status";
+export { throwError } from "./throw-error";
+export { globalErrorHandler } from "./global-error-handler";
+export { asyncHandler } from "./async-handler";
+```
+
+> If your project uses `"type": "module"` with `"moduleResolution": "NodeNext"`, add a `.js` extension to each relative import above — see [A Note on Import Extensions](#a-note-on-import-extensions).
+
+---
+
+## Extending the Error Catalog
+
+`ERRORS` is your file once it's generated — add entries as your domain needs them:
+
+```ts
+// blocks/error-handler/errors.ts
+export const ERRORS = {
+  // ...existing entries
+  SUBSCRIPTION_EXPIRED: {
+    message: "Your subscription has expired",
+    status: HTTP_STATUS.FORBIDDEN
+  }
+} as const;
+```
+
+---
+
+## Mapping Database Errors
+
+This block makes no assumptions about your database. To map a DB-specific error (a unique constraint violation, for example) to a clean `AppError`, narrow it in your own code before it reaches the handler:
+
+```ts
+function isUniqueConstraintError(err: unknown): err is { code: "P2002" } {
+  return typeof err === "object" && err !== null && "code" in err && err.code === "P2002";
+}
+
+router.post(
+  "/users",
+  asyncHandler(async (req, res, next) => {
+    try {
+      const user = await db.user.create({ data: req.body });
+      res.status(201).json(user);
+    } catch (err) {
+      if (isUniqueConstraintError(err)) {
+        return next(new AppError(409, "A user with this email already exists"));
+      }
+      next(err);
+    }
+  })
+);
+```
+
+This keeps the block portable across MongoDB, Postgres, MySQL, or any ORM — you decide which error codes matter for your stack.
+
+---
+
+## Configuration
+
+| Export               | Type                                                  | Description                                                            |
+| -------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| `AppError`           | `class`                                               | Base error class — `new AppError(statusCode, message, isOperational?)` |
+| `ERRORS`             | `Record<string, { message: string; status: number }>` | Shared catalog of common errors                                        |
+| `HTTP_STATUS`        | `Record<string, number>`                              | Named HTTP status code constants                                       |
+| `throwError`         | `(error: { message, status }) => never`               | Throws an `AppError` from a catalog entry                              |
+| `globalErrorHandler` | `Express ErrorRequestHandler`                         | The 4-argument middleware — register last                              |
+| `asyncHandler`       | `(fn) => RequestHandler`                              | Wraps async route handlers to forward rejections to `next()`           |
+
+---
+
+## Production Recommendations
+
+- Register `globalErrorHandler` after every other route and middleware, with no exceptions.
+- Wrap every async route handler in `asyncHandler` — a single unwrapped handler can hang a request indefinitely.
+- Keep `isOperational: false` reserved for errors you've anticipated but don't want to describe in detail to the client.
+- Pair with Blockend's `logger` block by replacing the internal `console.error` call with your structured logger.
+- Map database-specific errors in your own data layer, not inside the handler — keeps the block portable across stacks.

@@ -1,0 +1,30 @@
+/**
+ * Base class for all expected, handled application errors.
+ *
+ * Use this for errors you anticipate — bad input, missing resources,
+ * auth failures. The global error handler checks `instanceof AppError`
+ * and returns a clean, predictable JSON shape for these.
+ *
+ * Anything that is NOT an AppError is treated as a bug, logged in full,
+ * and never leaked to the client beyond a generic message.
+ */
+export class AppError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    message: string,
+    /**
+     * Operational errors are expected and safe to expose to the client.
+     * Set to false for errors that are technically anticipated but
+     * shouldn't reveal details (rare — defaults to true for normal use).
+     */
+    public readonly isOperational: boolean = true
+  ) {
+    super(message)
+    this.name = 'AppError'
+
+    // Required when extending built-ins like Error in TypeScript —
+    // without this, `instanceof AppError` can silently return false
+    // depending on the consuming project's compile target.
+    Object.setPrototypeOf(this, AppError.prototype)
+  }
+}

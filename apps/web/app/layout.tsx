@@ -2,7 +2,7 @@ import { RootProvider } from "fumadocs-ui/provider/next";
 import "./global.css";
 import { Inter } from "next/font/google";
 import { Metadata } from "next";
-
+import { Analytics } from "@vercel/analytics/next";
 const inter = Inter({
   subsets: ["latin"]
 });
@@ -27,7 +27,12 @@ export const metadata: Metadata = {
     "Open Source Developer Tools"
   ],
   authors: [{ name: "Noor ul hassan" }],
+  creator: "Noor ul hassan",
+  applicationName: "Blockend",
   metadataBase: new URL("https://blockend.noorulhassan.com"),
+  alternates: {
+    canonical: "/"
+  },
 
   // Open Graph (LinkedIn, Facebook, Discord)
   openGraph: {
@@ -85,6 +90,7 @@ export default function Layout({ children }: LayoutProps) {
     <html lang="en" className={inter.className} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
         <RootProvider>{children}</RootProvider>
+        <Analytics />
       </body>
     </html>
   );

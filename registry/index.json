@@ -17,5 +17,25 @@
         }
       }
     }
+  },
+  "error-handler": {
+    "name": "Global Error Handler",
+    "description": "Centralized Express error handling with typed AppError, async route wrapping, and Zod validation error formatting. Framework for your own errors, zero database assumptions.",
+    "environments": {
+      "express": {
+        "core": "blocks/error-handler/express/base.ts.txt",
+        "files": [
+          "blocks/error-handler/express/app-error.ts.txt",
+          "blocks/error-handler/express/errors.ts.txt",
+          "blocks/error-handler/express/http-status.ts.txt",
+          "blocks/error-handler/express/throw-error.ts.txt",
+          "blocks/error-handler/express/global-error-handler.ts.txt",
+          "blocks/error-handler/express/async-handler.ts.txt",
+          "blocks/error-handler/express/index.ts.txt"
+        ],
+        "dependencies": ["zod"],
+        "devDependencies": ["@types/express"]
+      }
+    }
   }
 }
