@@ -97,7 +97,8 @@ export const ROADMAP_BRICKS: RoadmapBrick[] = [
   {
     label: "error-handler",
     description: "Centralized error pipeline",
-    status: "planned"
+    status: "ready",
+    wide: true
   },
   {
     label: "logger",
