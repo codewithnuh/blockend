@@ -23,7 +23,6 @@
     "description": "Centralized Express error handling...",
     "environments": {
       "express": {
-        "core": "blocks/error-handler/express/base.ts.txt",
         "variants": {
           "default": {
             "dependencies": ["zod"],
