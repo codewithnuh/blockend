@@ -12,7 +12,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-
+    "ignoreDeprecations": "6.0",
     /* CLI optimization */
     "resolveJsonModule": true,
     "removeComments": true
