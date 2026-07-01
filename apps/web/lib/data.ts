@@ -40,8 +40,8 @@ export const TERMINAL_SCRIPT: TerminalLine[] = [
 // ─── Problem section chips ────────────────────────────────────────────────────
 export const BLOCK_CHIPS: BlockChip[] = [
   { label: "rate-limiter", available: true },
-  { label: "error-handler", available: false },
-  { label: "logger", available: false },
+  { label: "error-handler", available: true },
+  { label: "logger", available: true },
   { label: "validator", available: false },
   { label: "pagination", available: false },
   { label: "idempotency", available: false }
@@ -103,7 +103,8 @@ export const ROADMAP_BRICKS: RoadmapBrick[] = [
   {
     label: "logger",
     description: "Structured request logging",
-    status: "planned"
+    status: "ready",
+    wide: true
   },
   {
     label: "request-validator",

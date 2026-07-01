@@ -1,0 +1,383 @@
+---
+title: Logger
+description: Structured, request-aware logging with automatic request IDs and framework adapters.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Steps } from "fumadocs-ui/components/steps";
+import { File, Files, Folder } from "fumadocs-ui/components/files";
+
+The **Logger** block provides a shared, structured logger for your application with automatic request context propagation using Node.js `AsyncLocalStorage`.
+
+Every log created during a request automatically includes the same request ID, making it easy to trace a request across your application without manually passing IDs between functions.
+
+The block consists of a framework-independent logger (`core.ts`) and a framework adapter. Blockend automatically detects your project and generates the appropriate adapter during installation.
+
+---
+
+## Features
+
+- Shared logger instance for your entire application
+- Automatic request ID generation and propagation
+- Request context powered by `AsyncLocalStorage`
+- Automatic HTTP request logging
+- Framework-specific adapters generated automatically
+- Built-in redaction for common sensitive fields
+- Pretty logs during development
+- JSON logs in production
+- TypeScript support
+
+---
+
+## Installation
+
+Choose your preferred package manager.
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm dlx blockend-cli add logger
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npx blockend-cli add logger
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn dlx blockend-cli add logger
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bunx blockend-cli add logger
+```
+
+</Tab>
+
+</Tabs>
+
+> Blockend automatically detects your framework and generates the appropriate adapter. For an Express project, it generates `express-adapter.ts` automatically—no prompts or manual configuration required.
+
+---
+
+## Installation Flow
+
+<Steps>
+
+### Detect Project
+
+Blockend detects your project's framework, language, aliases and configuration.
+
+### Install Dependencies
+
+The required dependencies are installed automatically.
+
+```text
+Executing: pnpm add pino
+Executing: pnpm add -D pino-pretty @types/express
+```
+
+### Generate Files
+
+The logger block is generated inside your configured blocks directory.
+
+</Steps>
+
+---
+
+## Generated Files
+
+<Files>
+  <Folder name="blocks" defaultOpen>
+    <Folder name="logger" defaultOpen>
+      <File name="core.ts" />
+      <File name="express-adapter.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+---
+
+## Basic Usage
+
+Import the shared logger anywhere in your application.
+
+```ts
+import { logger } from "@/blocks/logger/core";
+
+logger.info("Application started");
+
+logger.info(
+  {
+    userId: user.id
+  },
+  "User signed in"
+);
+
+logger.warn("Cache unavailable");
+
+logger.error({ err }, "Unexpected error");
+```
+
+Every file imports the same logger instance, so your entire application shares one consistent logging configuration.
+
+---
+
+## Express Adapter
+
+Register the adapter before your routes.
+
+```ts
+import express from "express";
+import { expressLoggerAdapter } from "@/blocks/logger/express-adapter";
+
+const app = express();
+
+app.use(expressLoggerAdapter);
+
+// Your routes...
+
+app.listen(3000);
+```
+
+The adapter automatically:
+
+- Creates a request context for every request
+- Reuses the `X-Request-Id` header when one is provided
+- Generates a UUID when no request ID exists
+- Assigns the request ID to `req.id`
+- Includes the request ID in every log created during that request
+- Logs completed HTTP requests with their method, path, status code and duration
+
+---
+
+## Accessing the Request ID
+
+Sometimes you only need the current request ID—for example, when attaching it to a response or passing it to another service.
+
+```ts
+import { getRequestId, logger } from "@/blocks/logger/core";
+
+logger.info({
+  requestId: getRequestId()
+});
+```
+
+Outside an active request, `getRequestId()` returns `undefined`.
+
+---
+
+## Request Logging
+
+Every completed request is logged automatically by the adapter.
+
+Example log:
+
+```text
+HTTP GET /users completed
+```
+
+Structured payload:
+
+```json
+{
+  "http": {
+    "method": "GET",
+    "path": "/users",
+    "statusCode": 200,
+    "durationMs": 42
+  },
+  "requestId": "16d76db1-aef6-4ef7-b8e4-c1fc5de2fd78"
+}
+```
+
+No additional configuration is required.
+
+---
+
+## A Note on Import Extensions
+
+If your project uses `"module": "NodeNext"` (or `"Node16"`) in `tsconfig.json` together with `"type": "module"` in `package.json`, Node's ESM loader requires explicit file extensions on relative imports—`.js`, even though the source files are `.ts`. This is a Node.js requirement, not a Blockend one.
+
+For example:
+
+```ts
+import { logger } from "@/blocks/logger/core.js";
+```
+
+instead of
+
+```ts
+import { logger } from "@/blocks/logger/core";
+```
+
+If you're unsure which applies to you, check `package.json` for `"type": "module"` and `tsconfig.json` for `"moduleResolution": "NodeNext"` (or `"Node16"`). If neither is present, you don't need the `.js` extension.
+
+---
+
+## Manual Installation
+
+Prefer copying the source code instead of using the CLI?
+
+Install the required dependencies.
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm add pino
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npm install pino
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn add pino
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bun add pino
+```
+
+</Tab>
+
+</Tabs>
+
+Install the development dependency used for readable logs during development.
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm add -D pino-pretty
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npm install -D pino-pretty
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn add -D pino-pretty
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bun add -d pino-pretty
+```
+
+</Tab>
+
+</Tabs>
+
+If you're using Express, also install its type definitions if they aren't already present.
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm add -D @types/express
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npm install -D @types/express
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn add -D @types/express
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bun add -d @types/express
+```
+
+</Tab>
+
+</Tabs>
+
+Then create the following files in your project.
+
+<Files>
+  <Folder name="blocks" defaultOpen>
+    <Folder name="logger" defaultOpen>
+      <File name="core.ts" />
+      <File name="express-adapter.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+Copy the contents of each generated file into your project.
+
+---
+
+## API
+
+| Export                   | Description                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| `logger`                 | Shared logger instance used throughout your application.                         |
+| `loggerContext`          | The underlying `AsyncLocalStorage` instance.                                     |
+| `runWithLoggerContext()` | Creates a logger context with a request ID. Used internally by adapters.         |
+| `getRequestId()`         | Returns the current request ID or `undefined` if no request context exists.      |
+| `expressLoggerAdapter()` | Express middleware that initializes request context and logs completed requests. |
+
+---
+
+## Production Recommendations
+
+- Register `expressLoggerAdapter` before all routes and middleware that should participate in request logging.
+- Reuse incoming `X-Request-Id` headers from proxies or API gateways to trace requests across multiple services.
+- Log `Error` objects using `{ err }` so stack traces and metadata are preserved.
+- Use the shared `logger` instance everywhere instead of creating new logger instances.
+- Extend the redaction configuration in `core.ts` if your application handles additional sensitive fields.
+- Use `getRequestId()` whenever you need the current request ID instead of passing it manually through your application.

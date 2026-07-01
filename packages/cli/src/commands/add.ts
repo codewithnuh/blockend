@@ -10,6 +10,11 @@ interface BlockendExtendedConfig extends configPayloadType {
   redisEnabled?: boolean;
 }
 
+interface LocalPackageJson {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}
+
 const REPO_OWNER = "codewithnuh";
 const REPO_NAME = "blockend";
 const BRANCH = "master";
@@ -17,48 +22,52 @@ const BRANCH = "master";
 const RAW_CDN_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
 const MANIFEST_URL = `${RAW_CDN_BASE}/registry/index.json`;
 
-// Updated to enforce the new architectural standard
-interface VariantConfig {
-  dependencies: string[];
-  devDependencies?: string[];
-  files: string[];
+export interface AssetMapping {
+  source: string;
+  target: string;
 }
 
-interface EnvironmentConfig {
-  core: string;
-  variants?: {
-    [variantKey: string]: VariantConfig;
-  };
+export interface AdapterConfig {
   dependencies?: string[];
   devDependencies?: string[];
+  files: string[] | AssetMapping[];
 }
 
-interface RegistryManifest {
-  [blockKey: string]: {
-    name: string;
-    description: string;
-    environments: {
-      express?: EnvironmentConfig;
-      fastify?: EnvironmentConfig;
-      hono?: EnvironmentConfig;
-      next?: EnvironmentConfig;
-    };
+export interface EnvironmentConfig {
+  core?: string;
+  dependencies?: string[];
+  devDependencies?: string[];
+  variants: {
+    [variantKey: string]: AdapterConfig;
   };
 }
 
-interface LocalPackageJson {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
+export interface BlockManifest {
+  name: string;
+  description: string;
+  baseFiles?: AssetMapping[];
+  // Dual layout capability supporting modern adapters and legacy environments concurrently
+  adapters?: {
+    [adapterKey: string]: EnvironmentConfig;
+  };
+  environments?: {
+    [envKey: string]: EnvironmentConfig;
+  };
 }
 
-function handleCancel(value: unknown) {
+export interface RegistryManifest {
+  version?: string;
+  blocks?: Record<string, BlockManifest>;
+  [blockKey: string]: unknown;
+}
+
+function handleCancel(value: unknown): void {
   if (isCancel(value)) {
     outro(pc.yellow("⚠ Operation cancelled. Exiting Blockend CLI cleanly."));
     process.exit(0);
   }
 }
 
-// Helper to look up file trees recursively for monorepos or nested directories
 async function findUp(filename: string, startDir: string): Promise<string | null> {
   let dir = startDir;
   while (true) {
@@ -68,18 +77,17 @@ async function findUp(filename: string, startDir: string): Promise<string | null
       return checkPath;
     } catch {
       const parent = dirname(dir);
-      if (parent === dir) break; // Reached filesystem root
+      if (parent === dir) break;
       dir = parent;
     }
   }
   return null;
 }
 
-export async function addCommand(blockName: string | undefined) {
+export async function addCommand(blockName: string | undefined): Promise<void> {
   intro(pc.bgBlack(pc.magenta(" Blockend Component Ingestion ")));
   const cwd = process.cwd();
 
-  // 1. Recursive Resolution of blockend.json Location
   const configPath = await findUp("blockend.json", cwd);
   if (!configPath) {
     outro(pc.red("✖ blockend.json not found. Run 'npx blockend init' first."));
@@ -91,24 +99,21 @@ export async function addCommand(blockName: string | undefined) {
   try {
     const configFile = await fs.readFile(configPath, "utf-8");
     config = JSON.parse(configFile) as BlockendExtendedConfig;
-  } catch {
+  } catch (error) {
     outro(pc.red("✖ Failed to parse blockend.json layout configuration."));
+    console.error(pc.dim(String(error)));
     return;
   }
 
-  // FORCE MODERN BEST PRACTICES: Reject non-TypeScript workspaces immediately
   if (config.language !== "typescript") {
     outro(
       pc.yellow(
-        `\nℹ Blockend forces modern architectural standards.\n` +
-          `  To ensure strict type safety and absolute code ownership, the registry exclusively supports TypeScript.\n` +
-          `  Please migrate your project configuration to TypeScript to ingest blocks.`
+        `\nℹ Blockend forces modern architectural standards. Registry exclusively supports TypeScript.`
       )
     );
     return;
   }
 
-  // 2. Dynamic Registry Manifest Retrieval via Network Stream
   const s = spinner();
   s.start("Connecting to remote Blockend Registry manifest...");
 
@@ -118,21 +123,33 @@ export async function addCommand(blockName: string | undefined) {
     if (!response.ok) throw new Error(`HTTP Error Status: ${response.status}`);
     registry = (await response.json()) as RegistryManifest;
     s.stop(pc.green("✔ Remote manifest synchronization complete."));
-  } catch {
+  } catch (error) {
     s.stop(pc.red("✖ Failed to fetch the component registry from GitHub network paths."));
+    console.error(pc.dim(String(error)));
     return;
   }
 
-  const envKey = String(config.environment) as "express" | "fastify" | "hono" | "next";
+  let blockMap: Record<string, BlockManifest> = {};
+  if (registry.blocks && typeof registry.blocks === "object" && !Array.isArray(registry.blocks)) {
+    blockMap = registry.blocks as Record<string, BlockManifest>;
+  } else {
+    blockMap = registry as Record<string, BlockManifest>;
+  }
 
-  // 3. Framework-Target Filtered Prompt Selection
+  const envKey = String(config.environment);
+
   let targetBlock = blockName;
   if (!targetBlock) {
-    const availableOptions = Object.keys(registry)
-      .filter((key) => registry[key].environments[envKey] !== undefined)
-      .map((key) => ({
+    const availableOptions = Object.entries(blockMap)
+      .filter(([_, block]) => {
+        if (!block) return false;
+        const hasAdapter = block.adapters?.[envKey] !== undefined;
+        const hasEnvironment = block.environments?.[envKey] !== undefined;
+        return hasAdapter || hasEnvironment;
+      })
+      .map(([key, block]) => ({
         value: key,
-        label: `${key} - ${pc.dim(registry[key].description)}`
+        label: `${key} - ${pc.dim(block.description)}`
       }));
 
     if (availableOptions.length === 0) {
@@ -152,45 +169,53 @@ export async function addCommand(blockName: string | undefined) {
     targetBlock = selectBlockPrompt as string;
   }
 
-  const blockMeta = registry[targetBlock];
+  const blockMeta = blockMap[targetBlock];
   if (!blockMeta) {
     outro(pc.red(`✖ Block "${targetBlock}" does not exist in the remote registry.`));
     return;
   }
 
-  // 4. Resolve environmental configuration variants
-  const envConfig = blockMeta.environments[envKey];
-  if (!envConfig) {
+  // Fallback pattern prioritizes modern adapters mapping before parsing legacy environments
+  const adapterContext = blockMeta.adapters?.[envKey] ?? blockMeta.environments?.[envKey];
+  if (!adapterContext) {
     outro(
       pc.red(`✖ The block "${targetBlock}" does not support your environment layout: ${envKey}`)
     );
     return;
   }
 
-  // Determine and resolve the storage variant dynamically
-  let selectedVariant: string | undefined;
-  let variantMeta: VariantConfig | undefined = undefined;
+  let selectedVariant: string;
+  const variantKeys = Object.keys(adapterContext.variants || {});
 
-  if (envConfig.variants && Object.keys(envConfig.variants).length > 0) {
-    const variantKeys = Object.keys(envConfig.variants);
-
-    if (variantKeys.includes("redis") && config.redisEnabled) {
-      selectedVariant = "redis";
-    } else {
-      const selectVariantPrompt = await select({
-        message: "Which architectural storage variant do you want to back this block?",
-        options: variantKeys.map((vKey) => ({
-          value: vKey,
-          label: vKey.toUpperCase()
-        }))
-      });
-      handleCancel(selectVariantPrompt);
-      selectedVariant = selectVariantPrompt as string;
-    }
-    variantMeta = envConfig.variants[selectedVariant];
+  if (variantKeys.length === 0) {
+    outro(pc.red(`✖ No architecture storage layout variants found for block framework: ${envKey}`));
+    return;
   }
 
-  // 5. Recursive Resolution of package.json Location
+  if (variantKeys.includes("redis") && config.redisEnabled) {
+    selectedVariant = "redis";
+  } else if (variantKeys.length === 1) {
+    selectedVariant = variantKeys[0];
+  } else {
+    const selectVariantPrompt = await select({
+      message: "Which architectural storage variant do you want to back this block?",
+      options: variantKeys.map((vKey) => ({
+        value: vKey,
+        label: vKey.toUpperCase()
+      }))
+    });
+    handleCancel(selectVariantPrompt);
+    selectedVariant = selectVariantPrompt as string;
+  }
+
+  const variantMeta = adapterContext.variants[selectedVariant];
+
+  let physicalPath = config.paths.blocks;
+  if (physicalPath.startsWith("@")) {
+    physicalPath = "./src/blocks";
+  }
+  const targetFolder = path.resolve(rootDir, physicalPath, targetBlock);
+
   const packageJsonPath = await findUp("package.json", rootDir);
   if (!packageJsonPath) {
     outro(pc.red("✖ Could not locate package.json in your current directory layout hierarchy."));
@@ -200,9 +225,11 @@ export async function addCommand(blockName: string | undefined) {
 
   let packageJson: LocalPackageJson;
   try {
-    packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf-8")) as LocalPackageJson;
-  } catch {
+    const packageJsonContent = await fs.readFile(packageJsonPath, "utf-8");
+    packageJson = JSON.parse(packageJsonContent) as LocalPackageJson;
+  } catch (error) {
     outro(pc.red("✖ Failed parsing file data configurations from target package.json location."));
+    console.error(pc.dim(String(error)));
     return;
   }
 
@@ -211,12 +238,20 @@ export async function addCommand(blockName: string | undefined) {
     ...(packageJson.devDependencies ?? {})
   };
 
-  const allRequiredDeps = [...(envConfig.dependencies ?? []), ...(variantMeta?.dependencies ?? [])];
-  const missingDeps = allRequiredDeps.filter((dep) => !(dep in installedDeps));
+  const missingProdDeps = (adapterContext.dependencies ?? [])
+    .concat(variantMeta?.dependencies ?? [])
+    .filter((dep) => !(dep in installedDeps));
 
-  if (missingDeps.length > 0) {
+  const missingDevDeps = (adapterContext.devDependencies ?? [])
+    .concat(variantMeta?.devDependencies ?? [])
+    .filter((dep) => !(dep in installedDeps));
+
+  const hasMissingDeps = missingProdDeps.length > 0 || missingDevDeps.length > 0;
+
+  if (hasMissingDeps) {
+    const allMissingNames = [...missingProdDeps, ...missingDevDeps];
     console.log(
-      pc.yellow(`\n⚠️ Missing required infrastructure packages: ${missingDeps.join(", ")}`)
+      pc.yellow(`\n⚠️ Missing required infrastructure packages: ${allMissingNames.join(", ")}`)
     );
     const shouldInstallPrompt = await confirm({
       message: "Would you like the CLI to automatically install these dependencies?",
@@ -229,129 +264,121 @@ export async function addCommand(blockName: string | undefined) {
         .access(join(packageJsonDir, "pnpm-lock.yaml"))
         .then(() => "pnpm")
         .catch(() => "npm");
-
       s.start(`Preparing native workspace via ${packageManager}...`);
       try {
-        const installCmd =
-          packageManager === "pnpm"
-            ? `pnpm add ${missingDeps.join(" ")}`
-            : `npm install ${missingDeps.join(" ")}`;
+        const installTasks: string[] = [];
 
-        s.stop(pc.cyan(`Executing: ${installCmd}\n`));
+        if (missingProdDeps.length > 0) {
+          installTasks.push(
+            packageManager === "pnpm"
+              ? `pnpm add ${missingProdDeps.join(" ")}`
+              : `npm install ${missingProdDeps.join(" ")}`
+          );
+        }
 
-        await new Promise<void>((resolve, reject) => {
-          const child = exec(installCmd, { cwd: packageJsonDir });
+        if (missingDevDeps.length > 0) {
+          installTasks.push(
+            packageManager === "pnpm"
+              ? `pnpm add -D ${missingDevDeps.join(" ")}`
+              : `npm install --save-dev ${missingDevDeps.join(" ")}`
+          );
+        }
 
-          child.stdout?.on("data", (data: string) => {
-            process.stdout.write(pc.dim(data));
+        for (const installCmd of installTasks) {
+          s.stop(pc.cyan(`Executing: ${installCmd}\n`));
+
+          await new Promise<void>((resolve, reject) => {
+            const child = exec(installCmd, { cwd: packageJsonDir });
+            child.stdout?.on("data", (data: string) => process.stdout.write(pc.dim(data)));
+            child.stderr?.on("data", (data: string) => process.stdout.write(pc.dim(pc.red(data))));
+            child.on("close", (code) =>
+              code === 0 ? resolve() : reject(new Error(`Exit code ${code}`))
+            );
           });
+        }
 
-          child.stderr?.on("data", (data: string) => {
-            process.stdout.write(pc.dim(pc.red(data)));
-          });
-
-          child.on("close", (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`Exit code ${code}`));
-          });
-        });
-
-        console.log("");
-        s.start(pc.green("✔ Dependencies installed cleanly. Continuing components build..."));
+        s.start(pc.green("✔ All dependencies synchronized successfully."));
         s.stop();
-      } catch {
+      } catch (error) {
         s.stop(pc.red("✖ Automated dependency installation failed. Please run setup manually."));
+        console.error(pc.dim(String(error)));
+        return;
       }
     }
   }
 
-  // 6. Ingest Remote Code Block Streams
-  s.start(`Downloading clean production template block [${targetBlock}]...`);
+  const filesToDownload: AssetMapping[] = [];
 
+  if (blockMeta.baseFiles) {
+    filesToDownload.push(...blockMeta.baseFiles);
+  }
+
+  if (adapterContext.core) {
+    filesToDownload.push({
+      source: adapterContext.core,
+      target: path.basename(adapterContext.core, ".txt")
+    });
+  }
+
+  if (variantMeta && Array.isArray(variantMeta.files)) {
+    for (const fileEntry of variantMeta.files) {
+      if (typeof fileEntry === "string") {
+        filesToDownload.push({
+          source: fileEntry,
+          target: path.basename(fileEntry, ".txt")
+        });
+      } else {
+        filesToDownload.push(fileEntry);
+      }
+    }
+  }
+
+  let fileExistsConflict = false;
+  for (const fileMap of filesToDownload) {
+    const destinationPath = join(targetFolder, fileMap.target);
+    try {
+      await fs.access(destinationPath);
+      fileExistsConflict = true;
+      break;
+    } catch {
+      // Intentionally empty logic block inside loop; explicitly handles the file not existing check
+    }
+  }
+
+  if (fileExistsConflict) {
+    const overwritePrompt = await confirm({
+      message: `⚠ Components in [${targetBlock}] already exist. Overwrite custom revisions?`,
+      initialValue: false
+    });
+    handleCancel(overwritePrompt);
+    if (!overwritePrompt) {
+      outro(pc.yellow("ℹ Operation aborted safely. Local code modifications preserved."));
+      return;
+    }
+  }
+
+  s.start(`Downloading and building template adapter blocks [${targetBlock}]...`);
   try {
-    // Collect all remote paths to download
-    const remoteFilesToDownload: string[] = [];
-    if (envConfig.core) {
-      remoteFilesToDownload.push(envConfig.core);
-    }
-    if (variantMeta && Array.isArray(variantMeta.files)) {
-      remoteFilesToDownload.push(...variantMeta.files);
-    }
-
-    // TARGET STRUCTURE SETUPS: Handle configuration maps safely
-    let physicalPath = config.paths.blocks;
-    if (physicalPath.startsWith("@")) {
-      physicalPath = "./src/blocks";
-    }
-
-    // Standard block component folder location
-    let targetFolder = path.resolve(rootDir, physicalPath);
-    if (variantMeta && selectedVariant) {
-      targetFolder = join(targetFolder, targetBlock);
-    }
-
-    // Check configuration idempotency for any files that might overwrite existing work
-    let fileExistsConflict = false;
-    for (const remoteFile of remoteFilesToDownload) {
-      const parsedFilename = path.basename(remoteFile, ".txt"); // drops '.txt' extension safely
-      const checkFileLocation = join(targetFolder, parsedFilename);
-      try {
-        await fs.access(checkFileLocation);
-        fileExistsConflict = true;
-        break;
-      } catch {
-        // File does not exist yet
-      }
-    }
-
-    if (fileExistsConflict) {
-      s.stop(); // Temporarily halt spinner to prompt user clearly
-      const overwritePrompt = await confirm({
-        message: `⚠ Components in [${targetBlock}] already exist. Overwrite custom revisions?`,
-        initialValue: false
-      });
-      handleCancel(overwritePrompt);
-      if (!overwritePrompt) {
-        outro(pc.yellow("ℹ Operation aborted safely. Local code modifications preserved."));
-        return;
-      }
-      s.start(`Re-downloading template block files [${targetBlock}]...`);
-    }
-
-    // Create container folder structures securely
-    await fs.mkdir(targetFolder, { recursive: true });
-
-    // Stream and write every queued file layout
-    for (const remoteFilePath of remoteFilesToDownload) {
-      const fileUrl = `${RAW_CDN_BASE}/${remoteFilePath}`;
+    for (const fileMap of filesToDownload) {
+      const fileUrl = `${RAW_CDN_BASE}/${fileMap.source}`;
       const response = await fetch(fileUrl);
-      if (!response.ok) {
-        throw new Error(`Failed downloading file: ${remoteFilePath} (${response.statusText})`);
-      }
-      const rawCodeTemplate = await response.text();
+      if (!response.ok) throw new Error(`Download failed for: ${fileMap.source}`);
 
-      // Form local filename path drops '.txt' suffix to lock .ts formats
-      const targetFilename = path.basename(remoteFilePath, ".txt");
-      const localWriteLocation = join(targetFolder, targetFilename);
+      const fileContent = await response.text();
+      const localWriteLocation = join(targetFolder, fileMap.target);
 
-      await fs.writeFile(localWriteLocation, rawCodeTemplate, "utf-8");
+      await fs.mkdir(dirname(localWriteLocation), { recursive: true });
+      await fs.writeFile(localWriteLocation, fileContent, "utf-8");
     }
-
-    const cleanDisplayPath =
-      variantMeta && selectedVariant
-        ? `${physicalPath.replace(/\\/g, "/")}/${targetBlock}`
-        : physicalPath.replace(/\\/g, "/");
 
     s.stop(pc.green("✔ Component isolation structures written smoothly."));
     outro(
       pc.cyan(
-        `✨ Source blocks written to ${cleanDisplayPath}/ layout. Code ownership transferred!`
+        `✨ Source blocks written to ${physicalPath}/${targetBlock}/. Code ownership transferred!`
       )
     );
-    process.exit(0);
   } catch (error) {
-    s.stop(pc.red("✖ Fatal crash occurred while downloading or transferring file layouts."));
-    console.error(error);
-    process.exit(1);
+    s.stop(pc.red("✖ Fatal error occurred while assembling file mappings."));
+    console.error(pc.dim(String(error)));
   }
 }
