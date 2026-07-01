@@ -1,0 +1,42 @@
+import { pino } from "pino";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { randomUUID } from "node:crypto";
+
+export interface LoggerContext {
+  requestId: string;
+  [key: string]: unknown;
+}
+export const loggerContext = new AsyncLocalStorage<LoggerContext>();
+export function getRequestId(): string | undefined {
+  return loggerContext.getStore()?.requestId;
+}
+const isProduction = process.env.NODE_ENV === "production";
+export const logger = pino({
+  level: isProduction ? "info" : "debug",
+  mixin() {
+    const store = loggerContext.getStore();
+    return store ? { requestId: store.requestId } : {};
+  },
+  redact: {
+    paths: ["Authorization", "*.token", "token", "*.password", "password"],
+    censor: "[REDACTED]",
+  },
+  transport: isProduction
+    ? undefined
+    : {
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          translateTime: "SYS:standard",
+          ignore: "hostname,pid",
+        },
+      },
+});
+
+export function runWithLoggerContext<T>(
+  incomingId: string | undefined | null,
+  callback: (requestId: string) => T,
+) {
+  const requestId = incomingId || randomUUID();
+  return loggerContext.run({ requestId }, () => callback(requestId));
+}

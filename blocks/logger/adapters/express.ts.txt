@@ -1,0 +1,35 @@
+import type { Request, Response, NextFunction } from "express";
+import { logger, runWithLoggerContext } from "./core.js";
+
+declare global {
+  namespace Express {
+    interface Request {
+      id: string;
+    }
+  }
+}
+export function expressLoggerAdapter(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const rawId = req.headers["x-request-id"]?.toString();
+  runWithLoggerContext(rawId, (requestId) => {
+    req.id = requestId;
+    const start = performance.now();
+    res.on("finish", () => {
+      logger.info(
+        {
+          http: {
+            method: req.method,
+            path: req.path,
+            statusCode: res.statusCode,
+            durationMs: Math.round(performance.now() - start),
+          },
+        },
+        `HTTP ${req.method} ${req.path} completed`,
+      );
+    });
+    next();
+  });
+}

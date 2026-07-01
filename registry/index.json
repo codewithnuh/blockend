@@ -1,41 +1,84 @@
 {
-  "rate-limit": {
-    "name": "Rate Limiter",
-    "description": "IP-based rate limiting middleware with pluggable storage strategies",
-    "environments": {
-      "express": {
-        "core": "blocks/rate-limiter/express/base.ts.txt",
-        "variants": {
-          "memory": {
-            "dependencies": [],
-            "files": ["blocks/rate-limiter/express/store-memory.ts.txt"]
-          },
-          "redis": {
-            "dependencies": ["ioredis"],
-            "files": ["blocks/rate-limiter/express/store-redis.ts.txt"]
+  "version": "1.0.0",
+  "blocks": {
+    "rate-limit": {
+      "name": "Rate Limiter",
+      "description": "IP-based rate limiting middleware with pluggable storage strategies",
+      "environments": {
+        "express": {
+          "core": "blocks/rate-limiter/express/base.ts.txt",
+          "variants": {
+            "memory": {
+              "dependencies": [],
+              "files": ["blocks/rate-limiter/express/store-memory.ts.txt"]
+            },
+            "redis": {
+              "dependencies": ["ioredis"],
+              "files": ["blocks/rate-limiter/express/store-redis.ts.txt"]
+            }
           }
         }
       }
-    }
-  },
-  "error-handler": {
-    "name": "Global Error Handler",
-    "description": "Centralized Express error handling...",
-    "environments": {
-      "express": {
-        "variants": {
-          "default": {
-            "dependencies": ["zod"],
-            "devDependencies": ["@types/express"],
-            "files": [
-              "blocks/error-handler/express/app-error.ts.txt",
-              "blocks/error-handler/express/errors.ts.txt",
-              "blocks/error-handler/express/http-status.ts.txt",
-              "blocks/error-handler/express/throw-error.ts.txt",
-              "blocks/error-handler/express/global-error-handler.ts.txt",
-              "blocks/error-handler/express/async-handler.ts.txt",
-              "blocks/error-handler/express/index.ts.txt"
-            ]
+    },
+    "error-handler": {
+      "name": "Global Error Handler",
+      "description": "Centralized Express error handling...",
+      "environments": {
+        "express": {
+          "variants": {
+            "default": {
+              "dependencies": ["zod"],
+              "devDependencies": ["@types/express"],
+              "files": [
+                "blocks/error-handler/express/app-error.ts.txt",
+                "blocks/error-handler/express/errors.ts.txt",
+                "blocks/error-handler/express/http-status.ts.txt",
+                "blocks/error-handler/express/throw-error.ts.txt",
+                "blocks/error-handler/express/global-error-handler.ts.txt",
+                "blocks/error-handler/express/async-handler.ts.txt",
+                "blocks/error-handler/express/index.ts.txt"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "logger": {
+      "name": "Structured Context Logger",
+      "description": "Framework-agnostic context logging engine using AsyncLocalStorage with production redactions and automatic request ID tracing.",
+      "baseFiles": [
+        {
+          "source": "blocks/logger/core.ts.txt",
+          "target": "core.ts"
+        }
+      ],
+      "adapters": {
+        "express": {
+          "dependencies": ["pino"],
+          "devDependencies": ["pino-pretty", "@types/express"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/logger/adapters/express.ts.txt",
+                  "target": "express-adapter.ts"
+                }
+              ]
+            }
+          }
+        },
+        "fastify": {
+          "dependencies": ["pino"],
+          "devDependencies": ["pino-pretty"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/logger/adapters/fastify.ts.txt",
+                  "target": "fastify-adapter.ts"
+                }
+              ]
+            }
           }
         }
       }
