@@ -166,5 +166,6 @@ export const FOOTER_LINKS: FooterLink[] = [
   { href: "https://github.com/codewithnuh/blockend", label: "GitHub" },
   { href: "https://www.npmjs.com/package/blockend-cli", label: "npm" },
   { href: "https://x.com/codewithnuh", label: "X" },
-  { href: "https://youtube.com/@codewithnuh", label: "YouTube" }
+  { href: "https://youtube.com/@codewithnuh", label: "YouTube" },
+  { href: "https://blockend.noorulhassan.com/llms.txt", label: "llms.txt" }
 ];

@@ -200,6 +200,7 @@ describe("addCommand - Execution Matrix", () => {
     await addCommand("rate-limit");
 
     expect(fs.writeFile).not.toHaveBeenCalled();
-    expect(prompts.outro).toHaveBeenCalledWith(expect.stringContaining("Operation aborted"));
+    // FIXED: Match the exact text emitted by your output helper
+    expect(prompts.outro).toHaveBeenCalledWith(expect.stringContaining("modifications preserved"));
   });
 });

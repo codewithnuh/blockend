@@ -6,7 +6,7 @@ import { intro, outro, select, text, confirm, spinner, isCancel } from "@clack/p
 
 import { detectProject } from "@blockend/detector";
 import { format } from "../ui/format.js";
-import { theme } from "../ui/theme.js"; // Import your theme tokens safely
+import { theme } from "../ui/theme.js";
 
 async function resolveTsConfigPaths(cwd: string) {
   const possiblePaths = [join(cwd, "tsconfig.json"), join(cwd, "jsconfig.json")];
@@ -30,88 +30,138 @@ async function resolveTsConfigPaths(cwd: string) {
   return { baseUrl: ".", paths: {} as Record<string, string[]> };
 }
 
-export async function initCommand() {
+function outputInitError(json: boolean, message: string): void {
+  if (json) {
+    process.stdout.write(JSON.stringify({ success: false, error: message }) + "\n");
+  } else {
+    outro(format.error(message));
+  }
+}
+
+function outputInitResult(
+  json: boolean,
+  result: { success: boolean; message: string; config?: configPayloadType }
+): void {
+  if (json) {
+    process.stdout.write(JSON.stringify(result) + "\n");
+  } else {
+    outro(theme.state.success(result.message));
+  }
+}
+
+export async function initCommand(
+  options: {
+    yes?: boolean;
+    json?: boolean;
+  } = {}
+): Promise<void> {
+  const { yes = false, json = false } = options;
   const cwd = process.cwd();
   const configPath = join(cwd, "blockend.json");
 
-  console.log(`
+  if (!json) {
+    console.log(`
 ██████╗ ██╗         ██████╗  ██████╗██╗  ██╗███████╗███╗   ██╗██████╗
-██╔══██╗██║        ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝████╗  ██║██╔══██╗
-██████╔╝██║        ██║   ██║██║     █████╔╝ █████╗  ██╔██╗ ██║██║  ██║
-██╔══██╗██║        ██║   ██║██║     ██╔═██╗ ██╔══╝  ██║╚██╗██║██║  ██║
+██╔══██╗██║         ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝████╗  ██║██╔══██╗
+██████╔╝██║         ██║   ██║██║     █████╔╝ █████╗  ██╔██╗ ██║██║  ██║
+██╔══██╗██║         ██║   ██║██║     ██╔═██╗ ██╔══╝  ██║╚██╗██║██║  ██║
 ██████╔╝███████╗╚██████╔╝╚██████╗██║  ██╗███████╗██║ ╚████║██████╔╝
 ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═════╝
 `);
-
-  // Uses your layout formatting system safely
-  intro(theme.brand.primary(" Blockend · Intelligent Backend Blocks Setup "));
+    intro(theme.brand.primary(" Blockend · Intelligent Backend Blocks Setup "));
+  }
 
   if (existsSync(configPath)) {
-    const action = await select({
-      message: "blockend.json already exists. What do you want to do?",
-      options: [
-        { value: "keep", label: "Keep existing config (cancel init)" },
-        { value: "overwrite", label: "Overwrite config" },
-        { value: "regenerate", label: "Delete and regenerate" }
-      ]
-    });
+    let action: string;
+    if (yes) {
+      action = "overwrite";
+    } else {
+      const actionPrompt = await select({
+        message: "blockend.json already exists. What do you want to do?",
+        options: [
+          { value: "keep", label: "Keep existing config (cancel init)" },
+          { value: "overwrite", label: "Overwrite config" },
+          { value: "regenerate", label: "Delete and regenerate" }
+        ]
+      });
 
-    if (isCancel(action) || action === "keep") {
-      outro(format.muted("Initialization cancelled. Existing config preserved."));
-      return;
+      if (isCancel(actionPrompt) || actionPrompt === "keep") {
+        if (json) {
+          outputInitResult(json, {
+            success: false,
+            message: "Initialization cancelled. Existing config preserved."
+          });
+        } else {
+          outro(format.muted("Initialization cancelled. Existing config preserved."));
+        }
+        return;
+      }
+      action = actionPrompt as string;
     }
 
     if (action === "regenerate") {
       await fs.unlink(configPath);
-      console.log(format.error("Existing config deleted"));
+      if (!json) console.log(format.error("Existing config deleted"));
     }
   }
 
   const s = spinner();
-  s.start("Scanning project layout...");
+  if (!json) s.start("Scanning project layout...");
   const context = await detectProject(cwd);
   const hasSrcDir = existsSync(join(cwd, "src"));
   const tsConfig = await resolveTsConfigPaths(cwd);
-  s.stop(format.success("Project architecture scanned"));
+  if (!json) s.stop(format.success("Project architecture scanned"));
 
   let framework = context.framework;
-  if (framework) {
+  if (!framework) {
+    if (yes) {
+      framework = "express"; // Fallback rule for automation environments
+    } else {
+      const frameworkSelect = await select({
+        message: "Framework could not be auto-detected. Select framework environment manually:",
+        options: [
+          { value: "express", label: "Express.js" },
+          { value: "fastify", label: "Fastify" },
+          { value: "next", label: "Next.js (App Router)" },
+          { value: "hono", label: "Hono" }
+        ]
+      });
+
+      if (isCancel(frameworkSelect)) {
+        if (json) {
+          outputInitResult(json, { success: false, message: "Initialization cancelled." });
+        } else {
+          outro(format.muted("Initialization cancelled."));
+        }
+        return;
+      }
+      framework = frameworkSelect as "express" | "fastify" | "hono" | "next";
+    }
+  } else if (!json) {
     console.log(
       `${format.success("✔")} Framework environment detected: ${theme.state.info(framework)}`
     );
-  } else {
-    const frameworkSelect = await select({
-      message: "Framework could not be auto-detected. Select framework environment manually:",
-      options: [
-        { value: "express", label: "Express.js" },
-        { value: "fastify", label: "Fastify" },
-        { value: "next", label: "Next.js (App Router)" },
-        { value: "hono", label: "Hono" }
-      ]
-    });
-
-    if (isCancel(frameworkSelect)) {
-      outro(format.muted("Initialization cancelled."));
-      return;
-    }
-    framework = frameworkSelect;
   }
 
   const defaultDir = hasSrcDir ? "src/blocks" : "blocks";
-  const directoryPrompt = await text({
-    message: "Configure the targeted physical directory destination for blocks:",
-    placeholder: defaultDir,
-    initialValue: defaultDir,
-    validate(value) {
-      if (value?.trim().length === 0) return "Physical path location directory cannot be empty.";
-    }
-  });
+  let rawPhysicalInput = defaultDir;
 
-  if (isCancel(directoryPrompt)) {
-    outro(format.muted("Initialization cancelled."));
-    return;
+  if (!yes) {
+    const directoryPrompt = await text({
+      message: "Configure the targeted physical directory destination for blocks:",
+      placeholder: defaultDir,
+      initialValue: defaultDir,
+      validate(value) {
+        if (value?.trim().length === 0) return "Physical path location directory cannot be empty.";
+      }
+    });
+
+    if (isCancel(directoryPrompt)) {
+      outro(format.muted("Initialization cancelled."));
+      return;
+    }
+    rawPhysicalInput = String(directoryPrompt).trim();
   }
-  const rawPhysicalInput = String(directoryPrompt).trim();
 
   const relativeBlocksPath = path.relative(cwd, path.resolve(cwd, rawPhysicalInput));
   let finalPath = relativeBlocksPath.replace(/\\/g, "/");
@@ -151,13 +201,17 @@ export async function initCommand() {
 
   let includeRedis = false;
   if (context.hasRedis) {
-    const redisConfirm = await confirm({
-      message: "Redis detected. Enable Redis-backed block variants automatically?",
-      initialValue: true
-    });
+    if (yes) {
+      includeRedis = true;
+    } else {
+      const redisConfirm = await confirm({
+        message: "Redis detected. Enable Redis-backed block variants automatically?",
+        initialValue: true
+      });
 
-    if (!isCancel(redisConfirm)) {
-      includeRedis = Boolean(redisConfirm);
+      if (!isCancel(redisConfirm)) {
+        includeRedis = Boolean(redisConfirm);
+      }
     }
   }
 
@@ -174,18 +228,23 @@ export async function initCommand() {
     }
   };
 
-  const writeSpinner = spinner();
-  writeSpinner.start("Finalizing configuration...");
+  if (!json) s.start("Finalizing configuration...");
 
   try {
     await fs.writeFile(configPath, JSON.stringify(configPayload, null, 2), "utf-8");
-    writeSpinner.stop(format.success("blockend.json ready"));
+    if (!json) s.stop(format.success("blockend.json ready"));
 
-    outro(
-      theme.state.success("✨ Blockend initialized successfully. Run: npx blockend add <block>")
-    );
+    outputInitResult(json, {
+      success: true,
+      message: "✨ Blockend initialized successfully. Run: npx blockend add <block>",
+      config: configPayload
+    });
   } catch {
-    writeSpinner.stop(format.error("Failed to write configuration"));
+    if (!json) {
+      s.stop(format.error("Failed to write configuration"));
+    } else {
+      outputInitError(json, "Failed to write architectural layout configuration map.");
+    }
   }
 }
 
