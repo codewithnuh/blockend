@@ -1,7 +1,6 @@
 import { HeroSection } from "@/components/sections/HeroSection";
 import { ProblemSection } from "@/components/sections/ProblemSection";
 import { HowItWorksSection } from "@/components/sections/HowItWorksSection";
-import { RateLimiterSpotlight } from "@/components/sections/RateLimiterSpotlight";
 import { InitCLISimulator } from "@/components/sections/InitCLISimulator";
 import { RoadmapSection } from "@/components/sections/RoadmapSection";
 import { PhilosophySection } from "@/components/sections/PhilosophySection";
@@ -16,7 +15,6 @@ export default function HomePage() {
         <HeroSection />
         <ProblemSection />
         <HowItWorksSection />
-        <RateLimiterSpotlight />
         <InitCLISimulator />
         <RoadmapSection />
         <PhilosophySection />

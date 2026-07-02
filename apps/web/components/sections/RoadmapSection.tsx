@@ -1,5 +1,7 @@
+"use client";
+
+import { Check, Terminal, Square } from "lucide-react";
 import { ROADMAP_BRICKS } from "@/lib/data";
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function RoadmapSection() {
@@ -7,140 +9,121 @@ export function RoadmapSection() {
     <section
       id="roadmap"
       aria-labelledby="roadmap-heading"
-      className="relative border-t border-border bg-background py-16 sm:py-24 lg:py-32"
+      className="relative border-t border-border bg-background py-24 text-foreground sm:py-28"
     >
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <header className="mb-16 text-center sm:mb-20">
-          <p className="mb-3 font-mono text-xs font-medium uppercase tracking-widest text-primary">
-            Roadmap
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12">
+        {/* Header Block */}
+        <header className="mb-16 max-w-2xl">
+          <p className="mb-3 font-mono text-xs font-medium uppercase tracking-[0.2em] text-primary flex items-center gap-2 select-none">
+            <span className="inline-block w-1.5 h-1.5 bg-primary"></span>
+            milestones // roadmap
           </p>
+
+          {/* Primary Editorial Title: Inter Display */}
           <h2
             id="roadmap-heading"
-            className="text-balance font-sans text-3xl font-semibold tracking-tight text-foreground sm:text-4xl"
+            className="text-balance font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
           >
             Built block by block.
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Solid blocks are shipped. Dashed blocks are next. No vaporware.
+
+          {/* Descriptive Block Copy: Standard Sans */}
+          <p className="mt-4 font-sans text-sm leading-relaxed text-muted-foreground">
+            Production versions are frozen and integrated. Dashed tasks represent pipeline queues
+            currently in compilation. Zero vaporware.
           </p>
         </header>
 
-        {/* Timeline */}
-        <ol className="relative">
-          {/* Vertical spine */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-y-0 left-4 w-px bg-border sm:left-1/2 sm:-translate-x-px"
-          />
-
+        {/* Industrial Structural Timeline Layout Grid */}
+        <div className="relative border-l border-border/70 ml-3 pl-6 space-y-6">
           {ROADMAP_BRICKS.map((brick, index) => {
             const isReady = brick.status === "ready";
-            const isLast = index === ROADMAP_BRICKS.length - 1;
-            // Even index → card on the left (desktop); odd → card on the right
-            const isLeft = index % 2 === 0;
 
             return (
-              <li key={brick.label} className={cn("relative mb-10", !isLast && "pb-2")}>
-                {/* ── Mobile layout ───────────────────────────── */}
-                <div className="flex items-start gap-4 sm:hidden">
-                  {/* Node — sits on the left spine */}
-                  <div className="relative z-10 mt-0.5 shrink-0">
-                    <TimelineNode isReady={isReady} size="sm" />
-                  </div>
-
-                  {/* Card */}
-                  <RoadmapCard brick={brick} isReady={isReady} />
+              <div
+                key={brick.label}
+                className="group relative flex flex-col md:flex-row md:items-start gap-4 p-5 rounded-none border transition-all duration-150 bg-card hover:bg-muted/10"
+                style={{
+                  borderStyle: isReady ? "solid" : "dashed",
+                  borderColor: isReady ? "var(--border)" : "rgba(var(--border), 0.4)"
+                }}
+              >
+                {/* Custom Left Node Tracker Axis Indicator */}
+                <div className="absolute -left-[31px] top-6 z-10 flex items-center justify-center bg-background p-0.5">
+                  <TimelineNode isReady={isReady} />
                 </div>
 
-                {/* ── Desktop layout ──────────────────────────── */}
-                <div className="hidden sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-x-6">
-                  {/* Left slot */}
-                  <div className="flex justify-end">
-                    {isLeft && (
-                      <RoadmapCard brick={brick} isReady={isReady} className="text-right" />
-                    )}
+                {/* Left Card Segment: Feature Label Meta Node */}
+                <div className="flex items-center justify-between gap-4 shrink-0 md:w-52 select-none">
+                  <div className="flex items-center gap-2">
+                    <Terminal
+                      className={cn(
+                        "h-3.5 w-3.5 hidden md:block",
+                        isReady ? "text-emerald-400" : "text-muted-foreground/30"
+                      )}
+                    />
+                    <h3
+                      className={cn(
+                        "font-mono text-xs font-bold tracking-tight uppercase",
+                        isReady ? "text-foreground" : "text-muted-foreground/70"
+                      )}
+                    >
+                      {brick.label}
+                    </h3>
                   </div>
-
-                  {/* Center node */}
-                  <div className="relative z-10 flex shrink-0 items-center justify-center">
-                    <TimelineNode isReady={isReady} size="md" />
-                  </div>
-
-                  {/* Right slot */}
-                  <div className="flex justify-start">
-                    {!isLeft && <RoadmapCard brick={brick} isReady={isReady} />}
+                  <div className="md:hidden">
+                    <StatusBadge status={brick.status} isReady={isReady} />
                   </div>
                 </div>
-              </li>
+
+                {/* Description Body Segment: Standard Sans */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-sans text-xs leading-relaxed text-muted-foreground/90">
+                    {brick.description}
+                  </p>
+                </div>
+
+                {/* Right Card Segment: Metadata Badge (Desktop Interface Grid) */}
+                <div className="hidden md:flex shrink-0 items-center justify-end w-28 select-none">
+                  <StatusBadge status={brick.status} isReady={isReady} />
+                </div>
+
+                {/* Aesthetic Inline Hex Code Tracker Flag */}
+                <span className="absolute bottom-1 right-2 font-mono text-[8px] opacity-0 group-hover:opacity-20 text-muted-foreground/50 select-none transition-opacity">
+                  {`0x0${index + 1}_build`}
+                </span>
+              </div>
             );
           })}
-        </ol>
+        </div>
+
+        {/* Global Pipeline Footprint Terminal Indicator */}
+        <div className="mt-8 flex items-center gap-2 font-mono text-[10px] text-muted-foreground/40 pl-3 select-none">
+          <span className="inline-block w-1 h-1 bg-muted-foreground/40 animate-pulse"></span>
+          <span>pipeline: listening_for_tag_releases</span>
+        </div>
       </div>
     </section>
   );
 }
 
-/* ─── Sub-components ──────────────────────────────────────────────── */
+/* ─── Embedded Contextual Sub-components ──────────────────────────────── */
 
-function TimelineNode({ isReady, size }: { isReady: boolean; size: "sm" | "md" }) {
-  const dim = size === "md" ? "h-10 w-10" : "h-8 w-8";
-  const iconDim = size === "md" ? "h-5 w-5" : "h-4 w-4";
-
-  return (
-    <span
-      className={cn(
-        "flex items-center justify-center rounded-full border-2 transition-colors",
-        dim,
-        isReady
-          ? "border-primary bg-primary"
-          : "border-dashed border-muted-foreground/40 bg-background"
-      )}
-    >
-      {isReady ? (
-        <Check className={cn(iconDim, "text-primary-foreground")} aria-hidden="true" />
-      ) : (
-        <span
-          className={cn(
-            "rounded-full bg-muted-foreground/30",
-            size === "md" ? "h-2 w-2" : "h-1.5 w-1.5"
-          )}
-          aria-hidden="true"
-        />
-      )}
-    </span>
-  );
-}
-
-function RoadmapCard({
-  brick,
-  isReady,
-  className
-}: {
-  brick: { label: string; description: string; status: string };
-  isReady: boolean;
-  className?: string;
-}) {
+function TimelineNode({ isReady }: { isReady: boolean }) {
   return (
     <div
       className={cn(
-        "w-full max-w-xs rounded-lg border p-4 sm:p-5",
-        isReady ? "border-border bg-card" : "border-dashed border-border bg-muted/30",
-        className
+        "flex h-4 w-4 items-center justify-center border transition-all select-none rounded-none",
+        isReady
+          ? "border-emerald-500 bg-emerald-500 text-background" /* Swapped text/bg weights to make the box solid & non-transparent */
+          : "border-dashed border-border bg-background text-muted-foreground/30"
       )}
     >
-      <div className="flex items-center justify-between gap-3">
-        <p
-          className={cn(
-            "font-mono text-sm font-semibold",
-            isReady ? "text-foreground" : "text-muted-foreground"
-          )}
-        >
-          {brick.label}
-        </p>
-        <StatusBadge status={brick.status} isReady={isReady} />
-      </div>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{brick.description}</p>
+      {isReady ? (
+        <Check className="h-2.5 w-2.5 stroke-[3.5]" />
+      ) : (
+        <Square className="h-1.5 w-1.5 fill-current opacity-30" />
+      )}
     </div>
   );
 }
@@ -149,8 +132,10 @@ function StatusBadge({ status, isReady }: { status: string; isReady: boolean }) 
   return (
     <span
       className={cn(
-        "shrink-0 rounded-full px-2 py-0.5 font-mono text-[0.65rem] font-medium uppercase tracking-wide",
-        isReady ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+        "shrink-0 rounded-none border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider",
+        isReady
+          ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400"
+          : "border-border bg-muted/40 text-muted-foreground/50"
       )}
     >
       {status}

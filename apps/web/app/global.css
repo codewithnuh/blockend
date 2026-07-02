@@ -70,7 +70,7 @@
   body {
     background: var(--void);
     color: var(--fg);
-    font-family: "Manrope", sans-serif;
+    font-family: var(--font-inter), sans-serif;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
     transition:
@@ -102,7 +102,7 @@
 
 /* ── Typography ── */
 .font-display {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-inter), sans-serif;
 }
 
 .font-mono {

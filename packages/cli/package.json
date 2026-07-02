@@ -1,38 +1,81 @@
 {
   "name": "blockend-cli",
-  "version": "1.4.0",
-  "description": "Intelligent, modular backend blocks right inside your terminal",
-  "main": "./dist/index.js",
+  "version": "1.4.1",
+  "description": "CLI for installing production-ready backend blocks into Next.js, Express, Hono, NestJS, and other Node.js applications.",
   "type": "module",
+  "main": "./dist/index.js",
   "bin": {
     "blockend": "./dist/index.js"
   },
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "files": [
     "dist",
-    "readme.md"
+    "README.md"
   ],
   "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --out-dir dist",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "tsup src/index.ts --format esm --dts --out-dir dist",
-    "typecheck": "tsc --noEmit"
+    "prepublishOnly": "pnpm build"
   },
   "keywords": [
-    "cli",
+    "blockend",
     "backend",
-    "express",
+    "backend blocks",
+    "backend boilerplate",
+    "backend starter",
+    "backend scaffolding",
+    "backend generator",
+    "backend cli",
+    "nodejs",
     "nextjs",
-    "architecture"
+    "express",
+    "nestjs",
+    "hono",
+    "fastify",
+    "authentication",
+    "auth",
+    "rbac",
+    "payments",
+    "stripe",
+    "resend",
+    "drizzle",
+    "prisma",
+    "postgresql",
+    "typescript",
+    "developer tools",
+    "code generation",
+    "scaffolding",
+    "productivity",
+    "cli"
   ],
+  "homepage": "https://blockend.noorulhassan.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codewithnuh/blockend.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/codewithnuh/blockend/issues"
+  },
   "author": "codewithnuh",
-  "license": "ISC",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "packageManager": "pnpm@10.33.2",
   "dependencies": {
     "@blockend/detector": "workspace:*",
     "@clack/prompts": "^1.5.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "citty": "^0.2.2",
     "commander": "^15.0.0",
-    "picocolors": "^1.1.1"
+    "execa": "^9.6.1",
+    "picocolors": "^1.1.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",

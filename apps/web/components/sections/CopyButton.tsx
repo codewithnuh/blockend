@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CopyIcon } from "./CopyIcon";
+import { FiCopy, FiCheck } from "react-icons/fi"; // Using standard, clean react-icons alternatives
+import { cn } from "@/lib/utils";
 
 interface CopyButtonProps {
   command: string;
@@ -11,20 +12,37 @@ interface CopyButtonProps {
 export function CopyButton({ command, className = "" }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard?.writeText(command).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard?.writeText(command);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Ignore clipboard errors (e.g. permission denied or unsupported browser)
+    }
   };
 
   return (
     <button
       onClick={handleCopy}
-      className={`group flex items-center gap-3 font-mono text-sm bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 hover:border-white/20 transition-colors focus-ring ${className}`}
+      type="button"
+      className={cn(
+        "inline-flex items-center justify-center rounded-none border border-border bg-background p-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring select-none active:scale-[0.98]",
+        className
+      )}
+      aria-label={copied ? "Copied execution command" : "Copy execution command"}
     >
-      <span className="text-[var(--accent)]">$</span>
-      <span className="text-[var(--fg)]">{copied ? `${command} ✓ copied` : command}</span>
-      <CopyIcon className="text-[var(--muted)] group-hover:text-[var(--fg)] transition-colors ml-1" />
+      {copied ? (
+        <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+          <FiCheck className="h-3 w-3 stroke-[3]" />
+          <span>copied</span>
+        </span>
+      ) : (
+        <span className="flex items-center gap-1.5">
+          <FiCopy className="h-3 w-3" />
+          <span>copy</span>
+        </span>
+      )}
     </button>
   );
 }

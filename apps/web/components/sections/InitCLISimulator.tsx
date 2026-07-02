@@ -83,23 +83,23 @@ export function InitCLISimulator() {
 
   return (
     <section className="relative py-28 border-t border-border bg-background text-foreground">
-      <div className="max-w-7xl mx-auto px-6 lg:px-12">
-        {/* Header */}
+      <div className="max-w-6xl mx-auto px-6 lg:px-12">
+        {/* Header Component Block */}
         <div className="reveal max-w-xl mb-12">
-          <p className="font-mono text-[0.7rem] tracking-[0.15em] uppercase text-primary mb-4">
+          <p className="font-mono text-[0.7rem] tracking-[0.15em] uppercase text-primary mb-4 select-none">
             try it interactively
           </p>
           <h2 className="font-display font-bold text-[clamp(1.8rem,3.2vw,2.6rem)] leading-[1.1] tracking-tight mb-4">
             See what init actually does.
           </h2>
-          <p className="text-muted-foreground leading-[1.7]">
+          <p className="font-sans text-muted-foreground text-sm leading-[1.7]">
             Run through the init wizard right here. It mirrors the real{" "}
-            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded text-sm">
+            <code className="font-mono text-foreground bg-muted border border-border/40 px-1.5 py-0.5 rounded-none text-[0.9em]">
               blockend-cli init
             </code>{" "}
             flow — framework detection, alias config, Redis opt-in — and outputs a live preview of
             your{" "}
-            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded text-sm">
+            <code className="font-mono text-foreground bg-muted border border-border/40 px-1.5 py-0.5 rounded-none text-[0.9em]">
               blockend.json
             </code>
             .
@@ -107,14 +107,14 @@ export function InitCLISimulator() {
         </div>
 
         <div className="reveal grid lg:grid-cols-2 gap-10 items-start">
-          {/* Left — wizard terminal */}
-          <div className="terminal-window rounded-xl overflow-hidden border border-border bg-card">
-            {/* Title bar */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
-              <span className="terminal-dot bg-[#FF5F56]" />
-              <span className="terminal-dot bg-[#FFBD2E]" />
-              <span className="terminal-dot bg-[#27C93F]" />
-              <span className="ml-3 text-xs font-mono text-muted-foreground">
+          {/* Left Column — Wizard Terminal Simulator */}
+          <div className="terminal-window rounded-none overflow-hidden border border-border bg-card">
+            {/* Title Bar */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30 select-none">
+              <span className="w-2.5 h-2.5 bg-border rounded-none" />
+              <span className="w-2.5 h-2.5 bg-border rounded-none" />
+              <span className="w-2.5 h-2.5 bg-border rounded-none" />
+              <span className="ml-3 text-xs font-mono text-muted-foreground/60">
                 ~/my-api — blockend-cli init
               </span>
             </div>
@@ -122,31 +122,31 @@ export function InitCLISimulator() {
             <div className="p-5 space-y-4 min-h-[440px] flex flex-col justify-between">
               <div className="space-y-3">
                 {/* ASCII CLI Banner */}
-                <pre className="font-mono text-[0.55rem] md:text-[0.62rem] leading-none text-primary/80 select-none overflow-x-auto whitespace-pre pb-2">
+                <pre className="font-mono text-[0.55rem] md:text-[0.62rem] leading-none text-primary/80 select-none overflow-x-auto whitespace-pre pb-2 scrollbar-none">
                   {`
-                ██████╗ ██╗       ██████╗  ██████╗██╗  ██╗███████╗███╗   ██╗██████╗
-                ██╔══██╗██║      ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝████╗  ██║██╔══██╗
-                ██████╔╝██║      ██║   ██║██║     █████╔╝ █████╗  ██╔██╗ ██║██║  ██║
-                ██╔══██╗██║      ██║   ██║██║     ██╔═██╗ ██╔══╝  ██║╚██╗██║██║  ██║
-                ██████╔╝███████╗╚██████╔╝╚██████╗██║  ██╗███████╗██║ ╚████║██████╔╝
-                ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═════╝
-                `}
+ ██████╗ ██║        ██████╗  ██████╗██╗  ██╗███████╗███╗   ██╗██████╗
+ ██╔══██╗██║       ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝████╗  ██║██╔══██╗
+ ██████╔╝██║       ██║   ██║██║     █████╔╝ █████╗  ██╔██╗ ██║██║  ██║
+ ██╔══██╗██║       ██║   ██║██║     ██╔═██╗ ██╔══╝  ██║╚██╗██║██║  ██║
+ ██████╔╝███████╗╚██████╔╝╚██████╗██║  ██╗███████╗██║ ╚████║██████╔╝
+ ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═════╝
+                  `}
                 </pre>
 
-                <p className="font-mono text-xs text-primary font-semibold border-b border-border pb-2">
+                <p className="font-mono text-xs text-primary font-bold border-b border-border pb-2 select-none">
                   ┌ Blockend · Intelligent Backend Blocks Setup
                 </p>
 
-                {/* Simulated Clack Outputs */}
+                {/* Simulated Clack Engine Outputs */}
                 <div className="space-y-1.5 font-mono text-[0.8rem]">
                   {scanLogs.map((log, index) => (
                     <div
                       key={index}
                       className={
                         log.type === "success"
-                          ? "text-ready"
+                          ? "text-emerald-400"
                           : log.type === "muted"
-                            ? "text-muted-foreground text-[0.75rem] pl-4"
+                            ? "text-muted-foreground/50 text-[0.75rem] pl-4"
                             : "text-primary animate-pulse"
                       }
                     >
@@ -156,9 +156,9 @@ export function InitCLISimulator() {
                   ))}
                 </div>
 
-                {/* Interaction Phases */}
+                {/* Interaction Pipeline Phases */}
                 {phase === "framework" && (
-                  <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/30">
+                  <div className="space-y-3 pt-2 pl-4 border-l border-primary/30">
                     <p className="font-mono text-[0.82rem] text-foreground font-medium">
                       ? Confirm framework environment
                     </p>
@@ -166,10 +166,11 @@ export function InitCLISimulator() {
                       {FRAMEWORK_OPTIONS.map((opt) => (
                         <button
                           key={opt.value}
+                          type="button"
                           onClick={() => setSelectedFramework(opt.value)}
-                          className={`w-full text-left font-mono text-[0.8rem] px-3 py-1.5 rounded-md border transition-colors ${
+                          className={`w-full text-left font-mono text-[0.8rem] px-3 py-1.5 rounded-none border transition-all ${
                             selectedFramework === opt.value
-                              ? "border-primary text-primary bg-primary/10 font-semibold"
+                              ? "border-primary text-primary bg-primary/5 font-bold"
                               : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
                           }`}
                         >
@@ -182,7 +183,7 @@ export function InitCLISimulator() {
                 )}
 
                 {phase === "alias" && (
-                  <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/30">
+                  <div className="space-y-3 pt-2 pl-4 border-l border-primary/30">
                     <p className="font-mono text-[0.82rem] text-foreground font-medium">
                       ? Configure blocks import alias
                     </p>
@@ -190,27 +191,29 @@ export function InitCLISimulator() {
                       type="text"
                       value={alias}
                       onChange={(e) => setAlias(e.target.value)}
-                      className="max-w-xs w-full font-mono text-[0.8rem] bg-muted/50 border border-border rounded-md px-3 py-1.5 text-foreground focus:border-primary outline-none transition-colors"
+                      className="max-w-xs w-full font-mono text-[0.8rem] bg-muted/50 border border-border rounded-none px-3 py-1.5 text-foreground focus:border-primary outline-none transition-colors"
                       placeholder="@/blocks"
                     />
                   </div>
                 )}
 
                 {phase === "redis" && (
-                  <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/30">
+                  <div className="space-y-3 pt-2 pl-4 border-l border-primary/30">
                     <p className="font-mono text-[0.82rem] text-foreground font-medium max-w-sm">
                       ? Redis detected. Enable Redis-backed block variants automatically?
                     </p>
                     <div className="flex gap-2">
                       <button
+                        type="button"
                         onClick={() => confirmRedis(true)}
-                        className="rounded-md bg-primary text-primary-foreground font-mono text-xs px-4 py-1.5 font-semibold hover:opacity-90"
+                        className="rounded-none bg-primary text-primary-foreground font-mono text-xs px-4 py-1.5 font-semibold transition-opacity hover:opacity-90 active:scale-[0.98]"
                       >
                         (Y)es
                       </button>
                       <button
+                        type="button"
                         onClick={() => confirmRedis(false)}
-                        className="rounded-md border border-border bg-transparent font-mono text-xs px-4 py-1.5 hover:bg-muted"
+                        className="rounded-none border border-border bg-background font-mono text-xs px-4 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-all active:scale-[0.98]"
                       >
                         (N)o
                       </button>
@@ -220,31 +223,33 @@ export function InitCLISimulator() {
 
                 {phase === "writing" && (
                   <div className="pl-4 font-mono text-[0.82rem] text-primary animate-pulse">
-                    ◌ Finalizing configuration...
+                    座 Finalizing configuration...
                   </div>
                 )}
 
                 {phase === "done" && (
                   <div className="space-y-2 pt-1 font-mono text-[0.82rem]">
-                    <p className="text-ready">✓ blockend.json ready</p>
-                    <p className="text-foreground font-semibold border-t border-border pt-2 text-xs">
-                      └ Blockend initialized successfully. Run: npx blockend add &lt;block&gt;
+                    <p className="text-emerald-400 font-semibold">✓ blockend.json ready</p>
+                    <p className="text-foreground font-medium border-t border-border pt-2 text-xs">
+                      └ Blockend initialized successfully. Run:{" "}
+                      <span className="text-primary">npx blockend add &lt;block&gt;</span>
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Action Trigger Row */}
-              <div className="pt-4 border-t border-border/40 flex justify-between items-center">
+              {/* Action Active Control Row */}
+              <div className="pt-4 border-t border-border/40 flex justify-between items-center select-none">
                 {phase === "idle" && (
                   <div className="flex items-center justify-between w-full">
-                    <div className="font-mono text-[0.82rem] text-muted-foreground">
+                    <div className="font-mono text-[0.82rem] text-muted-foreground/60">
                       <span className="text-primary">$</span> npx blockend-cli init
-                      <span className="caret ml-1" />
+                      <span className="animate-pulse bg-primary inline-block w-1.5 h-3.5 ml-1.5 align-middle" />
                     </div>
                     <button
+                      type="button"
                       onClick={runScanPhase}
-                      className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-xs font-mono font-semibold transition-transform active:scale-95"
+                      className="rounded-none bg-primary text-primary-foreground px-4 py-2 text-xs font-mono font-bold tracking-wide uppercase transition-all active:scale-[0.98]"
                     >
                       Run init →
                     </button>
@@ -253,8 +258,9 @@ export function InitCLISimulator() {
 
                 {["framework", "alias"].includes(phase) && (
                   <button
+                    type="button"
                     onClick={phase === "framework" ? confirmFramework : confirmAlias}
-                    className="rounded-md bg-primary text-primary-foreground px-4 py-1.5 text-xs font-mono font-semibold ml-4"
+                    className="rounded-none bg-primary text-primary-foreground px-4 py-1.5 text-xs font-mono font-bold tracking-wide uppercase ml-auto active:scale-[0.98]"
                   >
                     Next Step →
                   </button>
@@ -262,8 +268,9 @@ export function InitCLISimulator() {
 
                 {phase === "done" && (
                   <button
+                    type="button"
                     onClick={reset}
-                    className="rounded-md border border-border text-muted-foreground hover:text-foreground px-3 py-1.5 text-xs font-mono flex items-center gap-1 ml-4"
+                    className="rounded-none border border-border text-muted-foreground hover:bg-muted hover:text-foreground px-3 py-1.5 text-xs font-mono flex items-center gap-1 ml-auto transition-all active:scale-[0.98]"
                   >
                     ↺ Reset
                   </button>
@@ -272,23 +279,23 @@ export function InitCLISimulator() {
             </div>
           </div>
 
-          {/* Right — config json preview file */}
-          <div className="glow-border rounded-xl overflow-hidden bg-card border border-border">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
+          {/* Right Column — Static Config Preview Context Node */}
+          <div className="rounded-none overflow-hidden bg-card border border-border">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30 select-none">
               <span
-                className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                  phase === "done" ? "bg-ready" : "bg-border"
+                className={`w-1.5 h-1.5 rounded-none transition-colors ${
+                  phase === "done" ? "bg-emerald-400" : "bg-border"
                 }`}
               />
-              <span className="text-xs font-mono text-muted-foreground">blockend.json</span>
+              <span className="text-xs font-mono text-muted-foreground/60">blockend.json</span>
             </div>
 
-            <pre className="font-mono text-[0.78rem] leading-[1.8] p-5 min-h-[440px] overflow-x-auto whitespace-pre-wrap">
+            <pre className="font-mono text-[0.78rem] leading-[1.8] p-5 min-h-[440px] overflow-x-auto whitespace-pre-wrap selection:bg-primary/20">
               {configPreview ? (
-                <code className="text-foreground">{configPreview}</code>
+                <code className="text-foreground font-mono">{configPreview}</code>
               ) : (
-                <code className="text-muted-foreground/70">
-                  {`// Runtime schema file configuration\n// live preview shifts here after completing workflow setup.`}
+                <code className="text-muted-foreground/40 font-mono italic">
+                  {`// Runtime configuration file generation\n// Live code payload dynamically shifts here after configuration processing.`}
                 </code>
               )}
             </pre>

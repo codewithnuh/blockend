@@ -54,14 +54,14 @@ export const WORKFLOW_STEPS: WorkflowStep[] = [
     title: "Detect your stack",
     description:
       "Blockend reads your framework, language, and package manager — no config file to fill in.",
-    command: "$ npx blockend-cli init"
+    command: " npx blockend-cli init"
   },
   {
     step: 2,
     title: "Add a block",
     description:
       "Pick a block and it's generated as real source files in your project, adapted to your setup.",
-    command: "$ npx blockend-cli add rate-limiter"
+    command: " npx blockend-cli add rate-limiter"
   },
   {
     step: 3,
@@ -157,7 +157,6 @@ export const INIT_STEPS: InitStep[] = [
 export const FRAMEWORK_OPTIONS: SelectOption[] = [
   { value: "express", label: "Express.js" },
   { value: "fastify", label: "Fastify" },
-  { value: "next", label: "Next.js (App Router)" },
   { value: "hono", label: "Hono" }
 ];
 
@@ -166,6 +165,6 @@ export const FOOTER_LINKS: FooterLink[] = [
   { href: "https://github.com/codewithnuh/blockend", label: "GitHub" },
   { href: "https://www.npmjs.com/package/blockend-cli", label: "npm" },
   { href: "https://x.com/codewithnuh", label: "X" },
-  { href: "https://youtube.com/@codewithnuh", label: "YouTube" },
+  { href: "https://linkedin.com/in/codewithnuh", label: "LinkedIn" },
   { href: "https://blockend.noorulhassan.com/llms.txt", label: "llms.txt" }
 ];

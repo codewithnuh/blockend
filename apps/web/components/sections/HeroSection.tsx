@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CopyButton } from "./CopyButton";
 import { HeroTerminal } from "./HeroTerminal";
+import { FileText, Terminal } from "lucide-react";
 
 export function HeroSection() {
   return (
@@ -10,12 +11,12 @@ export function HeroSection() {
       <div className="absolute inset-0 glow-radial pointer-events-none opacity-50 dark:opacity-100" />
       <div className="absolute inset-0 noise pointer-events-none opacity-[0.02] dark:opacity-[0.05]" />
 
-      <div className="relative max-w-7xl mx-auto px-6 lg:px-12 w-full grid lg:grid-cols-[1.05fr_1fr] gap-16 items-center">
+      <div className="relative max-w-6xl mx-auto px-6 lg:px-12 w-full grid lg:grid-cols-[1.05fr_1fr] gap-16 items-center">
         {/* Left column */}
         <div>
           {/* Eyebrow */}
-          <div className="reveal inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-[0.7rem] font-mono font-semibold tracking-[0.1em] uppercase text-muted-foreground mb-7">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+          <div className="reveal inline-flex items-center  gap-2 rounded-full border-white  border border-border bg-muted/40 px-3 py-1.5 text-[0.7rem] font-mono font-semibold tracking-[0.1em] uppercase text-muted-foreground mb-7">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary " />
             shadcn/ui, for backend engineers
           </div>
 
@@ -42,28 +43,43 @@ export function HeroSection() {
             . Just code you can read, edit, and delete.
           </p>
 
-          {/* CTAs */}
+          {/* Interactive Core Executable CTAs */}
           <div
             id="install"
-            className="reveal mt-9 flex flex-col sm:flex-row sm:items-center gap-4"
+            className="reveal mt-10 flex flex-col sm:flex-row sm:items-stretch gap-3 max-w-md"
             style={{ transitionDelay: "0.18s" }}
           >
-            <CopyButton command="npx blockend-cli init" />
+            {/* Primary Command Trigger */}
+            <div className="flex-1 flex items-center gap-2 rounded-none border border-border bg-muted/10 px-3 py-1.5 focus-within:border-primary/40">
+              <Terminal className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0 select-none" />
+              <code className="flex-1 text-left font-mono text-xs text-foreground overflow-x-auto whitespace-nowrap scrollbar-none select-all pr-2">
+                npx blockend-cli init
+              </code>
+              <CopyButton
+                command="npx blockend-cli init"
+                className="border-none bg-transparent hover:bg-muted/50 h-7"
+              />
+            </div>
+
+            {/* Secondary Documentation Link */}
             <Link
               href="/docs"
-              className="rounded-lg px-5 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground"
+              className="flex items-center justify-center gap-2 rounded-none border border-border bg-background px-5 py-2.5 text-xs font-mono font-medium tracking-wide uppercase text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0"
             >
-              Read Docs →
+              <FileText className="h-3.5 w-3.5" />
+              <span>read_docs_</span>
             </Link>
           </div>
 
-          {/* Meta */}
-          <p
-            className="reveal mt-5 text-xs font-mono text-muted-foreground"
+          {/* System Environment Structural Meta Flags */}
+          <div
+            className="reveal mt-6 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] text-muted-foreground/50 select-none divide-x divide-border/40"
             style={{ transitionDelay: "0.22s" }}
           >
-            MIT licensed · zero runtime dependency · TypeScript first
-          </p>
+            <span className="pr-0">license: mit_open_source</span>
+            <span className="pl-4">dependencies: 0_runtime</span>
+            <span className="pl-4">pipeline: typescript_native</span>
+          </div>
         </div>
 
         {/* Right column — terminal */}

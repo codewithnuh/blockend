@@ -4,7 +4,56 @@ import { defineCommand, runMain } from "citty";
 import { addCommand } from "./commands/add.js";
 import { initCommand } from "./commands/init.js";
 import { detectCommand } from "./commands/detect.js";
+import { listCommand } from "./commands/list.js";
+import { mcpInitCommand, mcpStartCommand } from "./commands/mcp.js";
+const mcpInit = defineCommand({
+  meta: {
+    name: "init",
+    description: "Generate appropriate project-local MCP infrastructure configurations"
+  },
+  args: {
+    client: {
+      type: "string",
+      description:
+        "Target specific integration client profiles: claude | codex | cursor | vscode | windsurf"
+    },
+    force: {
+      type: "boolean",
+      default: false,
+      description: "Force override existing asset layouts"
+    },
+    "dry-run": {
+      type: "boolean",
+      default: false,
+      description: "Output planned workspace updates without disk mutation logs"
+    },
+    yes: { type: "boolean", default: false, description: "Bypass verification prompt iterations" }
+  },
+  async run({ args }) {
+    await mcpInitCommand({
+      client: args.client,
+      force: args.force,
+      dryRun: args["dry-run"],
+      yes: args.yes
+    });
+  }
+});
 
+const mcp = defineCommand({
+  meta: {
+    name: "mcp",
+    description: "Connect to context protocol channels or configure localized project setups"
+  },
+  subCommands: {
+    init: mcpInit
+  },
+  async run({ rawArgs }) {
+    // If running "blockend mcp" directly without target subcommands, default to spinning up transport stream
+    if (rawArgs.length === 0) {
+      await mcpStartCommand();
+    }
+  }
+});
 const init = defineCommand({
   meta: {
     name: "init",
@@ -27,7 +76,23 @@ const init = defineCommand({
     await initCommand({ yes: args.yes, json: args.json });
   }
 });
-
+const list = defineCommand({
+  meta: {
+    name: "list",
+    description:
+      "List available component blocks matching local project runtime environment context"
+  },
+  args: {
+    json: {
+      type: "boolean",
+      default: false,
+      description: "Output machine-readable blocks configuration array stream"
+    }
+  },
+  async run({ args }) {
+    await listCommand({ json: args.json });
+  }
+});
 const add = defineCommand({
   meta: {
     name: "add",
@@ -80,7 +145,7 @@ const main = defineCommand({
     description:
       "Blockend CLI - Core architectural blocks straight into your repository layout primitives"
   },
-  subCommands: { init, add, detect }
+  subCommands: { init, add, detect, list, mcp }
 });
 
 runMain(main);

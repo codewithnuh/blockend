@@ -1,36 +1,41 @@
 "use client";
+
 import { ArrowRight, Copy, Check } from "lucide-react";
 import { WORKFLOW_STEPS } from "@/lib/data";
 import { useState } from "react";
-import { Button } from "../ui/button";
 
 function CopyButton({ command }: { command: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(command);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (_err) {
+      // Ignore clipboard errors (e.g. permission denied or unsupported browser)
+    }
   };
 
   return (
-    <Button
+    <button
       onClick={handleCopy}
-      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      aria-label={copied ? "Copied" : `Copy ${command}`}
+      type="button"
+      className="inline-flex items-center gap-1.5 rounded-none border border-border bg-background px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring select-none active:scale-[0.98]"
+      aria-label={copied ? "Copied command string" : `Copy ${command}`}
     >
       {copied ? (
         <>
-          <Check className="h-3.5 w-3.5 text-primary" />
-          <span className="text-primary">Copied</span>
+          <Check className="h-3 w-3 text-primary stroke-[2.5]" />
+          <span className="text-primary font-semibold">copied</span>
         </>
       ) : (
         <>
-          <Copy className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Copy</span>
+          <Copy className="h-3 w-3" />
+          <span>copy</span>
         </>
       )}
-    </Button>
+    </button>
   );
 }
 
@@ -39,130 +44,104 @@ export function HowItWorksSection() {
     <section
       id="how"
       aria-labelledby="workflow-heading"
-      className="relative border-t border-border bg-background py-16 sm:py-20 md:py-24 lg:py-32"
+      className="relative border-t border-border bg-background py-24 text-foreground sm:py-28"
     >
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-12">
-        {/* Header */}
-        <header className="mb-10 sm:mb-12 md:mb-16">
-          <p className="mb-3 font-mono text-xs font-medium uppercase tracking-[0.15em] text-primary">
-            Workflow
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12">
+        {/* Header Block */}
+        <header className="mb-12 max-w-3xl">
+          {/* Eyebrow: System Label Track */}
+          <p className="mb-3 font-mono text-xs font-medium uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+            <span className="inline-block w-1.5 h-1.5 bg-primary"></span>
+            workflow // initialize
           </p>
 
+          {/* Primary Editorial Headline: Rendered with Inter Display */}
           <h2
             id="workflow-heading"
-            className="text-balance font-sans text-3xl font-semibold tracking-tight text-foreground sm:text-4xl"
+            className="text-balance font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
           >
             Three commands to production.
           </h2>
 
-          <p className="mt-3 max-w-lg text-base leading-7 text-muted-foreground sm:mt-4 sm:text-lg">
-            No configuration files. No boilerplate. Just the commands you already know.
+          {/* Body Prose: Standard Sans */}
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground max-w-xl font-sans">
+            No bloated configuration blocks. No hidden dependency scripts. Run the execution
+            primitives directly in your local directory environment.
           </p>
         </header>
 
-        {/* Terminal Window */}
-        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-          {/* Terminal Chrome */}
-          <div className="flex items-center gap-2 border-b border-border bg-muted/50 px-4 py-3">
-            <div className="h-3 w-3 rounded-full bg-muted-foreground/25" />
-            <div className="h-3 w-3 rounded-full bg-muted-foreground/25" />
-            <div className="h-3 w-3 rounded-full bg-muted-foreground/25" />
-            <span className="ml-2 font-mono text-xs text-muted-foreground/60">~/project</span>
+        {/* Brutalist Industrial Terminal Window Component Frame */}
+        <div className="rounded-none border border-border bg-card shadow-sm">
+          {/* Terminal Top Window Bar Controls */}
+          <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-3 select-none">
+            <div className="flex items-center gap-1.5">
+              <div className="h-2.5 w-2.5 rounded-none bg-border" />
+              <div className="h-2.5 w-2.5 rounded-none bg-border" />
+              <div className="h-2.5 w-2.5 rounded-none bg-border" />
+              <span className="ml-2 font-mono text-[11px] text-muted-foreground/60 tracking-tight">
+                bash — ~/workspace/project
+              </span>
+            </div>
+            <div className="font-mono text-[9px] text-muted-foreground/30">v1.0.0_stable</div>
           </div>
 
-          {/* Terminal Body — Steps as command lines */}
-          <ol className="divide-y divide-border">
+          {/* Code Pipeline Processing Lines */}
+          <ol className="divide-y divide-border/60">
             {WORKFLOW_STEPS.map((step, index) => (
               <li
                 key={step.step ?? index}
-                className="group transition-colors duration-200 hover:bg-accent/50 focus-within:bg-accent/50"
+                className="group flex flex-col gap-4 p-5 transition-all duration-150 hover:bg-muted/10 sm:flex-row sm:items-center sm:gap-6"
               >
-                {/* Mobile: stacked layout */}
-                <div className="flex flex-col gap-3 p-4 sm:hidden">
-                  {/* Step label row */}
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm font-semibold text-primary">
-                      ${step.step}
-                    </span>
-                    <span className="font-sans text-sm font-medium text-foreground">
-                      {step.title}
-                    </span>
-                  </div>
+                {/* Step Index Metric Identifier Label */}
+                <div className="flex items-center gap-3 w-full shrink-0 sm:w-44 md:w-52 select-none">
+                  <span className="font-mono text-xs font-bold text-primary/70 bg-primary/5 px-2 py-0.5 border border-primary/10">
+                    {`0${step.step || index + 1}`}
+                  </span>
+                  <span className="font-sans text-sm font-medium text-foreground tracking-tight">
+                    {step.title}
+                  </span>
+                </div>
 
-                  {/* Description */}
-                  <p className="pl-6 text-sm leading-6 text-muted-foreground">{step.description}</p>
+                {/* Vertical Geometric Anchor Axis */}
+                <div className="hidden h-5 w-px bg-border sm:block" />
 
-                  {/* Command block */}
+                {/* Context Description Text Blocks */}
+                <p className="text-xs leading-relaxed text-muted-foreground/90 font-sans sm:max-w-[180px] md:max-w-[220px] lg:max-w-[260px]">
+                  {step.description}
+                </p>
+
+                {/* Shell Process Action Terminal Node */}
+                <div className="min-w-0 flex-1">
                   {step.command && !step.commandMuted ? (
-                    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2.5">
-                      <code className="flex-1 overflow-x-auto whitespace-nowrap font-mono text-sm text-foreground scrollbar-none">
-                        <span className="mr-2 select-none text-primary">$</span>
+                    <div className="flex items-center gap-3 rounded-none border border-border bg-muted/20 px-3 py-2 transition-all group-hover:border-primary/30 group-hover:bg-muted/40">
+                      <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs text-foreground scrollbar-none select-all">
+                        <span className="mr-2 select-none text-muted-foreground/40">$</span>
                         {step.command}
                       </code>
                       <CopyButton command={step.command} />
                     </div>
                   ) : (
-                    <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2.5 font-mono text-sm text-muted-foreground">
-                      Keep it, it&apos;s Your
+                    <div className="rounded-none border border-dashed border-border bg-muted/5 px-3 py-2 font-mono text-xs text-muted-foreground/50 select-none italic">
+                      Runtime background processes attached
                     </div>
                   )}
                 </div>
 
-                {/* Tablet+: inline row layout */}
-                <div className="hidden items-center gap-4 p-4 sm:flex md:p-5">
-                  {/* Step number + title */}
-                  <div className="flex w-44 shrink-0 items-center gap-3 md:w-52">
-                    <span className="font-mono text-sm font-semibold text-primary">
-                      ${step.step}
-                    </span>
-                    <span className="font-sans text-sm font-medium text-foreground">
-                      {step.title}
-                    </span>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="hidden h-8 w-px bg-border md:block" />
-
-                  {/* Description — hidden on tablet, shown on desktop */}
-                  <p className="hidden w-48 shrink-0 text-sm leading-6 text-muted-foreground lg:block xl:w-56">
-                    {step.description}
-                  </p>
-
-                  {/* Command */}
-                  <div className="min-w-0 flex-1">
-                    {step.command && !step.commandMuted ? (
-                      <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-2 transition-colors group-hover:border-primary/30 group-hover:bg-muted/60">
-                        <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-sm text-foreground scrollbar-none">
-                          <span className="mr-2 select-none text-primary">$</span>
-                          {step.command}
-                        </code>
-                        <CopyButton command={step.command} />
-                      </div>
-                    ) : (
-                      <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 font-mono text-sm text-muted-foreground">
-                        Keep it, it&apos;s Your
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Arrow connector — not on last step */}
-                  {!step.commandMuted && index !== WORKFLOW_STEPS.length - 1 && (
-                    <ArrowRight className="hidden h-4 w-4 shrink-0 text-muted-foreground/40 transition-all duration-200 group-hover:text-primary group-hover:translate-x-1 lg:block" />
-                  )}
-                </div>
+                {/* Iterative Direct Flow Anchors */}
+                {!step.commandMuted && index !== WORKFLOW_STEPS.length - 1 && (
+                  <ArrowRight className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/30 transition-transform duration-200 group-hover:text-primary group-hover:translate-x-0.5 lg:block" />
+                )}
               </li>
             ))}
           </ol>
         </div>
 
-        {/* Footer hint */}
-        <p className="mt-6 text-center font-mono text-xs text-muted-foreground/60">
-          Press{" "}
-          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
-            Enter
-          </kbd>{" "}
-          after each command
-        </p>
+        {/* Global Structural Verification Footprint */}
+        <div className="mt-4 flex items-center justify-center gap-2 font-mono text-[10px] text-muted-foreground/40 select-none">
+          <span>[press_enter]</span>
+          <span>{"//"}</span>
+          <span>sequential pipeline verification complete</span>
+        </div>
       </div>
     </section>
   );

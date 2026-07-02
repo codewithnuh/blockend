@@ -1,86 +1,122 @@
-import { BLOCK_CHIPS } from "@/lib/data";
+import React from "react";
+import { SiNodedotjs, SiBun, SiDeno, SiExpress, SiFastify, SiHono } from "react-icons/si";
 
-const chipDescriptions: Record<string, string> = {
-  "Rate Limiting": "Token bucket, fixed/sliding window, Redis-backed",
-  "Error Handling": "Structured errors, middleware, Express/Fastify adapters",
-  Logging: "Structured JSON, request ID, levels, transports",
-  Validation: "Zod schemas, request/response validation, DTOs",
-  Pagination: "Cursor & offset, link headers, database-agnostic"
-};
+interface TechItem {
+  name: string;
+  type: "runtime" | "framework";
+  icon: React.ComponentType<{ className?: string }>;
+  hoverColor: string;
+}
+
+const SUPPORTED_STACK: TechItem[] = [
+  {
+    name: "Node.js",
+    type: "runtime",
+    icon: SiNodedotjs,
+    hoverColor: "group-hover:text-[#5FA04E] group-hover:drop-shadow-[0_0_10px_rgba(95,160,78,0.25)]"
+  },
+  {
+    name: "Bun",
+    type: "runtime",
+    icon: SiBun,
+    hoverColor:
+      "group-hover:text-[#FBF0DF] group-hover:drop-shadow-[0_0_10px_rgba(251,240,223,0.25)]"
+  },
+  {
+    name: "Deno",
+    type: "runtime",
+    icon: SiDeno,
+    hoverColor:
+      "group-hover:text-[#FFFFFF] group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.25)]"
+  },
+  {
+    name: "Express",
+    type: "framework",
+    icon: SiExpress,
+    hoverColor: "group-hover:text-[#EAEAEA]"
+  },
+  {
+    name: "Fastify",
+    type: "framework",
+    icon: SiFastify,
+    hoverColor:
+      "group-hover:text-[#202020] group-hover:bg-white group-hover:p-0.5 group-hover:rounded-none"
+  },
+  {
+    name: "Hono",
+    type: "framework",
+    icon: SiHono,
+    hoverColor: "group-hover:text-[#E36002] group-hover:drop-shadow-[0_0_10px_rgba(227,96,2,0.25)]"
+  }
+];
 
 export function ProblemSection() {
   return (
     <section
       className="relative border-t border-border bg-background py-24 text-foreground sm:py-28"
-      aria-labelledby="problem-heading"
+      aria-labelledby="compatibility-heading"
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12">
-        <div className="grid items-start gap-12 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
-          {/* Left — copy */}
+        <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
+          {/* Left Side — Inter (Sans) Prose Content */}
           <div className="reveal">
             <p className="mb-4 font-mono text-xs font-medium uppercase tracking-widest text-primary">
-              The problem
+              stdout // compatibility
             </p>
             <h2
-              id="problem-heading"
+              id="compatibility-heading"
               className="text-balance font-sans text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl"
             >
-              Every backend rebuilds the same five things.
+              Engineered to run anywhere. Zero config required.
             </h2>
-            <p className="mt-5 max-w-md leading-relaxed text-muted-foreground">
-              You either adopt a third-party package and lock into its opinions, or you rewrite the
-              same rate limiters, error handlers, loggers, validation, and pagination from scratch
-              on every project.
+            <p className="mt-5 max-w-md font-sans text-sm leading-relaxed text-muted-foreground">
+              Drop it straight into your architecture. Native integration across premium runtimes
+              and frameworks with strict zero-overhead compilation pipelines.
             </p>
           </div>
 
-          {/* Right — block chips */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-hidden="true">
-            {BLOCK_CHIPS.map((chip, i) => (
-              <ChipCard
-                key={chip.label}
-                chip={chip}
-                description={chipDescriptions[chip.label]}
-                index={i}
-              />
-            ))}
+          {/* Right Side — Technical Grid View */}
+          <div className="relative">
+            <div
+              className="grid grid-cols-2 sm:grid-cols-3 gap-0 border-t border-l border-border/60 bg-muted/10"
+              aria-hidden="true"
+            >
+              {SUPPORTED_STACK.map((item) => {
+                const IconComponent = item.icon;
+                return (
+                  <div
+                    key={item.name}
+                    className="group relative flex flex-col items-center justify-center p-8 border-r border-b border-border/60 transition-all duration-200 cursor-default select-none bg-background hover:bg-muted/30"
+                  >
+                    {/* Brand Icon wrapper */}
+                    <div
+                      className={`text-muted-foreground/40 filter grayscale transition-all duration-300 transform group-hover:grayscale-0 group-hover:scale-105 mb-4 ${item.hoverColor}`}
+                    >
+                      <IconComponent className="w-7 h-7" />
+                    </div>
+
+                    {/* Industrial Mono Labels */}
+                    <span className="font-mono text-xs text-muted-foreground/70 group-hover:text-foreground transition-colors tracking-wide">
+                      {item.name.toLowerCase()}
+                    </span>
+
+                    {/* Edge Context Tags */}
+                    <span className="absolute bottom-1 right-2 text-[8px] font-mono opacity-0 group-hover:opacity-30 text-muted-foreground transition-opacity">
+                      {item.type}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Context Terminal Row */}
+            <div className="mt-3 flex justify-between items-center px-1 font-mono text-[10px] text-muted-foreground/40">
+              <span>layers: native_binding</span>
+              <span>status: 200_ready</span>
+            </div>
           </div>
         </div>
       </div>
     </section>
-  );
-}
-
-/* ─── Sub-component ───────────────────────────────────────────────── */
-
-function ChipCard({
-  chip,
-  description,
-  index
-}: {
-  chip: { label: string; available: boolean };
-  description?: string;
-  index: number;
-}) {
-  return (
-    <div
-      className="reveal glow-card rounded-xl p-4 text-center"
-      style={{ transitionDelay: `${index * 0.04}s` }}
-      title={description ?? ""}
-    >
-      <span className="inline-flex items-center justify-center gap-1.5 font-mono text-sm">
-        {chip.available ? (
-          <>
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-            <span className="text-foreground">{chip.label}</span>
-          </>
-        ) : (
-          <>
-            <span className="text-muted-foreground">{chip.label}</span>
-            <span className="ml-0.5 font-mono text-[0.6rem] text-muted-foreground/50">soon</span>
-          </>
-        )}
-      </span>
-    </div>
   );
 }

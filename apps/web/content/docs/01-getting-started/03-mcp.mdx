@@ -1,0 +1,281 @@
+---
+title: MCP Server
+description: Connect Blockend to your AI coding assistant through the Model Context Protocol (MCP) to discover, analyze, and install backend blocks directly into your projects.
+---
+
+# MCP Server
+
+Blockend includes a built-in **Model Context Protocol (MCP)** server that allows AI coding assistants to interact with the Blockend CLI directly.
+
+Instead of manually searching for blocks or running CLI commands yourself, your AI assistant can:
+
+- Discover available Blockend blocks
+- Analyze your current project
+- Install production-ready backend blocks
+- Automate backend scaffolding without leaving your editor
+
+---
+
+## How it works
+
+The MCP server exposes a small set of tools over the standard input/output (Stdio) transport.
+
+When connected, your AI assistant can call these tools instead of asking you to run CLI commands manually.
+
+```text
+AI Client
+      │
+      ▼
+Blockend MCP Server
+      │
+      ▼
+Blockend CLI
+      │
+      ▼
+Your Project
+```
+
+---
+
+## Supported AI Clients
+
+Blockend can automatically generate configuration files for the following clients:
+
+| Client      | Configuration           |
+| ----------- | ----------------------- |
+| Claude Code | `.mcp.json`             |
+| Cursor      | `.cursor/mcp.json`      |
+| VS Code     | `.vscode/settings.json` |
+| Codex CLI   | `.codex/config.toml`    |
+| Windsurf    | `.windsurf/mcp.json`    |
+
+---
+
+## Configure MCP
+
+Initialize MCP for your preferred client.
+
+### Interactive setup
+
+```bash
+npx blockend-cli mcp init
+```
+
+You'll be prompted to choose your AI client.
+
+---
+
+### Configure a specific client
+
+```bash
+npx blockend-cli mcp init --client cursor
+```
+
+Supported values:
+
+```text
+claude
+cursor
+vscode
+codex
+windsurf
+```
+
+---
+
+### Skip confirmation prompts
+
+```bash
+npx blockend-cli mcp init --client cursor --yes
+```
+
+---
+
+### Overwrite existing configuration
+
+```bash
+npx blockend-cli mcp init --client cursor --force
+```
+
+---
+
+### Preview without writing files
+
+```bash
+npx blockend-cli mcp init --dry-run
+```
+
+This prints the generated configuration without modifying your project.
+
+---
+
+## Starting the MCP server
+
+Once configured, your AI client starts the server automatically.
+
+The command executed is:
+
+```bash
+npx -y blockend-cli mcp
+```
+
+The server communicates using the standard MCP **Stdio** transport.
+
+---
+
+## Available Tools
+
+### `list_blocks`
+
+Returns every Blockend block available for installation.
+
+Example prompts:
+
+- "Show all available authentication blocks."
+- "List all logging-related blocks."
+- "Find caching blocks."
+
+---
+
+### `detect_project`
+
+Analyzes your current project and detects its runtime environment.
+
+The AI can understand things like:
+
+- Framework
+- Runtime
+- Package manager
+- Project structure
+
+Example prompts:
+
+- "Analyze this project."
+- "What framework am I using?"
+- "Inspect the current repository."
+
+---
+
+### `add_block`
+
+Installs a Blockend block directly into your project.
+
+Example prompts:
+
+- "Install the logger block."
+- "Add the rate-limit block."
+- "Install the error-handler block."
+
+The server internally executes the equivalent of:
+
+```bash
+npx blockend-cli add <block-name>
+```
+
+---
+
+## Example Workflow
+
+After connecting Blockend to your AI assistant, you can use natural language.
+
+```
+Analyze this project.
+```
+
+↓
+
+The assistant calls `detect_project`.
+
+---
+
+```
+What authentication blocks are available?
+```
+
+↓
+
+The assistant calls `list_blocks`.
+
+---
+
+```
+Install the logger block.
+```
+
+↓
+
+The assistant calls `add_block`.
+
+Everything happens directly inside your project without manually running CLI commands.
+
+---
+
+## Generated Configuration
+
+Depending on your selected client, Blockend generates the appropriate configuration automatically.
+
+Example JSON configuration:
+
+```json
+{
+  "mcpServers": {
+    "blockend": {
+      "command": "npx",
+      "args": ["-y", "blockend-cli", "mcp"]
+    }
+  }
+}
+```
+
+Example TOML configuration (Codex CLI):
+
+```toml
+[mcp_servers.blockend]
+command = "npx"
+args = ["-y", "blockend-cli", "mcp"]
+```
+
+---
+
+## CLI Reference
+
+### Initialize MCP
+
+```bash
+npx blockend-cli mcp init
+```
+
+### Initialize for a specific client
+
+```bash
+npx blockend-cli mcp init --client cursor
+```
+
+### Preview configuration
+
+```bash
+npx blockend-cli mcp init --dry-run
+```
+
+### Force overwrite
+
+```bash
+npx blockend-cli mcp init --force
+```
+
+### Skip prompts
+
+```bash
+npx blockend-cli mcp init --yes
+```
+
+---
+
+## Next Steps
+
+After configuring MCP:
+
+1. Restart your AI editor or client if necessary.
+2. Open your project.
+3. Ask your AI assistant to analyze the project or install Blockend blocks.
+4. The assistant will automatically communicate with the Blockend MCP server to perform the requested actions.

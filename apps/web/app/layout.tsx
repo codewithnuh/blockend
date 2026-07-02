@@ -4,7 +4,9 @@ import { Inter } from "next/font/google";
 import { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 const inter = Inter({
-  subsets: ["latin"]
+  subsets: ["latin"],
+  variable: "--font-inter",
+  weight: ["100", "200", "300", "400", "500", "600"]
 });
 
 // Complete SEO Configuration
@@ -87,8 +89,8 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   return (
-    <html lang="en" className={inter.className} suppressHydrationWarning>
-      <body className="flex flex-col min-h-screen">
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} flex flex-col min-h-screen`}>
         <RootProvider>{children}</RootProvider>
         <Analytics />
       </body>
