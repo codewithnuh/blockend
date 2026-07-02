@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { detectProject } from "@blockend/detector";
+import { detectProject } from "../detectors/index.js";
 import { outro } from "@clack/prompts";
 import pc from "picocolors";
 

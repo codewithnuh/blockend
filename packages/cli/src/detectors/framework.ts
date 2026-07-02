@@ -1,4 +1,4 @@
-import type { ProjectContext } from "@blockend/core";
+import { ProjectContext } from "../types/index.js";
 /**
  * Detects the HTTP framework by checking project dependencies.
  * Checks in order of specificity — Fastify and Hono before Express.

@@ -4,7 +4,7 @@ import fs from "fs/promises";
 import { existsSync } from "fs";
 import { intro, outro, select, text, confirm, spinner, isCancel } from "@clack/prompts";
 
-import { detectProject } from "@blockend/detector";
+import { detectProject } from "../detectors/index.js";
 import { format } from "../ui/format.js";
 import { theme } from "../ui/theme.js";
 

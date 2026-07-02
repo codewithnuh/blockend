@@ -1,4 +1,4 @@
-import type { ProjectContext } from "@blockend/core";
+import type { ProjectContext } from "../types/index.js";
 
 /**
  * Detects the runtime from project dependencies.

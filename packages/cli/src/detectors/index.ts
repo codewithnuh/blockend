@@ -1,11 +1,11 @@
 import { join } from "path";
-import type { ProjectContext } from "@blockend/core";
+import type { ProjectContext } from "../types/index.js";
 import { readPackageJson } from "./readers/package.js";
 import { readTsConfig } from "./readers/tsconfig.js";
 import { inferSrcDir } from "./readers/filesystem.js";
-import { detectFramework } from "./detectors/framework.js";
-import { detectRuntime } from "./detectors/runtime.js";
-import { detectPackageManager } from "./detectors/package-manager.js";
+import { detectFramework } from "./framework.js";
+import { detectRuntime } from "./runtime.js";
+import { detectPackageManager } from "./package-manager.js";
 
 /**
  * Analyzes a project directory and returns a ProjectContext.

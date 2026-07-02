@@ -1,6 +1,6 @@
 import { existsSync } from "fs";
 import { join } from "path";
-import type { ProjectContext } from "@blockend/core";
+import type { ProjectContext } from "../types/index.js";
 
 /**
  * Detects the package manager by checking for lockfiles.
