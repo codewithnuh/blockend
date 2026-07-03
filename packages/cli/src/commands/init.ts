@@ -2,7 +2,8 @@
 import path, { join } from "path";
 import fs from "fs/promises";
 import { existsSync } from "fs";
-import { intro, outro, select, text, confirm, spinner, isCancel } from "@clack/prompts";
+import { intro, outro, select, text, confirm, spinner, isCancel, log } from "@clack/prompts";
+import pc from "picocolors";
 
 import { detectProject } from "../detectors/index.js";
 import { format } from "../ui/format.js";
@@ -34,7 +35,8 @@ function outputInitError(json: boolean, message: string): void {
   if (json) {
     process.stdout.write(JSON.stringify({ success: false, error: message }) + "\n");
   } else {
-    outro(format.error(message));
+    log.error(format.error(message));
+    process.exit(1);
   }
 }
 
@@ -60,15 +62,8 @@ export async function initCommand(
   const configPath = join(cwd, "blockend.json");
 
   if (!json) {
-    console.log(`
-██████╗ ██╗         ██████╗  ██████╗██╗  ██╗███████╗███╗   ██╗██████╗
-██╔══██╗██║         ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝████╗  ██║██╔══██╗
-██████╔╝██║         ██║   ██║██║     █████╔╝ █████╗  ██╔██╗ ██║██║  ██║
-██╔══██╗██║         ██║   ██║██║     ██╔═██╗ ██╔══╝  ██║╚██╗██║██║  ██║
-██████╔╝███████╗╚██████╔╝╚██████╗██║  ██╗███████╗██║ ╚████║██████╔╝
-╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═════╝
-`);
-    intro(theme.brand.primary(" Blockend · Intelligent Backend Blocks Setup "));
+    console.log(""); // Empty line for breathing room
+    intro(`${pc.bgCyan(pc.black(" blockend "))} ${theme.text.muted("setup")}`);
   }
 
   if (existsSync(configPath)) {
@@ -77,11 +72,11 @@ export async function initCommand(
       action = "overwrite";
     } else {
       const actionPrompt = await select({
-        message: "blockend.json already exists. What do you want to do?",
+        message: "A blockend.json configuration already exists. What would you like to do?",
         options: [
-          { value: "keep", label: "Keep existing config (cancel init)" },
-          { value: "overwrite", label: "Overwrite config" },
-          { value: "regenerate", label: "Delete and regenerate" }
+          { value: "keep", label: "Keep existing (cancel setup)" },
+          { value: "overwrite", label: "Overwrite current configuration" },
+          { value: "regenerate", label: "Delete and regenerate from scratch" }
         ]
       });
 
@@ -89,10 +84,10 @@ export async function initCommand(
         if (json) {
           outputInitResult(json, {
             success: false,
-            message: "Initialization cancelled. Existing config preserved."
+            message: "Setup cancelled. Existing config preserved."
           });
         } else {
-          outro(format.muted("Initialization cancelled. Existing config preserved."));
+          outro(format.muted("Setup cancelled. Existing config preserved."));
         }
         return;
       }
@@ -101,24 +96,27 @@ export async function initCommand(
 
     if (action === "regenerate") {
       await fs.unlink(configPath);
-      if (!json) console.log(format.error("Existing config deleted"));
+      if (!json) log.warn("Existing configuration deleted.");
     }
   }
 
   const s = spinner();
-  if (!json) s.start("Scanning project layout...");
+  if (!json) s.start("Scanning project architecture...");
+
   const context = await detectProject(cwd);
   const hasSrcDir = existsSync(join(cwd, "src"));
   const tsConfig = await resolveTsConfigPaths(cwd);
-  if (!json) s.stop(format.success("Project architecture scanned"));
+
+  if (!json) s.stop("Project scanned.");
 
   let framework = context.framework;
+
   if (!framework) {
     if (yes) {
       framework = "express"; // Fallback rule for automation environments
     } else {
       const frameworkSelect = await select({
-        message: "Framework could not be auto-detected. Select framework environment manually:",
+        message: "Which framework does this project use?",
         options: [
           { value: "express", label: "Express.js" },
           { value: "fastify", label: "Fastify" },
@@ -129,18 +127,16 @@ export async function initCommand(
 
       if (isCancel(frameworkSelect)) {
         if (json) {
-          outputInitResult(json, { success: false, message: "Initialization cancelled." });
+          outputInitResult(json, { success: false, message: "Setup cancelled." });
         } else {
-          outro(format.muted("Initialization cancelled."));
+          outro(format.muted("Setup cancelled."));
         }
         return;
       }
       framework = frameworkSelect as "express" | "fastify" | "hono" | "next";
     }
   } else if (!json) {
-    console.log(
-      `${format.success("✔")} Framework environment detected: ${theme.state.info(framework)}`
-    );
+    log.info(`Framework detected: ${theme.state.info(framework)}`);
   }
 
   const defaultDir = hasSrcDir ? "src/blocks" : "blocks";
@@ -148,16 +144,16 @@ export async function initCommand(
 
   if (!yes) {
     const directoryPrompt = await text({
-      message: "Configure the targeted physical directory destination for blocks:",
+      message: "Where would you like to install blocks?",
       placeholder: defaultDir,
       initialValue: defaultDir,
       validate(value) {
-        if (value?.trim().length === 0) return "Physical path location directory cannot be empty.";
+        if (value?.trim().length === 0) return "Directory path cannot be empty.";
       }
     });
 
     if (isCancel(directoryPrompt)) {
-      outro(format.muted("Initialization cancelled."));
+      outro(format.muted("Setup cancelled."));
       return;
     }
     rawPhysicalInput = String(directoryPrompt).trim();
@@ -205,7 +201,7 @@ export async function initCommand(
       includeRedis = true;
     } else {
       const redisConfirm = await confirm({
-        message: "Redis detected. Enable Redis-backed block variants automatically?",
+        message: "Redis detected in project. Enable Redis-backed variants?",
         initialValue: true
       });
 
@@ -228,22 +224,23 @@ export async function initCommand(
     }
   };
 
-  if (!json) s.start("Finalizing configuration...");
+  if (!json) s.start("Writing configuration...");
 
   try {
     await fs.writeFile(configPath, JSON.stringify(configPayload, null, 2), "utf-8");
-    if (!json) s.stop(format.success("blockend.json ready"));
+    if (!json) s.stop("Configuration saved.");
 
     outputInitResult(json, {
       success: true,
-      message: "✨ Blockend initialized successfully. Run: npx blockend add <block>",
+      message: "Blockend initialized successfully! Run: npx blockend add <block>",
       config: configPayload
     });
   } catch {
     if (!json) {
-      s.stop(format.error("Failed to write configuration"));
+      s.stop("Failed");
+      outputInitError(false, "Failed to write configuration file.");
     } else {
-      outputInitError(json, "Failed to write architectural layout configuration map.");
+      outputInitError(true, "Failed to write architectural layout configuration map.");
     }
   }
 }

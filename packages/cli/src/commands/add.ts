@@ -2,7 +2,7 @@
 import path, { join, dirname } from "path";
 import fs from "fs/promises";
 import { exec } from "child_process";
-import { intro, outro, select, spinner, confirm, isCancel } from "@clack/prompts";
+import { intro, outro, select, spinner, confirm, isCancel, log } from "@clack/prompts";
 import pc from "picocolors";
 import { configPayloadType } from "./init.js";
 
@@ -64,7 +64,7 @@ function outputError(json: boolean, message: string): void {
   if (json) {
     process.stdout.write(JSON.stringify({ success: false, error: message }) + "\n");
   } else {
-    outro(pc.red(`✖ ${message}`));
+    log.error(message);
   }
 }
 
@@ -83,7 +83,7 @@ function outputResult(
     process.stdout.write(JSON.stringify(result) + "\n");
   } else {
     if (result.success) {
-      outro(pc.cyan(`✨ ${result.message}`));
+      outro(pc.green(`✨ ${result.message}`));
     } else {
       outro(pc.yellow(`ℹ ${result.message}`));
     }
@@ -92,7 +92,7 @@ function outputResult(
 
 function handleCancel(value: unknown): void {
   if (isCancel(value)) {
-    outro(pc.yellow("⚠ Operation cancelled. Exiting Blockend CLI cleanly."));
+    outro(pc.dim("Operation cancelled."));
     process.exit(0);
   }
 }
@@ -123,7 +123,8 @@ export async function addCommand(
   const { yes = false, json = false } = options;
 
   if (!json) {
-    intro(pc.bgBlack(pc.magenta(" Blockend Component Ingestion ")));
+    console.log(""); // Empty line for breathing room
+    intro(`${pc.bgCyan(pc.black(" blockend "))} ${pc.dim("add")}`);
   }
   const cwd = process.cwd();
 
@@ -139,30 +140,24 @@ export async function addCommand(
     const configFile = await fs.readFile(configPath, "utf-8");
     config = JSON.parse(configFile) as BlockendExtendedConfig;
   } catch (error) {
-    outputError(json, "Failed to parse blockend.json layout configuration.");
-    if (!json) console.error(pc.dim(String(error)));
+    outputError(json, "Failed to parse blockend.json.");
+    if (!json) log.error(pc.dim(String(error)));
     return;
   }
 
   if (config.language !== "typescript") {
     if (json) {
-      outputError(
-        json,
-        "Blockend forces modern architectural standards. Registry exclusively supports TypeScript."
-      );
+      outputError(json, "Registry exclusively supports TypeScript projects.");
     } else {
-      outro(
-        pc.yellow(
-          `\nℹ Blockend forces modern architectural standards. Registry exclusively supports TypeScript.`
-        )
-      );
+      log.warn("Blockend currently only supports TypeScript projects.");
+      outro(pc.dim("Exiting."));
     }
     return;
   }
 
   const s = spinner();
   if (!json) {
-    s.start("Connecting to remote Blockend Registry manifest...");
+    s.start("Fetching registry...");
   }
 
   let registry: RegistryManifest;
@@ -170,13 +165,13 @@ export async function addCommand(
     const response = await fetch(MANIFEST_URL);
     if (!response.ok) throw new Error(`HTTP Error Status: ${response.status}`);
     registry = (await response.json()) as RegistryManifest;
-    if (!json) s.stop(pc.green("✔ Remote manifest synchronization complete."));
+    if (!json) s.stop("Registry synced.");
   } catch (error) {
     if (!json) {
-      s.stop(pc.red("✖ Failed to fetch the component registry from GitHub network paths."));
-      console.error(pc.dim(String(error)));
+      s.stop("Failed to fetch registry.");
+      log.error(pc.dim(String(error)));
     } else {
-      outputError(json, "Failed to fetch the component registry from GitHub network paths.");
+      outputError(json, "Failed to fetch the component registry from GitHub.");
     }
     return;
   }
@@ -201,36 +196,46 @@ export async function addCommand(
   }
 
   if (!targetBlock) {
-    const availableOptions = Object.entries(blockMap)
-      .filter(([_, block]) => {
-        if (!block) return false;
-        const hasAdapter = block.adapters?.[envKey] !== undefined;
-        const hasEnvironment = block.environments?.[envKey] !== undefined;
-        return hasAdapter || hasEnvironment;
-      })
-      .map(([key, block]) => ({
-        value: key,
-        label: `${key} - ${pc.dim(block.description)}`
-      }));
+    const filteredBlocks = Object.entries(blockMap).filter(([_, block]) => {
+      if (!block) return false;
+      const hasAdapter = block.adapters?.[envKey] !== undefined;
+      const hasEnvironment = block.environments?.[envKey] !== undefined;
+      return hasAdapter || hasEnvironment;
+    });
 
-    if (availableOptions.length === 0) {
+    if (filteredBlocks.length === 0) {
+      const msg = `No backend blocks are currently available for: ${envKey}.`;
       if (json) {
-        outputError(
-          json,
-          `No backend blocks are currently available for your framework layer: [${envKey}].`
-        );
+        outputError(json, msg);
       } else {
-        outro(
-          pc.yellow(
-            `⚠ No backend blocks are currently available for your framework layer: [${envKey}].`
-          )
-        );
+        log.warn(msg);
+        outro(pc.dim("Exiting."));
       }
       return;
     }
 
+    // Dynamic padding calculations for beautiful columnar alignment
+    const maxKeyLength = Math.max(...filteredBlocks.map(([key]) => key.length), 0);
+
+    const availableOptions = filteredBlocks.map(([key, block], index) => {
+      // Align descriptions on a matching vertical column line
+      const paddedKey = key.padEnd(maxKeyLength + 4, " ");
+
+      // Limit description length to protect standard terminal viewport sizes
+      const maxDescWidth = 60;
+      const optimizedDescription =
+        block.description.length > maxDescWidth
+          ? `${block.description.slice(0, maxDescWidth)}...`
+          : block.description;
+
+      return {
+        value: key,
+        label: `${pc.dim(`${index + 1}.`)} ${pc.bold(pc.cyan(paddedKey))}${pc.dim(optimizedDescription)}`
+      };
+    });
+
     const selectBlockPrompt = await select({
-      message: "Which backend block would you like to inject?",
+      message: "Which block would you like to add?",
       options: availableOptions
     });
     handleCancel(selectBlockPrompt);
@@ -239,16 +244,13 @@ export async function addCommand(
 
   const blockMeta = blockMap[targetBlock];
   if (!blockMeta) {
-    outputError(json, `Block "${targetBlock}" does not exist in the remote registry.`);
+    outputError(json, `Block "${targetBlock}" does not exist in the registry.`);
     return;
   }
 
   const adapterContext = blockMeta.adapters?.[envKey] ?? blockMeta.environments?.[envKey];
   if (!adapterContext) {
-    outputError(
-      json,
-      `The block "${targetBlock}" does not support your environment layout: ${envKey}`
-    );
+    outputError(json, `The block "${targetBlock}" does not support your environment: ${envKey}`);
     return;
   }
 
@@ -256,10 +258,7 @@ export async function addCommand(
   const variantKeys = Object.keys(adapterContext.variants || {});
 
   if (variantKeys.length === 0) {
-    outputError(
-      json,
-      `No architecture storage layout variants found for block framework: ${envKey}`
-    );
+    outputError(json, `No storage variants found for block environment: ${envKey}`);
     return;
   }
 
@@ -271,7 +270,7 @@ export async function addCommand(
     selectedVariant = variantKeys[0];
   } else {
     const selectVariantPrompt = await select({
-      message: "Which architectural storage variant do you want to back this block?",
+      message: "Select a storage variant:",
       options: variantKeys.map((vKey) => ({
         value: vKey,
         label: vKey.toUpperCase()
@@ -291,7 +290,7 @@ export async function addCommand(
 
   const packageJsonPath = await findUp("package.json", rootDir);
   if (!packageJsonPath) {
-    outputError(json, "Could not locate package.json in your current directory layout hierarchy.");
+    outputError(json, "Could not locate package.json in your current directory.");
     return;
   }
   const packageJsonDir = dirname(packageJsonPath);
@@ -301,8 +300,8 @@ export async function addCommand(
     const packageJsonContent = await fs.readFile(packageJsonPath, "utf-8");
     packageJson = JSON.parse(packageJsonContent) as LocalPackageJson;
   } catch (error) {
-    outputError(json, "Failed parsing file data configurations from target package.json location.");
-    if (!json) console.error(pc.dim(String(error)));
+    outputError(json, "Failed parsing package.json.");
+    if (!json) log.error(pc.dim(String(error)));
     return;
   }
 
@@ -324,15 +323,13 @@ export async function addCommand(
   if (hasMissingDeps) {
     const allMissingNames = [...missingProdDeps, ...missingDevDeps];
     if (!json) {
-      console.log(
-        pc.yellow(`\n⚠️ Missing required infrastructure packages: ${allMissingNames.join(", ")}`)
-      );
+      log.warn(`Missing dependencies: ${pc.cyan(allMissingNames.join(", "))}`);
     }
 
     const shouldInstallPrompt = yes
       ? true
       : await confirm({
-          message: "Would you like the CLI to automatically install these dependencies?",
+          message: "Install missing dependencies?",
           initialValue: true
         });
     if (!yes) handleCancel(shouldInstallPrompt);
@@ -343,7 +340,7 @@ export async function addCommand(
         .then(() => "pnpm")
         .catch(() => "npm");
 
-      if (!json) s.start(`Preparing native workspace via ${packageManager}...`);
+      if (!json) s.start(`Installing via ${packageManager}...`);
       try {
         const installTasks: string[] = [];
 
@@ -364,7 +361,7 @@ export async function addCommand(
         }
 
         for (const installCmd of installTasks) {
-          if (!json) s.stop(pc.cyan(`Executing: ${installCmd}\n`));
+          if (!json) s.message(`Executing: ${installCmd}`);
 
           await new Promise<void>((resolve, reject) => {
             const child = exec(installCmd, { cwd: packageJsonDir });
@@ -381,13 +378,12 @@ export async function addCommand(
         }
 
         if (!json) {
-          s.start(pc.green("✔ All dependencies synchronized successfully."));
-          s.stop();
+          s.stop("Dependencies installed.");
         }
       } catch (error) {
         if (!json) {
-          s.stop(pc.red("✖ Automated dependency installation failed. Please run setup manually."));
-          console.error(pc.dim(String(error)));
+          s.stop("Installation failed.");
+          log.error(pc.dim(String(error)));
         } else {
           outputError(json, "Automated dependency installation failed.");
         }
@@ -438,7 +434,7 @@ export async function addCommand(
     const overwritePrompt = yes
       ? true
       : await confirm({
-          message: `⚠ Components in [${targetBlock}] already exist. Overwrite custom revisions?`,
+          message: `Files for "${targetBlock}" already exist. Overwrite?`,
           initialValue: false
         });
     if (!yes) handleCancel(overwritePrompt);
@@ -454,7 +450,7 @@ export async function addCommand(
   }
 
   if (!json) {
-    s.start(`Downloading and building template adapter blocks [${targetBlock}]...`);
+    s.start(`Downloading ${targetBlock}...`);
   }
 
   try {
@@ -470,21 +466,21 @@ export async function addCommand(
       await fs.writeFile(localWriteLocation, fileContent, "utf-8");
     }
 
-    if (!json) s.stop(pc.green("✔ Component isolation structures written smoothly."));
+    if (!json) s.stop("Files copied.");
 
     outputResult(json, {
       success: true,
       block: targetBlock,
       filesWritten: filesToDownload.map((f) => join(targetFolder, f.target)),
       dependenciesInstalled: [...missingProdDeps, ...missingDevDeps],
-      message: `Source blocks written to ${physicalPath}/${targetBlock}/. Code ownership transferred!`
+      message: `Block added to ${physicalPath}/${targetBlock}`
     });
   } catch (error) {
     if (!json) {
-      s.stop(pc.red("✖ Fatal error occurred while assembling file mappings."));
-      console.error(pc.dim(String(error)));
+      s.stop("Failed to write files.");
+      log.error(pc.dim(String(error)));
     } else {
-      outputError(json, "Fatal error occurred while assembling file mappings.");
+      outputError(json, "Fatal error occurred while writing block files.");
     }
   }
 }

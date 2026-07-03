@@ -1,4 +1,3 @@
-// apps/cli/src/ui/theme.ts
 import pc from "picocolors";
 
 /**
@@ -8,7 +7,7 @@ import pc from "picocolors";
 
 export const theme = {
   brand: {
-    primary: pc.blue,
+    primary: pc.cyan,
     title: pc.bold,
     logo: pc.white
   },
@@ -23,7 +22,7 @@ export const theme = {
     success: pc.green,
     warning: pc.yellow,
     error: pc.red,
-    info: pc.blue
+    info: pc.cyan
   },
 
   emphasis: {
