@@ -1,0 +1,259 @@
+---
+title: Request Validator
+description: Validate incoming HTTP requests using Zod with a framework-agnostic core and lightweight adapters.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Steps } from "fumadocs-ui/components/steps";
+import { File, Files, Folder } from "fumadocs-ui/components/files";
+import { Card, Cards } from "fumadocs-ui/components/card";
+
+The **Request Validator** block validates incoming HTTP requests before they reach your route handlers.
+
+It provides a framework-agnostic validation core powered by Zod and lightweight adapters for supported frameworks. The core is responsible only for validation, while adapters integrate it with your web framework.
+
+---
+
+## Features
+
+- Framework-agnostic validation core
+- Powered by Zod with full type inference
+- Validate request body, query parameters, and route parameters
+- Replaces raw request data with validated values
+- Express adapter included
+- Optional integration with a global error handler
+- TypeScript-first API
+
+---
+
+## Architecture
+
+The Request Validator block is composed of two parts:
+
+- **Core** — Validates data using Zod. It has no dependency on Express or any other framework.
+- **Adapter** — Connects the core to your framework by validating incoming requests and updating the request object.
+
+When validation fails, the core throws a `ValidationError`. The adapter can either:
+
+- Return a default `400 Bad Request` response.
+- Forward the error to your application's global error handler.
+
+---
+
+## Installation
+
+Choose your preferred package manager.
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+  <Tab>
+
+```bash
+pnpm dlx blockend-cli add request-validator
+```
+
+  </Tab>
+
+  <Tab>
+
+```bash
+npx blockend-cli add request-validator
+```
+
+  </Tab>
+
+  <Tab>
+
+```bash
+yarn dlx blockend-cli add request-validator
+```
+
+  </Tab>
+
+  <Tab>
+
+```bash
+bunx blockend-cli add request-validator
+```
+
+  </Tab>
+</Tabs>
+
+---
+
+## Installation Flow
+
+<Steps>
+
+### Detect Project
+
+Blockend detects your configured backend framework and installs the appropriate adapter automatically.
+
+### Install Dependencies
+
+The required dependencies are installed if they are not already present.
+
+```text
+✔ Installing zod...
+✔ Installing express...
+```
+
+### Generate Files
+
+The validator block is generated inside your configured blocks directory.
+
+</Steps>
+
+---
+
+## Generated Files
+
+<Files>
+  <Folder name="blocks">
+    <Folder name="request-validator">
+      <File name="core.ts" />
+      <File name="contract.ts" />
+      <File name="express.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+---
+
+## Basic Usage
+
+Define the parts of the request you want to validate.
+
+```ts
+import { z } from "zod";
+
+const createUserSchema = {
+  body: z.object({
+    name: z.string(),
+    email: z.string().email(),
+    phoneNumber: z.number()
+  })
+};
+```
+
+Register the validator before your route handler.
+
+```ts
+import { expressValidator } from "@/blocks/request-validator/express";
+
+app.post("/users", expressValidator(createUserSchema), (req, res) => {
+  res.json(req.body);
+});
+```
+
+Only the request sections you provide are validated. For example, if you only specify `body`, the validator ignores `query` and `params`.
+
+---
+
+## Validating Different Request Parts
+
+You can validate any combination of the request body, query string, and route parameters.
+
+```ts
+const userSchema = {
+  body: z.object({
+    name: z.string()
+  }),
+
+  query: z.object({
+    page: z.coerce.number().default(1)
+  }),
+
+  params: z.object({
+    id: z.string().uuid()
+  })
+};
+```
+
+---
+
+## Validation Failures
+
+By default, the Express adapter handles validation failures and returns a `400 Bad Request` response.
+
+```json
+{
+  "error": "Bad Request",
+  "details": [
+    {
+      "path": "body.phoneNumber",
+      "message": "Invalid input: expected number, received undefined"
+    }
+  ]
+}
+```
+
+This default behavior allows the validator block to work without requiring a global error handler.
+
+---
+
+## Using a Global Error Handler
+
+If your application uses Blockend's Error Handler block, you can delegate validation errors to it instead.
+
+```ts
+app.post(
+  "/users",
+  expressValidator(createUserSchema, {
+    propagateErrors: true
+  }),
+  controller
+);
+```
+
+When `propagateErrors` is enabled, the adapter forwards `ValidationError` to Express using `next(error)` instead of generating the response itself.
+
+This is useful when you're using Blockend's Error Handler block to centralize API error responses.
+
+---
+
+## Using the Core Validator
+
+The Express adapter is built on top of a framework-independent validator.
+
+```ts
+import { coreValidator } from "@/blocks/request-validator/core";
+
+const validated = coreValidator(schema, data);
+```
+
+The core validator:
+
+- Validates arbitrary input
+- Returns parsed data when validation succeeds
+- Throws `ValidationError` when validation fails
+
+Because it has no framework dependencies, it can be reused by adapters for other frameworks.
+
+---
+
+## API Reference
+
+### `expressValidator(schema, options?)`
+
+| Parameter                 | Description                                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `schema`                  | Validation schema containing `body`, `query`, and/or `params`.                                                                       |
+| `options.propagateErrors` | When `true`, forwards `ValidationError` to Express instead of returning the default `400 Bad Request` response. Defaults to `false`. |
+
+---
+
+## Best Practices
+
+- Validate requests before they reach your controllers.
+- Prefer `z.coerce` for query parameters and route parameters.
+- Enable `propagateErrors` when using Blockend's Error Handler block.
+- Keep validation schemas close to the routes that use them.
+- Reuse validation schemas where appropriate.
+
+---
+
+## Related Blocks
+
+<Cards>
+  <Card title="Error Handler" href="/docs/02-blocks/02-global-error-handler" />
+</Cards>

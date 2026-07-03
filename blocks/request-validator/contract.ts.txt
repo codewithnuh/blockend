@@ -1,0 +1,18 @@
+import { z } from "zod";
+
+/**
+ * Schemas for the different parts of an incoming HTTP request.
+ *
+ * The generic parameters preserve the concrete Zod schema types so
+ * adapters can infer the validated data instead of falling back to
+ * `unknown`.
+ */
+export interface RequestValidationSchema<
+  TBody extends z.ZodTypeAny = z.ZodTypeAny,
+  TQuery extends z.ZodTypeAny = z.ZodTypeAny,
+  TParams extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  body?: TBody;
+  query?: TQuery;
+  params?: TParams;
+}

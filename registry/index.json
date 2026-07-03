@@ -66,16 +66,33 @@
               ]
             }
           }
+        }
+      }
+    },
+
+    "request-validator": {
+      "name": "Request Validator",
+      "description": "Framework-agnostic request validation powered by Zod. Validate request bodies, query parameters, and route params through lightweight adapters while keeping validation logic independent of the web framework.",
+      "baseFiles": [
+        {
+          "source": "blocks/request-validator/core.ts.txt",
+          "target": "core.ts"
         },
-        "fastify": {
-          "dependencies": ["pino"],
-          "devDependencies": ["pino-pretty"],
+        {
+          "source": "blocks/request-validator/contract.ts.txt",
+          "target": "contract.ts"
+        }
+      ],
+      "adapters": {
+        "express": {
+          "dependencies": ["zod", "express"],
+          "devDependencies": ["@types/express"],
           "variants": {
             "default": {
               "files": [
                 {
-                  "source": "blocks/logger/adapters/fastify.ts.txt",
-                  "target": "fastify-adapter.ts"
+                  "source": "blocks/request-validator/adapters/express.ts.txt",
+                  "target": "express-adapter.ts"
                 }
               ]
             }

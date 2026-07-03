@@ -1,0 +1,64 @@
+import type { Request, Response, NextFunction } from "express";
+import { z } from "zod";
+
+import { coreValidator, ValidationError } from "../core.js";
+import type { RequestValidationSchema } from "../contract.js";
+
+type ExpressValidatorOptions = {
+  /**
+   * Forward ValidationError to Express instead of handling it here.
+   * Enable this when your application has a global error handler.
+   */
+  propagateErrors?: boolean;
+};
+
+export function expressValidator(
+  schemas: RequestValidationSchema,
+  options: ExpressValidatorOptions = { propagateErrors: false },
+) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      // Build a single schema from the request parts the user wants to validate.
+      // Any missing section is allowed by default.
+      const validationSchema = z.object({
+        body: schemas.body ?? z.any(),
+        query: schemas.query ?? z.any(),
+        params: schemas.params ?? z.any(),
+      });
+
+      // Validate the incoming request and replace the raw values with
+      // the parsed ones so downstream handlers can trust them.
+      const validData = coreValidator(validationSchema, {
+        body: req.body,
+        query: req.query,
+        params: req.params,
+      });
+
+      req.body = validData.body;
+      req.query = validData.query;
+      req.params = validData.params;
+
+      next();
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        // Let the application's global error handler decide how to
+        // format validation errors if propagation is enabled.
+        if (options.propagateErrors) {
+          return next(error);
+        }
+
+        // Otherwise, return a sensible default response so this block
+        // works without requiring a separate error handler.
+        return res.status(400).json({
+          error: "Bad Request",
+          details: error.issues.map((issue) => ({
+            path: issue.path.join("."),
+            message: issue.message,
+          })),
+        });
+      }
+
+      next(error);
+    }
+  };
+}
