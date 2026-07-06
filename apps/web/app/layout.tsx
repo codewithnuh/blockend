@@ -35,7 +35,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/"
   },
-
+  verification: {
+    google: "N3fAKkWtIP0R9s2iFWYewXTM6B7bMbLHPl0k8CgpObI"
+  },
   // Open Graph (LinkedIn, Facebook, Discord)
   openGraph: {
     title: "Blockend — Modular, Type-Safe Backend Code Blocks",
