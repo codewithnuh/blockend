@@ -96,12 +96,6 @@ export function RoadmapSection() {
             );
           })}
         </div>
-
-        {/* Global Pipeline Footprint Terminal Indicator */}
-        <div className="mt-8 flex items-center gap-2 font-mono text-[10px] text-muted-foreground/40 pl-3 select-none">
-          <span className="inline-block w-1 h-1 bg-muted-foreground/40 animate-pulse"></span>
-          <span>pipeline: listening_for_tag_releases</span>
-        </div>
       </div>
     </section>
   );

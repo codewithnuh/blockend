@@ -108,12 +108,6 @@ export function ProblemSection() {
                 );
               })}
             </div>
-
-            {/* Context Terminal Row */}
-            <div className="mt-3 flex justify-between items-center px-1 font-mono text-[10px] text-muted-foreground/40">
-              <span>layers: native_binding</span>
-              <span>status: 200_ready</span>
-            </div>
           </div>
         </div>
       </div>

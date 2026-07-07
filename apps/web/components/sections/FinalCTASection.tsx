@@ -69,12 +69,6 @@ export function FinalCTASection() {
               </Link>
             </div>
           </div>
-
-          {/* Console Footprint Verification */}
-          <div className="flex items-center justify-between border-t border-border/40 bg-muted/10 px-4 py-2 font-mono text-[9px] text-muted-foreground/30 select-none">
-            <span>action: pipeline_awaiting_execution</span>
-            <span>0.0.1-rc</span>
-          </div>
         </div>
       </div>
     </section>

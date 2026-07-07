@@ -109,12 +109,14 @@ export const ROADMAP_BRICKS: RoadmapBrick[] = [
   {
     label: "request-validator",
     description: "Schema-based input checks",
-    status: "planned"
+    status: "ready",
+    wide: true
   },
   {
-    label: "pagination · idempotency",
-    description: "Cursor pagination + idempotency keys, plus plain-JS output for non-TS projects",
-    status: "planned",
+    label: "response formatter · api consistency",
+    description:
+      "Standardized API responses with consistent success, error, and metadata formats across your backend services",
+    status: "ready",
     wide: true
   }
 ];

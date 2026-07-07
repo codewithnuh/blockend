@@ -1,27 +1,4 @@
 import { z } from "zod";
-import type { $ZodIssue } from "zod/v4/core";
-
-/**
- * Framework-agnostic validation error.
- *
- * The core validator throws this instead of a framework-specific error.
- * Adapters (Express, Fastify, Hono, etc.) decide how to translate it
- * into an HTTP response.
- */
-export class ValidationError extends Error {
-  public readonly issues: readonly $ZodIssue[];
-
-  constructor(issues: $ZodIssue[]) {
-    super("Validation Error");
-    this.name = "ValidationError";
-    this.issues = issues;
-
-    // Restore the prototype chain so `instanceof ValidationError`
-    // works correctly when extending the built-in Error class.
-    Object.setPrototypeOf(this, ValidationError.prototype);
-  }
-}
-
 /**
  * Validates arbitrary data against a Zod schema.
  *
@@ -32,13 +9,5 @@ export function coreValidator<TSchema extends z.ZodTypeAny>(
   schema: TSchema,
   data: unknown,
 ): z.infer<TSchema> {
-  const result = schema.safeParse(data);
-
-  if (!result.success) {
-    // Preserve the validation issues so adapters can format them
-    // however their framework expects.
-    throw new ValidationError(result.error.issues);
-  }
-
-  return result.data;
+  return schema.parse(data);
 }

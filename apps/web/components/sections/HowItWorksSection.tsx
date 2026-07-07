@@ -135,13 +135,6 @@ export function HowItWorksSection() {
             ))}
           </ol>
         </div>
-
-        {/* Global Structural Verification Footprint */}
-        <div className="mt-4 flex items-center justify-center gap-2 font-mono text-[10px] text-muted-foreground/40 select-none">
-          <span>[press_enter]</span>
-          <span>{"//"}</span>
-          <span>sequential pipeline verification complete</span>
-        </div>
       </div>
     </section>
   );

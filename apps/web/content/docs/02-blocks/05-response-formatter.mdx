@@ -1,0 +1,391 @@
+---
+title: Response Formatter
+description: Generate consistent API responses using a framework-agnostic formatter with lightweight adapters.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Steps } from "fumadocs-ui/components/steps";
+import { File, Files, Folder } from "fumadocs-ui/components/files";
+import { Card, Cards } from "fumadocs-ui/components/card";
+
+The **Response Formatter** block provides a consistent response format for your APIs.
+
+It separates response formatting from your web framework by exposing a framework-agnostic core and lightweight adapters. The core is responsible only for building response objects, while adapters send those responses using the APIs of your chosen framework.
+
+---
+
+## Features
+
+- Framework-agnostic response formatter
+- Consistent success and error response structure
+- Built-in pagination metadata
+- Lightweight framework adapters
+- Type-safe response contracts
+- Optional request ID support
+
+---
+
+## Why this block exists
+
+One of the easiest ways for APIs to become inconsistent is when every route constructs responses differently.
+
+For example:
+
+```ts
+res.json(user);
+
+res.json({
+  user
+});
+
+res.json({
+  success: true,
+  data: user
+});
+
+res.status(200).json({
+  message: "Success",
+  result: user
+});
+```
+
+Although each response is technically valid, clients now need to understand multiple response shapes.
+
+The Response Formatter solves this by making every endpoint return the same predictable structure.
+
+A successful response always looks like:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "Request completed successfully"
+}
+```
+
+An error response always looks like:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "message": "Something went wrong"
+  }
+}
+```
+
+This consistency makes APIs easier to consume, document, and maintain.
+
+---
+
+## Architecture
+
+The Response Formatter consists of two parts:
+
+- **Core** — Generates plain JavaScript response objects.
+- **Adapter** — Sends those objects using your framework's response API.
+
+This separation keeps the formatting logic reusable across frameworks.
+
+```
+Route Handler
+      │
+      ▼
+Response Formatter (Core)
+      │
+      ▼
+Express Adapter
+      │
+      ▼
+HTTP Response
+```
+
+The formatter never imports Express or any other framework. Likewise, the adapter contains no formatting logic—it simply delegates to the formatter.
+
+---
+
+## Installation
+
+Choose your preferred package manager.
+
+<Tabs items={["pnpm","npm","yarn","bun"]}>
+<Tab>
+
+```bash
+pnpm dlx blockend-cli add response-formatter
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npx blockend-cli add response-formatter
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn dlx blockend-cli add response-formatter
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bunx blockend-cli add response-formatter
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## Installation Flow
+
+<Steps>
+
+### Detect Project
+
+Blockend detects your backend framework and installs the appropriate adapter automatically.
+
+### Generate Files
+
+The formatter block is generated inside your configured blocks directory.
+
+</Steps>
+
+---
+
+## Generated Files
+
+<Files>
+  <Folder name="blocks">
+    <Folder name="response-formatter">
+      <File name="core.ts" />
+      <File name="contract.ts" />
+      <File name="express-adapter.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+---
+
+## A Note on Import Extensions
+
+If your project uses `"module": "NodeNext"` (or `"Node16"`) in `tsconfig.json` together with `"type": "module"` in `package.json`, Node's ESM loader requires explicit file extensions on relative imports — `.js`, even though the source file is `.ts`. This is a Node.js requirement, not a Blockend one.
+
+If you're unsure which applies to you, check `package.json` for `"type": "module"` and `tsconfig.json` for `"moduleResolution": "NodeNext"`. If neither is present, you don't need the extension.
+
+---
+
+## Basic Usage
+
+Import the adapter.
+
+```ts
+import { ExpressResponse } from "@/blocks/response-formatter/express-adapter";
+```
+
+Return a successful response.
+
+```ts
+return ExpressResponse.success(res, user, "User fetched successfully");
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "123"
+  },
+  "message": "User fetched successfully"
+}
+```
+
+---
+
+## Error Responses
+
+Return an error response.
+
+```ts
+return ExpressResponse.error(res, 404, "User not found");
+```
+
+Response:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "message": "User not found"
+  }
+}
+```
+
+Additional error details can also be included.
+
+```ts
+return ExpressResponse.error(res, 400, "Validation failed", {
+  email: ["Invalid email address"]
+});
+```
+
+Response:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "message": "Validation failed",
+    "details": {
+      "email": ["Invalid email address"]
+    }
+  }
+}
+```
+
+---
+
+## Paginated Responses
+
+Pagination only requires the information you already know:
+
+```ts
+return ExpressResponse.paginated(res, users, "Users fetched successfully", {
+  page: 2,
+  limit: 10,
+  total: 53
+});
+```
+
+The formatter automatically derives the remaining metadata.
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": [],
+  "message": "Users fetched successfully",
+  "meta": {
+    "page": 2,
+    "limit": 10,
+    "total": 53,
+    "totalPages": 6,
+    "hasNext": true,
+    "hasPrevious": true
+  }
+}
+```
+
+### Why only `page`, `limit`, and `total`?
+
+Notice that you never provide:
+
+- `totalPages`
+- `hasNext`
+- `hasPrevious`
+
+These values are deterministic—they can always be calculated from the three inputs you already have.
+
+Keeping these calculations inside the formatter has several advantages:
+
+- Route handlers stay focused on business logic.
+- Pagination behaves consistently across the entire application.
+- Bugs caused by manually computing pagination are eliminated.
+- Future improvements automatically apply to every endpoint.
+
+## The formatter computes these values for you automatically.
+
+## Request IDs
+
+If your application generates request IDs, simply pass them to the formatter.
+
+```ts
+ExpressResponse.success(res, user, "Success", 200, req.id);
+```
+
+The request ID is included only when provided.
+
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "Success",
+  "requestId": "9d8d..."
+}
+```
+
+This keeps local projects simple while making production APIs easier to debug.
+
+---
+
+## Using the Core Formatter
+
+Adapters are convenience wrappers.
+
+The core formatter can be used directly anywhere.
+
+```ts
+import { ResponseFormatter } from "@/blocks/response-formatter/core";
+
+const response = ResponseFormatter.success(user, "User fetched successfully");
+```
+
+Since the formatter returns plain objects, it can be reused by adapters for any framework.
+
+---
+
+## API Reference
+
+### `ResponseFormatter.success(data, message, requestId?)`
+
+Creates a successful response.
+
+### `ResponseFormatter.error(error, requestId?)`
+
+Creates an error response.
+
+### `ResponseFormatter.paginated(data, message, pagination, requestId?)`
+
+Creates a paginated response and automatically computes pagination metadata.
+
+---
+
+## Best Practices
+
+- Return responses exclusively through the formatter.
+- Let the formatter calculate pagination metadata.
+- Include request IDs in production.
+- Keep formatting concerns separate from business logic.
+- Prefer adapters over manually calling `res.json()`.
+
+---
+
+## Response Types
+
+The formatter exposes reusable TypeScript response contracts including:
+
+- `SuccessResponse`
+- `ErrorResponse`
+- `ApiResponse`
+- `PaginationMeta`
+
+## These ensure your application and SDKs share a consistent response shape.
+
+## Related Blocks
+
+<Cards>
+  <Card title="Error Handler" href="/docs/02-blocks/02-global-error-handler" />
+  <Card title="Request Validator" href="/docs/02-blocks/03-request-validator" />
+</Cards>

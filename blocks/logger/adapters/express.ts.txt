@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { logger, runWithLoggerContext } from "./core.js";
+import { logger, runWithLoggerContext } from "../core.js";
 
 declare global {
   namespace Express {

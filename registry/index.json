@@ -99,6 +99,36 @@
           }
         }
       }
+    },
+    "response-formatter": {
+      "name": "Response Formatter",
+      "description": "Framework-agnostic API response formatting with lightweight adapters. Create consistent success, error, and paginated responses while keeping formatting logic independent of the web framework.",
+      "baseFiles": [
+        {
+          "source": "blocks/response-formatter/core.ts.txt",
+          "target": "core.ts"
+        },
+        {
+          "source": "blocks/response-formatter/contract.ts.txt",
+          "target": "contract.ts"
+        }
+      ],
+      "adapters": {
+        "express": {
+          "dependencies": ["express"],
+          "devDependencies": ["@types/express"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/response-formatter/adapters/express.ts.txt",
+                  "target": "express-adapter.ts"
+                }
+              ]
+            }
+          }
+        }
+      }
     }
   }
 }

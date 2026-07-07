@@ -67,12 +67,6 @@ export function PhilosophySection() {
             </div>
           ))}
         </div>
-
-        {/* Footer Audit Signature Line */}
-        <div className="mt-4 flex items-center justify-between font-mono text-[9px] text-muted-foreground/30 px-1 select-none">
-          <span>strategy: source_injection</span>
-          <span>compilation: zero_dependency_payload</span>
-        </div>
       </div>
     </section>
   );

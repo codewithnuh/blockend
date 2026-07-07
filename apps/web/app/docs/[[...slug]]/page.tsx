@@ -53,11 +53,48 @@ export async function generateMetadata(props: PageProps<"/docs/[[...slug]]">): P
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
+  const image = getPageImage(page).url;
+  const slug = params.slug?.join("/") ?? "";
+  const url = `https://blockend.noorulhassan.com/docs/${slug}`;
+
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: {
+      canonical: url
+    },
     openGraph: {
-      images: getPageImage(page).url
+      title: page.data.title,
+      description: page.data.description,
+      url,
+      siteName: "Blockend",
+      locale: "en_US",
+      type: "article",
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: page.data.title
+        }
+      ]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: page.data.title,
+      description: page.data.description,
+      images: [image]
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1
+      }
     }
   };
 }

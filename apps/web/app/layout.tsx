@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   applicationName: "Blockend",
   metadataBase: new URL("https://blockend.noorulhassan.com"),
   alternates: {
-    canonical: "/"
+    canonical: "https://blockend.noorulhassan.com"
   },
   verification: {
     google: "N3fAKkWtIP0R9s2iFWYewXTM6B7bMbLHPl0k8CgpObI"

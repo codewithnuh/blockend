@@ -1,0 +1,48 @@
+import type { ApiResponse, ErrorResponse, PaginationParams } from "../contract";
+
+export class ResponseFormatter {
+  static success<T>(data: T, message: string, requestId?: string): ApiResponse<T> {
+    return {
+      success: true,
+      data,
+      message,
+      ...(requestId ? { requestId } : {}),
+    };
+  }
+
+  static paginated<T>(
+    data: T,
+    message: string,
+    pagination: PaginationParams,
+    requestId?: string,
+  ): ApiResponse<T> {
+    const page = Math.max(1, pagination.page);
+    const limit = Math.max(1, pagination.limit);
+    const total = Math.max(0, pagination.total);
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      success: true,
+      data,
+      message,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrevious: page > 1 && totalPages > 0,
+      },
+      ...(requestId ? { requestId } : {}),
+    };
+  }
+
+  static error(error: { message: string; details?: unknown }, requestId?: string): ErrorResponse {
+    return {
+      success: false,
+      data: null,
+      error,
+      ...(requestId ? { requestId } : {}),
+    };
+  }
+}

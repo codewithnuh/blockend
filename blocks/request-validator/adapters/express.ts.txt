@@ -1,64 +1,172 @@
-import type { Request, Response, NextFunction } from "express";
-import { z } from "zod";
-
-import { coreValidator, ValidationError } from "../core.js";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
+import { z, ZodError } from "zod";
+import { coreValidator } from "../core.js";
 import type { RequestValidationSchema } from "../contract.js";
-
+/**
+ * Controls how validation failures are handled.
+ */
 type ExpressValidatorOptions = {
   /**
-   * Forward ValidationError to Express instead of handling it here.
-   * Enable this when your application has a global error handler.
+   * When `true`, validation errors are forwarded to Express via `next(error)`
+   * so they can be handled by a global error handler.
+   *
+   * When `false` (default), this middleware immediately returns a
+   * `400 Bad Request` response using its built-in JSON format.
    */
   propagateErrors?: boolean;
 };
 
-export function expressValidator(
-  schemas: RequestValidationSchema,
+/**
+ * Internal symbol used to store the validated request payload on the request.
+ *
+ * Using a Symbol avoids collisions with application-defined request properties.
+ */
+const VALIDATED_KEY = Symbol("blockend.validated");
+
+/**
+ * The validated and parsed request data.
+ *
+ * Values are already transformed by Zod (defaults applied, coercion performed,
+ * transforms executed, etc.).
+ */
+type ValidatedData<
+  TBody extends z.ZodTypeAny,
+  TQuery extends z.ZodTypeAny,
+  TParams extends z.ZodTypeAny,
+> = {
+  body: z.infer<TBody>;
+  query: z.infer<TQuery>;
+  params: z.infer<TParams>;
+};
+
+/**
+ * Express middleware augmented with a helper for retrieving the fully typed,
+ * validated request data.
+ */
+type ValidatorMiddleware<
+  TBody extends z.ZodTypeAny,
+  TQuery extends z.ZodTypeAny,
+  TParams extends z.ZodTypeAny,
+> = RequestHandler & {
+  /**
+   * Returns the validated request payload.
+   *
+   * Throws if the middleware has not yet executed for the current request.
+   */
+  validated: (req: Request) => ValidatedData<TBody, TQuery, TParams>;
+};
+
+/**
+ * Creates Express middleware that validates the request body, query string,
+ * and route parameters using Zod schemas.
+ *
+ * On success:
+ * - Request values are parsed using Zod.
+ * - Default values, coercion, and transforms are applied.
+ * - `req.body`, `req.query`, and `req.params` are replaced with the parsed values.
+ * - The typed values are also accessible via `middleware.validated(req)`.
+ *
+ * On validation failure:
+ * - Returns a `400 Bad Request` response by default.
+ * - Or forwards the `ZodError` to the next error handler when
+ *   `propagateErrors` is enabled.
+ *
+ * @example
+ * ```ts
+ * const validator = expressValidator({
+ *   body: createUserSchema,
+ *   query: usersQuerySchema,
+ *   params: userParamsSchema,
+ * });
+ *
+ * app.post("/users/:id", validator, (req, res) => {
+ *   const { body, query, params } = validator.validated(req);
+ * });
+ * ```
+ */
+
+export function expressValidator<
+  TBody extends z.ZodTypeAny = z.ZodTypeAny,
+  TQuery extends z.ZodTypeAny = z.ZodTypeAny,
+  TParams extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  schemas: RequestValidationSchema<TBody, TQuery, TParams>,
   options: ExpressValidatorOptions = { propagateErrors: false },
-) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+): ValidatorMiddleware<TBody, TQuery, TParams> {
+  const middleware: RequestHandler = (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
-      // Build a single schema from the request parts the user wants to validate.
-      // Any missing section is allowed by default.
-      const validationSchema = z.object({
-        body: schemas.body ?? z.any(),
-        query: schemas.query ?? z.any(),
-        params: schemas.params ?? z.any(),
+      const bodySchema = schemas.body ?? z.any();
+      const querySchema = schemas.query ?? z.any();
+      const paramsSchema = schemas.params ?? z.any();
+
+      // Validate each part independently so TypeScript can track the
+      // inferred type of each piece without losing it inside z.object().
+      const body = coreValidator(bodySchema, req.body) as z.infer<TBody>;
+      const query = coreValidator(querySchema, req.query) as z.infer<TQuery>;
+      const params = coreValidator(
+        paramsSchema,
+        req.params,
+      ) as z.infer<TParams>;
+
+      req.body = body;
+
+      Object.defineProperty(req, "query", {
+        value: query,
+        writable: true,
+        enumerable: true,
+        configurable: true,
       });
 
-      // Validate the incoming request and replace the raw values with
-      // the parsed ones so downstream handlers can trust them.
-      const validData = coreValidator(validationSchema, {
-        body: req.body,
-        query: req.query,
-        params: req.params,
+      Object.defineProperty(req, "params", {
+        value: params,
+        writable: true,
+        enumerable: true,
+        configurable: true,
       });
 
-      req.body = validData.body;
-      req.query = validData.query;
-      req.params = validData.params;
+      const validated: ValidatedData<TBody, TQuery, TParams> = {
+        body,
+        query,
+        params,
+      };
+      (req as any)[VALIDATED_KEY] = validated;
 
       next();
     } catch (error) {
-      if (error instanceof ValidationError) {
-        // Let the application's global error handler decide how to
-        // format validation errors if propagation is enabled.
+      if (error instanceof ZodError) {
+        const errors = z.flattenError(error).fieldErrors;
         if (options.propagateErrors) {
-          return next(error);
+          next(error);
+          return;
         }
-
-        // Otherwise, return a sensible default response so this block
-        // works without requiring a separate error handler.
-        return res.status(400).json({
-          error: "Bad Request",
-          details: error.issues.map((issue) => ({
-            path: issue.path.join("."),
-            message: issue.message,
-          })),
+        res.status(400).json({
+          success: false,
+          data: null,
+          message: "Validation failed",
+          errors,
         });
+        return;
       }
-
       next(error);
     }
   };
+
+  (middleware as ValidatorMiddleware<TBody, TQuery, TParams>).validated = (
+    req: Request,
+  ): ValidatedData<TBody, TQuery, TParams> => {
+    const data = (req as any)[VALIDATED_KEY];
+    if (!data) {
+      throw new Error(
+        "[blockend] expressValidator middleware has not run for this request. " +
+          "Ensure it is registered before your route handler.",
+      );
+    }
+    return data as ValidatedData<TBody, TQuery, TParams>;
+  };
+
+  return middleware as ValidatorMiddleware<TBody, TQuery, TParams>;
 }
