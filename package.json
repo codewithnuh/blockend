@@ -56,7 +56,12 @@
     "zod": "^4.4.3"
   },
   "lint-staged": {
-    "*.{js,cjs,mjs,ts,tsx,jsx,json,jsonc,md,mdx,yml,yaml,css,scss,html}": "prettier --write",
-    "*.{js,cjs,mjs,ts,tsx,jsx}": "eslint --cache --fix --max-warnings=0"
+    "*.{js,cjs,mjs,ts,tsx,jsx,json,jsonc,md,mdx,yml,yaml,css,scss,html}": [
+      "prettier --write",
+      "git add"
+    ],
+    "*.{js,cjs,mjs,ts,tsx,jsx}": [
+      "eslint --cache --fix"
+    ]
   }
 }

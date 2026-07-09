@@ -7,14 +7,41 @@
       "environments": {
         "express": {
           "core": "blocks/rate-limiter/express/base.ts",
+          "devDependencies": ["vitest", "supertest", "@types/supertest", "@types/express"],
           "variants": {
             "memory": {
               "dependencies": [],
-              "files": ["blocks/rate-limiter/express/store-memory.ts"]
+              "files": [
+                {
+                  "source": "blocks/rate-limiter/express/store-memory.ts",
+                  "target": "store-memory.ts"
+                },
+                {
+                  "source": "blocks/rate-limiter/express/tests/store-memory.test.ts",
+                  "target": "tests/store-memory.test.ts"
+                },
+                {
+                  "source": "blocks/rate-limiter/express/tests/base.test.ts",
+                  "target": "tests/base.test.ts"
+                }
+              ]
             },
             "redis": {
               "dependencies": ["ioredis"],
-              "files": ["blocks/rate-limiter/express/store-redis.ts"]
+              "files": [
+                {
+                  "source": "blocks/rate-limiter/express/store-redis.ts",
+                  "target": "store-redis.ts"
+                },
+                {
+                  "source": "blocks/rate-limiter/express/tests/store-redist.test.ts",
+                  "target": "tests/store-redis.test.ts"
+                },
+                {
+                  "source": "blocks/rate-limiter/express/tests/base.test.ts",
+                  "target": "tests/base.test.ts"
+                }
+              ]
             }
           }
         }
@@ -28,15 +55,27 @@
           "variants": {
             "default": {
               "dependencies": ["zod"],
-              "devDependencies": ["@types/express"],
+              "devDependencies": ["vitest", "supertest", "@types/supertest", "@types/express"],
               "files": [
-                "blocks/error-handler/express/app-error.ts",
-                "blocks/error-handler/express/errors.ts ",
-                "blocks/error-handler/express/http-status.ts",
-                "blocks/error-handler/express/throw-error.ts",
-                "blocks/error-handler/express/global-error-handler.ts",
-                "blocks/error-handler/express/async-handler.ts",
-                "blocks/error-handler/express/index.ts"
+                { "source": "blocks/error-handler/express/app-error.ts", "target": "app-error.ts" },
+                {
+                  "source": "blocks/error-handler/express/async-handler.ts",
+                  "target": "async-handler.ts"
+                },
+                { "source": "blocks/error-handler/express/errors.ts", "target": "errors.ts" },
+                {
+                  "source": "blocks/error-handler/express/global-error-handler.ts",
+                  "target": "global-error-handler.ts"
+                },
+                {
+                  "source": "blocks/error-handler/express/http-status.ts",
+                  "target": "http-status.ts"
+                },
+                { "source": "blocks/error-handler/express/index.ts", "target": "index.ts" },
+                {
+                  "source": "blocks/error-handler/express/throw-error.ts",
+                  "target": "throw-error.ts"
+                }
               ]
             }
           }
@@ -50,18 +89,74 @@
         {
           "source": "blocks/logger/core.ts",
           "target": "core.ts"
+        },
+        {
+          "source": "blocks/logger/tests/core.test.ts",
+          "target": "tests/core.test.ts"
         }
       ],
       "adapters": {
         "express": {
           "dependencies": ["pino"],
-          "devDependencies": ["pino-pretty", "@types/express"],
+          "devDependencies": [
+            "pino-pretty",
+            "vitest",
+            "supertest",
+            "@types/supertest",
+            "@types/express"
+          ],
           "variants": {
             "default": {
               "files": [
                 {
                   "source": "blocks/logger/adapters/express.ts",
                   "target": "express-adapter.ts"
+                },
+                {
+                  "source": "blocks/logger/tests/express.test.ts",
+                  "target": "tests/express-adapter.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "fastify": {
+          "dependencies": ["pino"],
+          "devDependencies": [
+            "pino-pretty",
+            "vitest",
+            "supertest",
+            "@types/supertest",
+            "@types/node"
+          ],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/logger/adapters/fastify.ts",
+                  "target": "fastify-adapter.ts"
+                },
+                {
+                  "source": "blocks/logger/tests/fastify.test.ts",
+                  "target": "tests/fastify-adapter.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "hono": {
+          "dependencies": ["pino"],
+          "devDependencies": ["pino-pretty", "vitest", "@types/node"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/logger/adapters/hono.ts",
+                  "target": "hono-adapter.ts"
+                },
+                {
+                  "source": "blocks/logger/tests/hono.test.ts",
+                  "target": "tests/hono-adapter.test.ts"
                 }
               ]
             }
@@ -69,7 +164,6 @@
         }
       }
     },
-
     "request-validator": {
       "name": "Request Validator",
       "description": "Framework-agnostic request validation powered by Zod. Validate request bodies, query parameters, and route params through lightweight adapters while keeping validation logic independent of the web framework.",
@@ -81,18 +175,26 @@
         {
           "source": "blocks/request-validator/contract.ts",
           "target": "contract.ts"
+        },
+        {
+          "source": "blocks/request-validator/tests/core.test.ts",
+          "target": "tests/core.test.ts"
         }
       ],
       "adapters": {
         "express": {
           "dependencies": ["zod", "express"],
-          "devDependencies": ["@types/express"],
+          "devDependencies": ["vitest", "supertest", "@types/supertest", "@types/express"],
           "variants": {
             "default": {
               "files": [
                 {
                   "source": "blocks/request-validator/adapters/express.ts",
                   "target": "express-adapter.ts"
+                },
+                {
+                  "source": "blocks/request-validator/tests/express.test.ts",
+                  "target": "tests/express-adapter.test.ts"
                 }
               ]
             }
@@ -111,18 +213,26 @@
         {
           "source": "blocks/response-formatter/contract.ts",
           "target": "contract.ts"
+        },
+        {
+          "source": "blocks/response-formatter/tests/core.test.ts",
+          "target": "tests/core.test.ts"
         }
       ],
       "adapters": {
         "express": {
           "dependencies": ["express"],
-          "devDependencies": ["@types/express"],
+          "devDependencies": ["vitest", "supertest", "@types/supertest", "@types/express"],
           "variants": {
             "default": {
               "files": [
                 {
                   "source": "blocks/response-formatter/adapters/express.ts",
                   "target": "express-adapter.ts"
+                },
+                {
+                  "source": "blocks/response-formatter/tests/express.test.ts",
+                  "target": "tests/express-adapter.test.ts"
                 }
               ]
             }
