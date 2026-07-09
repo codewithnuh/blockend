@@ -8,7 +8,7 @@ export const HTTP_STATUS = {
   CONFLICT: 409,
   UNPROCESSABLE_ENTITY: 422,
   INTERNAL_SERVER_ERROR: 500,
-  SERVICE_UNAVAILABLE: 503,
-} as const
+  SERVICE_UNAVAILABLE: 503
+} as const;
 
-export type HttpStatus = (typeof HTTP_STATUS)[keyof typeof HTTP_STATUS]
+export type HttpStatus = (typeof HTTP_STATUS)[keyof typeof HTTP_STATUS];

@@ -19,12 +19,12 @@ export class AppError extends Error {
      */
     public readonly isOperational: boolean = true
   ) {
-    super(message)
-    this.name = 'AppError'
+    super(message);
+    this.name = "AppError";
 
     // Required when extending built-ins like Error in TypeScript —
     // without this, `instanceof AppError` can silently return false
     // depending on the consuming project's compile target.
-    Object.setPrototypeOf(this, AppError.prototype)
+    Object.setPrototypeOf(this, AppError.prototype);
   }
 }

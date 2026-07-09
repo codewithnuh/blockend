@@ -9,9 +9,12 @@
       "cache": false,
       "persistent": true
     },
-    "test": {
+    "typecheck": {
       "dependsOn": ["^build"]
     },
-    "lint": {}
+    "lint": {},
+    "test": {
+      "inputs": ["blocks/**/*", "vitest.config.ts"]
+    }
   }
 }

@@ -9,7 +9,7 @@ export class ExpressResponse {
     data: T,
     message = "Request completed successfully",
     statusCode = 200,
-    requestId?: string,
+    requestId?: string
   ) {
     return res.status(statusCode).json(ResponseFormatter.success(data, message, requestId));
   }
@@ -20,11 +20,11 @@ export class ExpressResponse {
     message: string,
     pagination: PaginationParams,
     statusCode = 200,
-    requestId?: string,
+    requestId?: string
   ) {
-    return res.status(statusCode).json(
-      ResponseFormatter.paginated(data, message, pagination, requestId),
-    );
+    return res
+      .status(statusCode)
+      .json(ResponseFormatter.paginated(data, message, pagination, requestId));
   }
 
   static error(
@@ -32,16 +32,16 @@ export class ExpressResponse {
     statusCode: number,
     message: string,
     details?: unknown,
-    requestId?: string,
+    requestId?: string
   ) {
     return res.status(statusCode).json(
       ResponseFormatter.error(
         {
           message,
-          ...(details ? { details } : {}),
+          ...(details ? { details } : {})
         },
-        requestId,
-      ),
+        requestId
+      )
     );
   }
 }

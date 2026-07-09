@@ -1,9 +1,10 @@
-
-
-import { Redis } from 'ioredis'; // or 'redis' client
-
+import { Redis } from "ioredis";
+import type { RateLimitStore, RateLimitRecord } from "./base";
 export class RedisStore implements RateLimitStore {
-  constructor(private redisClient: Redis, private keyPrefix = 'rl:') {}
+  constructor(
+    private redisClient: Redis,
+    private keyPrefix = "rl:"
+  ) {}
 
   async increment(key: string, windowMs: number): Promise<RateLimitRecord> {
     const fullKey = `${this.keyPrefix}${key}`;
@@ -15,7 +16,7 @@ export class RedisStore implements RateLimitStore {
     pipeline.ttl(fullKey);
 
     const results = await pipeline.exec();
-    if (!results) throw new Error('Redis multi command failed');
+    if (!results) throw new Error("Redis multi command failed");
 
     // results = [[null, hits], [null, ttlInSeconds]]
     const hits = results[0][1] as number;
@@ -29,7 +30,7 @@ export class RedisStore implements RateLimitStore {
 
     return {
       hits,
-      resetTime: now + (ttl > 0 ? ttl * 1000 : windowMs),
+      resetTime: now + (ttl > 0 ? ttl * 1000 : windowMs)
     };
   }
 }

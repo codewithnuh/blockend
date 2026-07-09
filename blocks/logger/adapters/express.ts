@@ -1,18 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { logger, runWithLoggerContext } from "../core.js";
-
-declare global {
-  namespace Express {
-    interface Request {
-      id: string;
-    }
-  }
+interface LoggedRequest extends Request {
+  id?: string;
 }
-export function expressLoggerAdapter(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
+export function expressLoggerAdapter(req: LoggedRequest, res: Response, next: NextFunction): void {
   const rawId = req.headers["x-request-id"]?.toString();
   runWithLoggerContext(rawId, (requestId) => {
     req.id = requestId;
@@ -24,10 +15,10 @@ export function expressLoggerAdapter(
             method: req.method,
             path: req.path,
             statusCode: res.statusCode,
-            durationMs: Math.round(performance.now() - start),
-          },
+            durationMs: Math.round(performance.now() - start)
+          }
         },
-        `HTTP ${req.method} ${req.path} completed`,
+        `HTTP ${req.method} ${req.path} completed`
       );
     });
     next();

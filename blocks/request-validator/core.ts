@@ -7,7 +7,7 @@ import { z } from "zod";
  */
 export function coreValidator<TSchema extends z.ZodTypeAny>(
   schema: TSchema,
-  data: unknown,
+  data: unknown
 ): z.infer<TSchema> {
   return schema.parse(data);
 }

@@ -55,6 +55,7 @@ export const rateLimit = (options: Partial<RateLimitOptions> & { store: RateLimi
     } catch (error) {
       // Fail-open strategy: if the rate limiter storage fails, let the request pass
       // so your app doesn't crash for users, but log the error.
+      // eslint-disable-next-line no-console
       console.error("Rate limiter store error:", error);
       next();
     }

@@ -1,9 +1,9 @@
-import { Request, Response, NextFunction } from 'express'
-import { z, ZodError } from 'zod'
+import { Request, Response, NextFunction } from "express";
+import { z, ZodError } from "zod";
 
-import { AppError } from './app-error.js'
-import { HTTP_STATUS } from './http-status.js'
-import { ERRORS } from './errors.js'
+import { AppError } from "./app-error.js";
+import { HTTP_STATUS } from "./http-status.js";
+import { ERRORS } from "./errors.js";
 
 /**
  * Express error-handling middleware. Register this LAST, after all routes
@@ -26,8 +26,8 @@ export const globalErrorHandler = (
     return res.status(err.statusCode).json({
       success: false,
       data: null,
-      message: err.message,
-    })
+      message: err.message
+    });
   }
 
   // -------------------------
@@ -38,21 +38,21 @@ export const globalErrorHandler = (
       success: false,
       data: null,
       message: ERRORS.VALIDATION_FAILED.message,
-      errors: z.treeifyError(err),
-    })
+      errors: z.treeifyError(err)
+    });
   }
 
   // -------------------------
   // Unknown / unhandled errors — never leak details to the client
   // -------------------------
-  logUnhandledError(err, req)
+  logUnhandledError(err, req);
 
   return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
     success: false,
     data: null,
-    message: ERRORS.INTERNAL_SERVER_ERROR.message,
-  })
-}
+    message: ERRORS.INTERNAL_SERVER_ERROR.message
+  });
+};
 
 /**
  * Single seam for unhandled-error logging. Swap this out for a
@@ -60,9 +60,10 @@ export const globalErrorHandler = (
  * the control flow above.
  */
 function logUnhandledError(err: unknown, req: Request): void {
-  console.error('[UNHANDLED ERROR]', {
+  // eslint-disable-next-line no-console
+  console.error("[UNHANDLED ERROR]", {
     method: req.method,
     path: req.path,
-    error: err,
-  })
+    error: err
+  });
 }

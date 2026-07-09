@@ -1,5 +1,5 @@
-import { AppError } from './app-error.js'
-import { ERRORS } from './errors.js'
+import { AppError } from "./app-error.js";
+import { ERRORS } from "./errors.js";
 
 /**
  * Throws an AppError from a catalog entry in ERRORS.
@@ -11,7 +11,7 @@ import { ERRORS } from './errors.js'
  * directly for one-off errors that don't belong in the shared catalog.
  */
 export function throwError(error: { message: string; status: number }): never {
-  throw new AppError(error.status, error.message)
+  throw new AppError(error.status, error.message);
 }
 
-export { ERRORS }
+export { ERRORS };

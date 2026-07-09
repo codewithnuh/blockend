@@ -19,7 +19,7 @@ export const logger = pino({
   },
   redact: {
     paths: ["Authorization", "*.token", "token", "*.password", "password"],
-    censor: "[REDACTED]",
+    censor: "[REDACTED]"
   },
   transport: isProduction
     ? undefined
@@ -28,14 +28,14 @@ export const logger = pino({
         options: {
           colorize: true,
           translateTime: "SYS:standard",
-          ignore: "hostname,pid",
-        },
-      },
+          ignore: "hostname,pid"
+        }
+      }
 });
 
 export function runWithLoggerContext<T>(
   incomingId: string | undefined | null,
-  callback: (requestId: string) => T,
+  callback: (requestId: string) => T
 ) {
   const requestId = incomingId || randomUUID();
   return loggerContext.run({ requestId }, () => callback(requestId));

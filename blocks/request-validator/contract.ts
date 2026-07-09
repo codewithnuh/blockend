@@ -10,7 +10,7 @@ import { z } from "zod";
 export interface RequestValidationSchema<
   TBody extends z.ZodTypeAny = z.ZodTypeAny,
   TQuery extends z.ZodTypeAny = z.ZodTypeAny,
-  TParams extends z.ZodTypeAny = z.ZodTypeAny,
+  TParams extends z.ZodTypeAny = z.ZodTypeAny
 > {
   body?: TBody;
   query?: TQuery;

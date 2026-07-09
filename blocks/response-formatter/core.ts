@@ -1,4 +1,4 @@
-import type { ApiResponse, ErrorResponse, PaginationParams } from "../contract";
+import type { ApiResponse, ErrorResponse, PaginationParams } from "./contract";
 
 export class ResponseFormatter {
   static success<T>(data: T, message: string, requestId?: string): ApiResponse<T> {
@@ -6,7 +6,7 @@ export class ResponseFormatter {
       success: true,
       data,
       message,
-      ...(requestId ? { requestId } : {}),
+      ...(requestId ? { requestId } : {})
     };
   }
 
@@ -14,7 +14,7 @@ export class ResponseFormatter {
     data: T,
     message: string,
     pagination: PaginationParams,
-    requestId?: string,
+    requestId?: string
   ): ApiResponse<T> {
     const page = Math.max(1, pagination.page);
     const limit = Math.max(1, pagination.limit);
@@ -31,9 +31,9 @@ export class ResponseFormatter {
         total,
         totalPages,
         hasNext: page < totalPages,
-        hasPrevious: page > 1 && totalPages > 0,
+        hasPrevious: page > 1 && totalPages > 0
       },
-      ...(requestId ? { requestId } : {}),
+      ...(requestId ? { requestId } : {})
     };
   }
 
@@ -42,7 +42,7 @@ export class ResponseFormatter {
       success: false,
       data: null,
       error,
-      ...(requestId ? { requestId } : {}),
+      ...(requestId ? { requestId } : {})
     };
   }
 }

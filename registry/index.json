@@ -6,15 +6,15 @@
       "description": "IP-based rate limiting middleware with pluggable storage strategies",
       "environments": {
         "express": {
-          "core": "blocks/rate-limiter/express/base.ts.txt",
+          "core": "blocks/rate-limiter/express/base.ts",
           "variants": {
             "memory": {
               "dependencies": [],
-              "files": ["blocks/rate-limiter/express/store-memory.ts.txt"]
+              "files": ["blocks/rate-limiter/express/store-memory.ts"]
             },
             "redis": {
               "dependencies": ["ioredis"],
-              "files": ["blocks/rate-limiter/express/store-redis.ts.txt"]
+              "files": ["blocks/rate-limiter/express/store-redis.ts"]
             }
           }
         }
@@ -30,13 +30,13 @@
               "dependencies": ["zod"],
               "devDependencies": ["@types/express"],
               "files": [
-                "blocks/error-handler/express/app-error.ts.txt",
-                "blocks/error-handler/express/errors.ts.txt",
-                "blocks/error-handler/express/http-status.ts.txt",
-                "blocks/error-handler/express/throw-error.ts.txt",
-                "blocks/error-handler/express/global-error-handler.ts.txt",
-                "blocks/error-handler/express/async-handler.ts.txt",
-                "blocks/error-handler/express/index.ts.txt"
+                "blocks/error-handler/express/app-error.ts",
+                "blocks/error-handler/express/errors.ts ",
+                "blocks/error-handler/express/http-status.ts",
+                "blocks/error-handler/express/throw-error.ts",
+                "blocks/error-handler/express/global-error-handler.ts",
+                "blocks/error-handler/express/async-handler.ts",
+                "blocks/error-handler/express/index.ts"
               ]
             }
           }
@@ -48,7 +48,7 @@
       "description": "Framework-agnostic context logging engine using AsyncLocalStorage with production redactions and automatic request ID tracing.",
       "baseFiles": [
         {
-          "source": "blocks/logger/core.ts.txt",
+          "source": "blocks/logger/core.ts",
           "target": "core.ts"
         }
       ],
@@ -60,7 +60,7 @@
             "default": {
               "files": [
                 {
-                  "source": "blocks/logger/adapters/express.ts.txt",
+                  "source": "blocks/logger/adapters/express.ts",
                   "target": "express-adapter.ts"
                 }
               ]
@@ -75,11 +75,11 @@
       "description": "Framework-agnostic request validation powered by Zod. Validate request bodies, query parameters, and route params through lightweight adapters while keeping validation logic independent of the web framework.",
       "baseFiles": [
         {
-          "source": "blocks/request-validator/core.ts.txt",
+          "source": "blocks/request-validator/core.ts",
           "target": "core.ts"
         },
         {
-          "source": "blocks/request-validator/contract.ts.txt",
+          "source": "blocks/request-validator/contract.ts",
           "target": "contract.ts"
         }
       ],
@@ -91,7 +91,7 @@
             "default": {
               "files": [
                 {
-                  "source": "blocks/request-validator/adapters/express.ts.txt",
+                  "source": "blocks/request-validator/adapters/express.ts",
                   "target": "express-adapter.ts"
                 }
               ]
@@ -105,11 +105,11 @@
       "description": "Framework-agnostic API response formatting with lightweight adapters. Create consistent success, error, and paginated responses while keeping formatting logic independent of the web framework.",
       "baseFiles": [
         {
-          "source": "blocks/response-formatter/core.ts.txt",
+          "source": "blocks/response-formatter/core.ts",
           "target": "core.ts"
         },
         {
-          "source": "blocks/response-formatter/contract.ts.txt",
+          "source": "blocks/response-formatter/contract.ts",
           "target": "contract.ts"
         }
       ],
@@ -121,7 +121,7 @@
             "default": {
               "files": [
                 {
-                  "source": "blocks/response-formatter/adapters/express.ts.txt",
+                  "source": "blocks/response-formatter/adapters/express.ts",
                   "target": "express-adapter.ts"
                 }
               ]

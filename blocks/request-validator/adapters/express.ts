@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { z, ZodError } from "zod";
 import { coreValidator } from "../core.js";
 import type { RequestValidationSchema } from "../contract.js";
+
 /**
  * Controls how validation failures are handled.
  */
@@ -21,7 +22,7 @@ type ExpressValidatorOptions = {
  *
  * Using a Symbol avoids collisions with application-defined request properties.
  */
-const VALIDATED_KEY = Symbol("blockend.validated");
+export const VALIDATED_KEY = Symbol("blockend.validated");
 
 /**
  * The validated and parsed request data.
@@ -32,12 +33,23 @@ const VALIDATED_KEY = Symbol("blockend.validated");
 type ValidatedData<
   TBody extends z.ZodTypeAny,
   TQuery extends z.ZodTypeAny,
-  TParams extends z.ZodTypeAny,
+  TParams extends z.ZodTypeAny
 > = {
   body: z.infer<TBody>;
   query: z.infer<TQuery>;
   params: z.infer<TParams>;
 };
+
+/**
+ * Custom request type that carries the validated payload.
+ */
+interface ValidatedRequest<
+  TBody extends z.ZodTypeAny = z.ZodTypeAny,
+  TQuery extends z.ZodTypeAny = z.ZodTypeAny,
+  TParams extends z.ZodTypeAny = z.ZodTypeAny
+> extends Request {
+  [VALIDATED_KEY]?: ValidatedData<TBody, TQuery, TParams>;
+}
 
 /**
  * Express middleware augmented with a helper for retrieving the fully typed,
@@ -46,7 +58,7 @@ type ValidatedData<
 type ValidatorMiddleware<
   TBody extends z.ZodTypeAny,
   TQuery extends z.ZodTypeAny,
-  TParams extends z.ZodTypeAny,
+  TParams extends z.ZodTypeAny
 > = RequestHandler & {
   /**
    * Returns the validated request payload.
@@ -70,34 +82,18 @@ type ValidatorMiddleware<
  * - Returns a `400 Bad Request` response by default.
  * - Or forwards the `ZodError` to the next error handler when
  *   `propagateErrors` is enabled.
- *
- * @example
- * ```ts
- * const validator = expressValidator({
- *   body: createUserSchema,
- *   query: usersQuerySchema,
- *   params: userParamsSchema,
- * });
- *
- * app.post("/users/:id", validator, (req, res) => {
- *   const { body, query, params } = validator.validated(req);
- * });
- * ```
  */
-
 export function expressValidator<
   TBody extends z.ZodTypeAny = z.ZodTypeAny,
   TQuery extends z.ZodTypeAny = z.ZodTypeAny,
-  TParams extends z.ZodTypeAny = z.ZodTypeAny,
+  TParams extends z.ZodTypeAny = z.ZodTypeAny
 >(
   schemas: RequestValidationSchema<TBody, TQuery, TParams>,
-  options: ExpressValidatorOptions = { propagateErrors: false },
+  options: ExpressValidatorOptions = { propagateErrors: false }
 ): ValidatorMiddleware<TBody, TQuery, TParams> {
-  const middleware: RequestHandler = (
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) => {
+  const middleware: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
+    const validatedReq = req as ValidatedRequest<TBody, TQuery, TParams>;
+
     try {
       const bodySchema = schemas.body ?? z.any();
       const querySchema = schemas.query ?? z.any();
@@ -105,12 +101,9 @@ export function expressValidator<
 
       // Validate each part independently so TypeScript can track the
       // inferred type of each piece without losing it inside z.object().
-      const body = coreValidator(bodySchema, req.body) as z.infer<TBody>;
-      const query = coreValidator(querySchema, req.query) as z.infer<TQuery>;
-      const params = coreValidator(
-        paramsSchema,
-        req.params,
-      ) as z.infer<TParams>;
+      const body = coreValidator(bodySchema, req.body);
+      const query = coreValidator(querySchema, req.query);
+      const params = coreValidator(paramsSchema, req.params);
 
       req.body = body;
 
@@ -118,54 +111,61 @@ export function expressValidator<
         value: query,
         writable: true,
         enumerable: true,
-        configurable: true,
+        configurable: true
       });
 
       Object.defineProperty(req, "params", {
         value: params,
         writable: true,
         enumerable: true,
-        configurable: true,
+        configurable: true
       });
 
-      const validated: ValidatedData<TBody, TQuery, TParams> = {
+      validatedReq[VALIDATED_KEY] = {
         body,
         query,
-        params,
+        params
       };
-      (req as any)[VALIDATED_KEY] = validated;
 
       next();
     } catch (error) {
       if (error instanceof ZodError) {
         const errors = z.flattenError(error).fieldErrors;
+
         if (options.propagateErrors) {
           next(error);
           return;
         }
+
         res.status(400).json({
           success: false,
           data: null,
           message: "Validation failed",
-          errors,
+          errors
         });
+
         return;
       }
+
       next(error);
     }
   };
 
   (middleware as ValidatorMiddleware<TBody, TQuery, TParams>).validated = (
-    req: Request,
+    req: Request
   ): ValidatedData<TBody, TQuery, TParams> => {
-    const data = (req as any)[VALIDATED_KEY];
+    const validatedReq = req as ValidatedRequest<TBody, TQuery, TParams>;
+
+    const data = validatedReq[VALIDATED_KEY];
+
     if (!data) {
       throw new Error(
         "[blockend] expressValidator middleware has not run for this request. " +
-          "Ensure it is registered before your route handler.",
+          "Ensure it is registered before your route handler."
       );
     }
-    return data as ValidatedData<TBody, TQuery, TParams>;
+
+    return data;
   };
 
   return middleware as ValidatorMiddleware<TBody, TQuery, TParams>;
