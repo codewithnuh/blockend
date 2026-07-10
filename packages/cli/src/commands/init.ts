@@ -9,27 +9,93 @@ import { detectProject } from "../detectors/index.js";
 import { format } from "../ui/format.js";
 import { theme } from "../ui/theme.js";
 
-async function resolveTsConfigPaths(cwd: string) {
-  const possiblePaths = [join(cwd, "tsconfig.json"), join(cwd, "jsconfig.json")];
+// ─── tsconfig path alias resolution ────────────────────────────────────────────
 
-  for (const configPath of possiblePaths) {
-    if (existsSync(configPath)) {
-      try {
-        const rawContent = await fs.readFile(configPath, "utf-8");
-        const cleanJsonContent = rawContent.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1");
-        const parsed = JSON.parse(cleanJsonContent);
+interface TsConfigPaths {
+  baseUrl: string;
+  paths: Record<string, string[]>;
+}
 
-        const baseUrl = parsed.compilerOptions?.baseUrl || ".";
-        const paths = parsed.compilerOptions?.paths || {};
+async function resolveTsConfigPaths(cwd: string): Promise<TsConfigPaths> {
+  const candidates = [join(cwd, "tsconfig.json"), join(cwd, "jsconfig.json")];
 
-        return { baseUrl, paths };
-      } catch {
-        // Fall back to defaults
-      }
+  for (const configPath of candidates) {
+    if (!existsSync(configPath)) continue;
+    try {
+      const raw = await fs.readFile(configPath, "utf-8");
+      // Strip block comments and single-line comments (tsconfig allows them)
+      const clean = raw.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1");
+      const parsed = JSON.parse(clean);
+      return {
+        baseUrl: parsed.compilerOptions?.baseUrl ?? ".",
+        paths: (parsed.compilerOptions?.paths ?? {}) as Record<string, string[]>
+      };
+    } catch {
+      // Malformed config — fall through to next candidate
     }
   }
-  return { baseUrl: ".", paths: {} as Record<string, string[]> };
+
+  return { baseUrl: ".", paths: {} };
 }
+
+/**
+ * Given the tsconfig paths map and the chosen physical blocks directory
+ * (relative to project root, e.g. "src/blocks"), derive the import alias
+ * that TypeScript will resolve to that directory.
+ *
+ * Strategy:
+ *   For each alias entry in tsconfig.paths, strip the trailing `*` wildcard
+ *   from both the alias key and its target value, then check whether the
+ *   chosen blocks path starts with that target prefix.  If it does, replace
+ *   the target prefix with the alias prefix to build the final import alias.
+ *
+ * Examples:
+ *   "@/*"   → ["./src/*"]   + blocksPath "src/blocks"  → "@/blocks"
+ *   "~/*"   → ["./src/*"]   + blocksPath "src/blocks"  → "~/blocks"
+ *   "#lib"  → ["./lib"]     + blocksPath "lib/blocks"  → "#lib/blocks"
+ *   no match at all                                     → "@/blocks" (fallback)
+ */
+function deriveBlockAlias(
+  tsPaths: Record<string, string[]>,
+  blocksPhysicalPath: string // e.g. "src/blocks" (no leading ./)
+): string | undefined {
+  const normalizedBlocksPath = blocksPhysicalPath
+    .replace(/^\.\//, "") // strip leading ./
+    .replace(/\\/g, "/"); // normalise windows separators
+
+  for (const [aliasKey, targets] of Object.entries(tsPaths)) {
+    if (!Array.isArray(targets) || targets.length === 0) continue;
+
+    // The first target is canonical; strip trailing /* or / to get the root
+    const rawTarget = targets[0].replace(/\\/g, "/");
+    const targetRoot = rawTarget
+      .replace(/\*$/, "") // strip trailing glob *
+      .replace(/\/$/, "") // strip trailing slash
+      .replace(/^\.\//, ""); // strip leading ./
+
+    // The alias prefix: strip trailing /* or /
+    const aliasRoot = aliasKey
+      .replace(/\/\*$/, "") // strip /*
+      .replace(/\*$/, ""); // strip bare *
+
+    if (targetRoot === "") {
+      // Alias maps to project root ("./") — everything matches
+      // e.g. "@/*": ["./*"] — alias is just @/src/blocks
+      return `${aliasRoot}/${normalizedBlocksPath}`.replace(/\/+/g, "/");
+    }
+
+    if (normalizedBlocksPath === targetRoot || normalizedBlocksPath.startsWith(`${targetRoot}/`)) {
+      // Replace the target prefix with the alias prefix
+      const suffix = normalizedBlocksPath.slice(targetRoot.length).replace(/^\//, "");
+      const alias = suffix ? `${aliasRoot}/${suffix}` : aliasRoot;
+      return alias.replace(/\/+/g, "/");
+    }
+  }
+
+  return undefined;
+}
+
+// ─── output helpers ─────────────────────────────────────────────────────────
 
 function outputInitError(json: boolean, message: string): void {
   if (json) {
@@ -51,6 +117,8 @@ function outputInitResult(
   }
 }
 
+// ─── init command ────────────────────────────────────────────────────────────
+
 export async function initCommand(
   options: {
     yes?: boolean;
@@ -62,17 +130,20 @@ export async function initCommand(
   const configPath = join(cwd, "blockend.json");
 
   if (!json) {
-    console.log(""); // Empty line for breathing room
+    console.log("");
     intro(`${pc.bgCyan(pc.black(" blockend "))} ${theme.text.muted("setup")}`);
   }
 
+  // ── Handle existing config ────────────────────────────────────────────────
+
   if (existsSync(configPath)) {
     let action: string;
+
     if (yes) {
       action = "overwrite";
     } else {
       const actionPrompt = await select({
-        message: "A blockend.json configuration already exists. What would you like to do?",
+        message: "A blockend.json already exists. What would you like to do?",
         options: [
           { value: "keep", label: "Keep existing (cancel setup)" },
           { value: "overwrite", label: "Overwrite current configuration" },
@@ -100,6 +171,8 @@ export async function initCommand(
     }
   }
 
+  // ── Detect project ────────────────────────────────────────────────────────
+
   const s = spinner();
   if (!json) s.start("Scanning project architecture...");
 
@@ -109,11 +182,13 @@ export async function initCommand(
 
   if (!json) s.stop("Project scanned.");
 
+  // ── Framework selection ───────────────────────────────────────────────────
+
   let framework = context.framework;
 
   if (!framework) {
     if (yes) {
-      framework = "express"; // Fallback rule for automation environments
+      framework = "express";
     } else {
       const frameworkSelect = await select({
         message: "Which framework does this project use?",
@@ -139,6 +214,8 @@ export async function initCommand(
     log.info(`Framework detected: ${theme.state.info(framework)}`);
   }
 
+  // ── Blocks directory ──────────────────────────────────────────────────────
+
   const defaultDir = hasSrcDir ? "src/blocks" : "blocks";
   let rawPhysicalInput = defaultDir;
 
@@ -148,7 +225,7 @@ export async function initCommand(
       placeholder: defaultDir,
       initialValue: defaultDir,
       validate(value) {
-        if (value?.trim().length === 0) return "Directory path cannot be empty.";
+        if (!value || value.trim().length === 0) return "Directory path cannot be empty.";
       }
     });
 
@@ -159,41 +236,35 @@ export async function initCommand(
     rawPhysicalInput = String(directoryPrompt).trim();
   }
 
-  const relativeBlocksPath = path.relative(cwd, path.resolve(cwd, rawPhysicalInput));
-  let finalPath = relativeBlocksPath.replace(/\\/g, "/");
-  if (!finalPath.startsWith(".") && !finalPath.startsWith("/")) {
-    finalPath = `./${finalPath}`;
+  // Normalise to a clean relative path with leading ./
+  // path.relative ensures we strip any absolute prefix the user may have typed
+  const relativeBlocksPath = path
+    .relative(cwd, path.resolve(cwd, rawPhysicalInput))
+    .replace(/\\/g, "/");
+
+  // Store with leading ./ so it is unambiguous in blockend.json
+  const finalPath = relativeBlocksPath.startsWith(".")
+    ? relativeBlocksPath
+    : `./${relativeBlocksPath}`;
+
+  // ── Alias derivation ──────────────────────────────────────────────────────
+  //
+  // We pass the path WITHOUT the leading ./ to deriveBlockAlias because the
+  // tsconfig target values are also stripped of ./ before comparison.
+
+  const hasTsPaths = Object.keys(tsConfig.paths).length > 0;
+
+  const finalBlockAlias = hasTsPaths
+    ? deriveBlockAlias(tsConfig.paths, relativeBlocksPath)
+    : undefined; // no tsconfig paths → sensible default
+
+  if (!json) {
+    log.info(
+      `Import alias: ${theme.state.info(finalBlockAlias === undefined ? " relative imports" : finalBlockAlias)}`
+    );
   }
 
-  let finalBlockAlias = "@/blocks";
-  const configuredAliases = Object.keys(tsConfig.paths);
-
-  if (configuredAliases.length > 0) {
-    const matchedAliasKey = configuredAliases.find((alias) => {
-      const targets = tsConfig.paths[alias];
-      if (Array.isArray(targets) && targets.length > 0) {
-        const targetSubPath = targets[0].replace(/\*$/, "").replace(/\\/g, "/");
-        return finalPath.replace(/^\.\//, "").startsWith(targetSubPath);
-      }
-      return false;
-    });
-
-    if (matchedAliasKey) {
-      const cleanKey = matchedAliasKey.replace(/\*$/, "");
-      const targets = tsConfig.paths[matchedAliasKey];
-      const targetSubPath = targets[0].replace(/\*$/, "").replace(/\\/g, "/");
-      const relativeSuffix = finalPath.replace(/^\.\//, "").replace(targetSubPath, "");
-      finalBlockAlias = `${cleanKey}${relativeSuffix}`.replace(/\/$/, "");
-    } else {
-      const primaryAlias = configuredAliases.find((k) => k.startsWith("@")) || configuredAliases[0];
-      const inferredBaseAlias = primaryAlias.replace(/\*$/, "");
-      const folderSegmentName = path.basename(finalPath);
-      finalBlockAlias = `${inferredBaseAlias}${folderSegmentName}`;
-    }
-  } else {
-    const folderSegmentName = path.basename(finalPath);
-    finalBlockAlias = `@/${folderSegmentName}`;
-  }
+  // ── Redis ─────────────────────────────────────────────────────────────────
 
   let includeRedis = false;
   if (context.hasRedis) {
@@ -204,23 +275,24 @@ export async function initCommand(
         message: "Redis detected in project. Enable Redis-backed variants?",
         initialValue: true
       });
-
       if (!isCancel(redisConfirm)) {
         includeRedis = Boolean(redisConfirm);
       }
     }
   }
 
+  // ── Write config ──────────────────────────────────────────────────────────
+
   const configPayload: configPayloadType = {
-    $schema: "https://blockend.dev/schema.json",
+    $schema: "https://blockend.noorulhassan.com/schema.json",
     environment: (framework || "express") as "express" | "fastify" | "hono" | "next",
     language: context.language || "typescript",
     includeRedis,
     aliases: {
-      blocks: finalBlockAlias
+      ...(finalBlockAlias ? { blocks: finalBlockAlias } : {})
     },
     paths: {
-      blocks: finalPath
+      blocks: finalPath // e.g. "./src/blocks" — always a real physical path
     }
   };
 
@@ -232,7 +304,7 @@ export async function initCommand(
 
     outputInitResult(json, {
       success: true,
-      message: "Blockend initialized successfully! Run: npx blockend add <block>",
+      message: "Blockend initialized! Run: npx blockend add <block>",
       config: configPayload
     });
   } catch {
@@ -240,7 +312,7 @@ export async function initCommand(
       s.stop("Failed");
       outputInitError(false, "Failed to write configuration file.");
     } else {
-      outputInitError(true, "Failed to write architectural layout configuration map.");
+      outputInitError(true, "Failed to write configuration file.");
     }
   }
 }
@@ -251,9 +323,9 @@ export type configPayloadType = {
   language: "typescript" | "javascript";
   includeRedis: boolean;
   aliases: {
-    blocks: string;
+    blocks?: string; // import alias e.g. "@/blocks"
   };
   paths: {
-    blocks: string;
+    blocks: string; // physical path e.g. "./src/blocks"
   };
 };

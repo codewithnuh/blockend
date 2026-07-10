@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BlockendRegistryManifest",
+  "type": "object",
+  "required": ["version", "blocks"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "The semantic version of the registry schema layout."
+    },
+    "blocks": {
+      "type": "object",
+      "description": "Dictionary lookup table of all available ingestible component blocks.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "description"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "baseFiles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["source", "target"],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "description": "Remote path to txt template stream."
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Local file production destination name."
+                }
+              }
+            }
+          },
+          "adapters": {
+            "type": "object",
+            "description": "Modern decoupled framework adapter mappings.",
+            "additionalProperties": {
+              "$ref": "#/definitions/frameworkMapping"
+            }
+          },
+          "environments": {
+            "type": "object",
+            "description": "Legacy fallback framework environment mappings.",
+            "additionalProperties": {
+              "$ref": "#/definitions/frameworkMapping"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "frameworkMapping": {
+      "type": "object",
+      "required": ["variants"],
+      "properties": {
+        "core": {
+          "type": "string",
+          "description": "Optional top-level fallback template path."
+        },
+        "dependencies": { "type": "array", "items": { "type": "string" } },
+        "devDependencies": { "type": "array", "items": { "type": "string" } },
+        "variants": {
+          "type": "object",
+          "description": "Pluggable storage layout strategies.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["files"],
+            "properties": {
+              "dependencies": { "type": "array", "items": { "type": "string" } },
+              "devDependencies": { "type": "array", "items": { "type": "string" } },
+              "files": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Legacy file string path fallback layout."
+                    },
+                    {
+                      "type": "object",
+                      "required": ["source", "target"],
+                      "properties": {
+                        "source": { "type": "string" },
+                        "target": { "type": "string" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

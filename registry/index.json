@@ -134,7 +134,7 @@
               "files": [
                 {
                   "source": "blocks/logger/adapters/fastify.ts",
-                  "target": "fastify-adapter.ts"
+                  "target": "adapters/fastify.ts"
                 },
                 {
                   "source": "blocks/logger/tests/fastify.test.ts",
@@ -152,7 +152,7 @@
               "files": [
                 {
                   "source": "blocks/logger/adapters/hono.ts",
-                  "target": "hono-adapter.ts"
+                  "target": "adapters/hono.ts"
                 },
                 {
                   "source": "blocks/logger/tests/hono.test.ts",
@@ -190,7 +190,7 @@
               "files": [
                 {
                   "source": "blocks/request-validator/adapters/express.ts",
-                  "target": "express-adapter.ts"
+                  "target": "adapters/express.ts"
                 },
                 {
                   "source": "blocks/request-validator/tests/express.test.ts",
@@ -228,7 +228,7 @@
               "files": [
                 {
                   "source": "blocks/response-formatter/adapters/express.ts",
-                  "target": "express-adapter.ts"
+                  "target": "adapters/express.ts"
                 },
                 {
                   "source": "blocks/response-formatter/tests/express.test.ts",
