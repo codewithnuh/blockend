@@ -257,11 +257,10 @@
             "default": {
               "files": ["blocks/env-config/index.ts"]
             }
-          }
+          },
+          "dependencies": ["zod", "dotenv"]
         }
-      },
-
-      "dependencies": ["zod", "dotenv"]
+      }
     }
   }
 }
