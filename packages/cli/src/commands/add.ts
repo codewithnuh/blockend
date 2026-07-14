@@ -18,8 +18,8 @@ interface LocalPackageJson {
 }
 
 export interface AssetMapping {
-  source: string; // path inside the GitHub repo,  e.g. "blocks/logger/core.ts"
-  target: string; // relative to the block folder,  e.g. "core.ts" or "tests/core.test.ts"
+  source: string; // repo-relative path,   e.g. "blocks/logger/core.ts"
+  target: string; // block-folder-relative, e.g. "core.ts" | "tests/core.test.ts"
 }
 
 export interface AdapterConfig {
@@ -38,6 +38,22 @@ export interface EnvironmentConfig {
 export interface BlockManifest {
   name: string;
   description: string;
+  /**
+   * Explicit framework support list.
+   * - Named keys ("express", "fastify", "hono", "next") mean this block
+   *   only appears for users whose blockend.json environment matches.
+   * - "*" means framework-agnostic — shown for every environment.
+   * - Omitting the field triggers legacy fallback: the CLI inspects
+   *   adapters/environments keys directly (backward compat).
+   */
+  frameworks?: Array<"express" | "fastify" | "hono" | "next" | "*">;
+  /**
+   * Top-level dependencies for adapter-free blocks (frameworks: ["*"] with
+   * only baseFiles and no adapters/environments).  Merged with any
+   * adapter-level deps when an adapter context also exists.
+   */
+  dependencies?: string[];
+  devDependencies?: string[];
   baseFiles?: AssetMapping[];
   adapters?: Record<string, EnvironmentConfig>;
   environments?: Record<string, EnvironmentConfig>;
@@ -54,23 +70,67 @@ export interface RegistryManifest {
 const REPO_OWNER = "codewithnuh";
 const REPO_NAME = "blockend";
 const BRANCH = "master";
+
 const RAW_CDN_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
 const MANIFEST_URL = `${RAW_CDN_BASE}/registry/index.json`;
+
+// ─── framework compatibility helpers ─────────────────────────────────────────
+
+/**
+ * Returns true if `block` should be shown to a user whose project uses `envKey`.
+ *
+ * Resolution order:
+ *   1. block.frameworks declared → use it directly.
+ *      - "*" in the list means universal support.
+ *      - Otherwise match against envKey.
+ *   2. No frameworks field → legacy probe: check whether adapters[envKey]
+ *      or environments[envKey] exists.
+ */
+function blockSupportsEnv(block: BlockManifest, envKey: string): boolean {
+  if (block.frameworks && block.frameworks.length > 0) {
+    return block.frameworks.includes("*") || block.frameworks.includes(envKey as never);
+  }
+  // Legacy fallback
+  return block.adapters?.[envKey] !== undefined || block.environments?.[envKey] !== undefined;
+}
+
+/**
+ * Resolves the EnvironmentConfig for a block + envKey pair.
+ *
+ * Returns null for adapter-free blocks (frameworks: ["*"] with only baseFiles).
+ * Callers must handle null — it is not an error, just means no adapter layer.
+ *
+ * Resolution order:
+ *   1. adapters[envKey]     — framework-specific adapter
+ *   2. adapters["*"]        — universal adapter
+ *   3. environments[envKey] — legacy key, framework-specific
+ *   4. environments["*"]    — legacy key, universal
+ *   5. null                 — adapter-free block (baseFiles only)
+ */
+function resolveAdapterContext(block: BlockManifest, envKey: string): EnvironmentConfig | null {
+  return (
+    block.adapters?.[envKey] ??
+    block.adapters?.["*"] ??
+    block.environments?.[envKey] ??
+    block.environments?.["*"] ??
+    null
+  );
+}
 
 // ─── import rewriting ────────────────────────────────────────────────────────
 
 /**
- * Rewrites relative imports inside a downloaded file so they use the
- * project's configured TypeScript path alias instead of relative paths.
+ * Rewrites relative imports inside a downloaded file to use the project's
+ * configured TypeScript path alias.
  *
- * Only runs when `aliasBase` starts with a non-relative prefix (e.g. "@", "~").
- * If the user has no alias configured, relative imports are already structurally
- * correct because the target layout mirrors the registry layout exactly.
+ * Skipped entirely when aliasBase is empty or starts with "." — in that case
+ * the relative imports are already structurally correct because the target
+ * layout mirrors the registry layout exactly.
  *
- * @param fileContent     - Raw source of the file being written
- * @param writtenFilePath - Absolute path where the file will be saved on disk
- * @param blocksRoot      - Absolute path to the blocks root dir (e.g. /project/src/blocks)
- * @param aliasBase       - The alias prefix from blockend.json (e.g. "@/blocks")
+ * @param fileContent     Raw source text of the file being written
+ * @param writtenFilePath Absolute on-disk path where the file will be saved
+ * @param blocksRoot      Absolute path to the blocks root  (/project/src/blocks)
+ * @param aliasBase       Alias prefix from blockend.json   ("@/blocks")
  */
 function rewriteFileImports(
   fileContent: string,
@@ -78,40 +138,26 @@ function rewriteFileImports(
   blocksRoot: string,
   aliasBase: string | undefined
 ): string {
-  // Only rewrite when a real non-relative alias is configured
   if (!aliasBase || aliasBase.startsWith(".")) {
     return fileContent;
   }
 
-  // Matches relative imports/exports in all common forms:
-  //   import X from "./foo"
-  //   import { X } from '../foo/bar'
-  //   export { X } from "./foo"
-  //   import("./foo")
-  // Captures: (keyword)(quote)(relative-path)(closing-quote)
+  // Matches: import X from "./foo", export { X } from '../bar', import("./baz")
   const importRegex = /((?:from|import)\s*)(['"`])(\.\.?\/[^'"` \n\r]+)(['"`])/g;
-
   const fileDir = dirname(writtenFilePath);
 
   return fileContent.replace(importRegex, (match, keyword, openQuote, relativePath, closeQuote) => {
-    // 1. Resolve the import target to an absolute path from THIS file's directory
-    //    (not from targetFolder — files in tests/ subdirs resolve differently)
+    // Resolve relative to THIS file's directory (critical for files in tests/)
     const absoluteTarget = path.resolve(fileDir, relativePath);
 
-    // 2. Express it relative to the blocks root (e.g. /project/src/blocks)
-    //    Result: "logger/core"  or  "logger/tests/core.test"
+    // Express relative to blocks root → "logger/core" or "logger/tests/core.test"
     const fromBlocksRoot = path.relative(blocksRoot, absoluteTarget).replace(/\\/g, "/");
 
-    // 3. If the import escapes the blocks root (starts with ..) it points
-    //    to something outside our control — leave it untouched
-    if (fromBlocksRoot.startsWith("..")) {
-      return match;
-    }
+    // Import escapes blocks root — leave it alone (e.g. imports from node_modules)
+    if (fromBlocksRoot.startsWith("..")) return match;
 
-    // 4. Combine alias base + path-from-blocks-root
-    //    "@/blocks" + "logger/core"  →  "@/blocks/logger/core"
+    // "@/blocks" + "logger/core" → "@/blocks/logger/core"
     const aliased = `${aliasBase}/${fromBlocksRoot}`.replace(/\/+/g, "/");
-
     return `${keyword}${openQuote}${aliased}${closeQuote}`;
   });
 }
@@ -140,11 +186,7 @@ function outputResult(
   if (json) {
     process.stdout.write(JSON.stringify(result) + "\n");
   } else {
-    if (result.success) {
-      outro(pc.green(`✨ ${result.message}`));
-    } else {
-      outro(pc.yellow(`ℹ ${result.message}`));
-    }
+    outro(result.success ? pc.green(`✨ ${result.message}`) : pc.yellow(`ℹ ${result.message}`));
   }
 }
 
@@ -166,7 +208,7 @@ async function findUp(filename: string, startDir: string): Promise<string | null
       return candidate;
     } catch {
       const parent = dirname(dir);
-      if (parent === dir) break; // reached filesystem root
+      if (parent === dir) break;
       dir = parent;
     }
   }
@@ -196,7 +238,7 @@ export async function addCommand(
     return;
   }
 
-  const rootDir = dirname(configPath); // project root — same dir as blockend.json
+  const rootDir = dirname(configPath);
 
   let config: BlockendExtendedConfig;
   try {
@@ -209,20 +251,14 @@ export async function addCommand(
 
   if (config.language !== "typescript") {
     outputError(json, "Blockend currently only supports TypeScript projects.");
-    if (!json) outro(pc.dim("Exiting."));
     return;
   }
 
-  // ── Derive paths from config ────────────────────────────────────────────
-  //
-  // config.paths.blocks  is ALWAYS a real physical path  (e.g. "./src/blocks")
-  // config.aliases.blocks is ALWAYS the import alias     (e.g. "@/blocks")
-  //
-  // We resolve these once here; everything downstream uses these two values.
-
-  const physicalBlocksPath = config.paths.blocks; // "./src/blocks"
-  const blocksRootAbsolute = path.resolve(rootDir, physicalBlocksPath); // /project/src/blocks
-  const aliasBase = config.aliases.blocks; // "@/blocks"
+  // config.paths.blocks  → physical path  "./src/blocks"
+  // config.aliases.blocks → import alias  "@/blocks"
+  const physicalBlocksPath = config.paths.blocks;
+  const blocksRootAbsolute = path.resolve(rootDir, physicalBlocksPath);
+  const aliasBase = config.aliases.blocks;
   const envKey = config.environment;
 
   // ── Fetch registry ──────────────────────────────────────────────────────
@@ -240,13 +276,10 @@ export async function addCommand(
     if (!json) {
       s.stop("Failed to fetch registry.");
       log.error(pc.dim(String(err)));
-    } else {
-      outputError(json, "Failed to fetch the component registry from GitHub.");
-    }
+    } else outputError(json, "Failed to fetch registry from GitHub.");
     return;
   }
 
-  // Registry may be { blocks: { ... } } or flat { "block-name": { ... } }
   const blockMap: Record<string, BlockManifest> =
     registry.blocks && typeof registry.blocks === "object" && !Array.isArray(registry.blocks)
       ? (registry.blocks as Record<string, BlockManifest>)
@@ -262,14 +295,14 @@ export async function addCommand(
   let targetBlock = blockName;
 
   if (!targetBlock) {
-    const available = Object.entries(blockMap).filter(([, block]) => {
-      if (!block) return false;
-      return block.adapters?.[envKey] !== undefined || block.environments?.[envKey] !== undefined;
-    });
+    // Filter using the new frameworks field — falls back to legacy probe for
+    // blocks that haven't been migrated yet
+    const available = Object.entries(blockMap).filter(
+      ([, block]) => block != null && blockSupportsEnv(block, envKey)
+    );
 
     if (available.length === 0) {
-      const msg = `No blocks available for environment: ${envKey}`;
-      outputError(json, msg);
+      outputError(json, `No blocks available for environment: ${envKey}`);
       if (!json) outro(pc.dim("Exiting."));
       return;
     }
@@ -290,15 +323,25 @@ export async function addCommand(
 
   const blockMeta = blockMap[targetBlock];
   if (!blockMeta) {
-    outputError(json, `Block "${targetBlock}" does not exist in the registry.`);
+    outputError(json, `Block "${targetBlock}" not found in the registry.`);
     return;
   }
 
-  // ── Resolve adapter/environment context ─────────────────────────────────
-
-  const adapterContext = blockMeta.adapters?.[envKey] ?? blockMeta.environments?.[envKey];
-  if (!adapterContext) {
+  // Validate the block actually supports the user's framework before proceeding
+  if (!blockSupportsEnv(blockMeta, envKey)) {
     outputError(json, `Block "${targetBlock}" does not support environment: ${envKey}`);
+    return;
+  }
+
+  // ── Resolve adapter context ─────────────────────────────────────────────
+
+  const adapterContext = resolveAdapterContext(blockMeta, envKey);
+  if (!adapterContext) {
+    outputError(
+      json,
+      `Block "${targetBlock}" has no adapter or environment entry for: ${envKey}. ` +
+        `This is a registry configuration issue — please open an issue.`
+    );
     return;
   }
 
@@ -306,7 +349,7 @@ export async function addCommand(
 
   const variantKeys = Object.keys(adapterContext.variants ?? {});
   if (variantKeys.length === 0) {
-    outputError(json, `No variants found for block "${targetBlock}" in environment "${envKey}"`);
+    outputError(json, `No variants found for "${targetBlock}" / "${envKey}".`);
     return;
   }
 
@@ -329,16 +372,7 @@ export async function addCommand(
 
   const variantMeta = adapterContext.variants[selectedVariant];
 
-  // ── Where the block lands on disk ───────────────────────────────────────
-  //
-  // targetFolder is the block-specific subdirectory, e.g.:
-  //   /project/src/blocks/logger
-  //
-  // The file tree inside targetFolder mirrors the registry target paths:
-  //   "target": "core.ts"              → /project/src/blocks/logger/core.ts
-  //   "target": "tests/core.test.ts"   → /project/src/blocks/logger/tests/core.test.ts
-  //   "target": "express-adapter.ts"   → /project/src/blocks/logger/express-adapter.ts
-
+  // targetFolder: /project/src/blocks/logger
   const targetFolder = path.resolve(blocksRootAbsolute, targetBlock);
 
   // ── Dependency management ───────────────────────────────────────────────
@@ -375,14 +409,11 @@ export async function addCommand(
   ].filter((d) => !(d in installedDeps));
 
   if (missingProd.length > 0 || missingDev.length > 0) {
-    if (!json) {
-      log.warn(`Missing dependencies: ${pc.cyan([...missingProd, ...missingDev].join(", "))}`);
-    }
+    if (!json) log.warn(`Missing: ${pc.cyan([...missingProd, ...missingDev].join(", "))}`);
 
     const shouldInstall = yes
       ? true
       : await confirm({ message: "Install missing dependencies?", initialValue: true });
-
     if (!yes) handleCancel(shouldInstall);
 
     if (shouldInstall) {
@@ -430,9 +461,7 @@ export async function addCommand(
         if (!json) {
           s.stop("Installation failed.");
           log.error(pc.dim(String(err)));
-        } else {
-          outputError(json, "Dependency installation failed.");
-        }
+        } else outputError(json, "Dependency installation failed.");
         return;
       }
     }
@@ -440,17 +469,17 @@ export async function addCommand(
 
   // ── Build file list ─────────────────────────────────────────────────────
   //
-  // Order: baseFiles first (shared core), then adapter core, then variant files.
-  // This mirrors exactly how your registry.json is structured.
+  // Write order mirrors registry structure:
+  //   1. baseFiles  — shared framework-agnostic core
+  //   2. core       — adapter-level single-file fallback (rate-limiter style)
+  //   3. variant    — implementation + tests
 
   const filesToDownload: AssetMapping[] = [];
 
-  // 1. Shared base files (e.g. logger/core.ts, logger/tests/core.test.ts)
-  if (blockMeta.baseFiles && Array.isArray(blockMeta.baseFiles)) {
+  if (blockMeta.baseFiles?.length) {
     filesToDownload.push(...blockMeta.baseFiles);
   }
 
-  // 2. Adapter-level core file (used by rate-limiter style blocks)
   if (adapterContext.core) {
     filesToDownload.push({
       source: adapterContext.core,
@@ -458,14 +487,11 @@ export async function addCommand(
     });
   }
 
-  // 3. Variant files (adapter-specific implementations + tests)
   if (variantMeta && Array.isArray(variantMeta.files)) {
     for (const entry of variantMeta.files) {
-      if (typeof entry === "string") {
-        filesToDownload.push({ source: entry, target: path.basename(entry) });
-      } else {
-        filesToDownload.push(entry);
-      }
+      filesToDownload.push(
+        typeof entry === "string" ? { source: entry, target: path.basename(entry) } : entry
+      );
     }
   }
 
@@ -478,7 +504,7 @@ export async function addCommand(
       hasConflict = true;
       break;
     } catch {
-      // file doesn't exist — no conflict
+      /* no conflict */
     }
   }
 
@@ -496,17 +522,14 @@ export async function addCommand(
     }
   }
 
-  // ── Download and write files ────────────────────────────────────────────
+  // ── Download and write ──────────────────────────────────────────────────
   //
-  // Each file's target path mirrors the registry layout:
+  // File tree on disk mirrors registry target paths exactly:
+  //   "target": "core.ts"            → <blocksRoot>/logger/core.ts
+  //   "target": "tests/core.test.ts" → <blocksRoot>/logger/tests/core.test.ts
   //
-  //   registry "target": "core.ts"
-  //     → written to:  <blocksRoot>/<blockName>/core.ts
-  //     → import alias: @/blocks/logger/core
-  //
-  //   registry "target": "tests/core.test.ts"
-  //     → written to:  <blocksRoot>/<blockName>/tests/core.test.ts
-  //     → imports rewritten using dirname of written file so ../core resolves correctly
+  // Imports are rewritten per-file using the file's own directory as the
+  // resolution anchor, so tests/ subdirectory imports resolve correctly.
 
   if (!json) s.start(`Downloading ${targetBlock}...`);
 
@@ -514,27 +537,20 @@ export async function addCommand(
 
   try {
     for (const fm of filesToDownload) {
-      const fileUrl = `${RAW_CDN_BASE}/${fm.source}`;
-      const res = await fetch(fileUrl);
-      if (!res.ok) throw new Error(`Failed to download: ${fm.source} (HTTP ${res.status})`);
+      const res = await fetch(`${RAW_CDN_BASE}/${fm.source}`);
+      if (!res.ok) throw new Error(`Download failed: ${fm.source} (HTTP ${res.status})`);
 
       let content = await res.text();
-
-      // Absolute path where this file will live on the user's disk
       const writtenFilePath = path.join(targetFolder, fm.target);
 
-      // Rewrite imports using:
-      //   - writtenFilePath:   so dirname resolves per-file (tests/ vs root)
-      //   - blocksRootAbsolute: anchor for alias calculation (/project/src/blocks)
-      //   - aliasBase:          what to prefix  (@/blocks)
       content = rewriteFileImports(content, writtenFilePath, blocksRootAbsolute, aliasBase);
+
       await fs.mkdir(dirname(writtenFilePath), { recursive: true });
       await fs.writeFile(writtenFilePath, content, "utf-8");
       filesWritten.push(writtenFilePath);
     }
 
     if (!json) s.stop("Files written.");
-
     outputResult(json, {
       success: true,
       block: targetBlock,
@@ -546,8 +562,6 @@ export async function addCommand(
     if (!json) {
       s.stop("Failed.");
       log.error(pc.dim(String(err)));
-    } else {
-      outputError(json, "Fatal error while writing block files.");
-    }
+    } else outputError(json, "Fatal error while writing block files.");
   }
 }

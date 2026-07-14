@@ -1,0 +1,398 @@
+---
+title: Environment Configuration
+description: Type-safe environment variable validation with Zod. Fail fast at startup and access fully typed configuration throughout your application.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Steps } from "fumadocs-ui/components/steps";
+import { File, Files, Folder } from "fumadocs-ui/components/files";
+
+The **Environment Configuration** block provides a centralized, type-safe way to validate your application's environment variables using Zod.
+
+Instead of accessing `process.env` throughout your application, define your environment schema once, validate it during startup, and import the resulting `env` object anywhere in your project.
+
+If any required variable is missing or invalid, the application immediately throws a formatted error before the server starts.
+
+---
+
+## Features
+
+- Runtime validation powered by Zod
+- Fully type-safe environment object
+- Fail-fast startup validation
+- Human-readable validation errors
+- Supports default values
+- Supports type coercion (numbers, booleans, etc.)
+- Test-friendly by allowing custom environment sources
+- Zero runtime overhead after initialization
+
+---
+
+## Installation
+
+Choose your preferred package manager.
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm dlx blockend-cli add env-config
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npx blockend-cli add env-config
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn dlx blockend-cli add env-config
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bunx blockend-cli add env-config
+```
+
+</Tab>
+
+</Tabs>
+
+---
+
+## Installation Flow
+
+<Steps>
+
+### Detect Project
+
+Blockend detects your project configuration and determines the correct output location.
+
+### Install Dependencies
+
+The required dependencies are installed automatically.
+
+```text
+Executing: pnpm add zod dotenv
+```
+
+### Generate Files
+
+The environment configuration block is generated inside your configured blocks directory.
+
+</Steps>
+
+---
+
+## Generated Files
+
+<Files>
+  <Folder name="blocks" defaultOpen>
+    <Folder name="env-config" defaultOpen>
+      <File name="index.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+---
+
+## Creating Your Environment Schema
+
+Start by loading your `.env` file.
+
+```ts
+import { config } from "dotenv";
+
+config();
+```
+
+Next, define the variables your application expects.
+
+```ts
+import { z } from "zod";
+
+const envSchema = z.object({
+  PORT: z.coerce.number().default(5000),
+
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+
+  DATABASE_URL: z.string(),
+
+  JWT_SECRET: z.string().min(32)
+});
+```
+
+Finally, validate and export your environment.
+
+```ts
+import { parseEnv } from "@/blocks/env-config";
+
+export const env = parseEnv(envSchema);
+```
+
+If validation succeeds, `env` becomes a fully typed object inferred directly from your Zod schema.
+
+---
+
+## Using the Environment
+
+Import the validated configuration anywhere in your application.
+
+```ts
+import { env } from "@/config/env";
+
+console.log(env.PORT);
+
+console.log(env.NODE_ENV);
+
+await app.listen(env.PORT);
+```
+
+Unlike `process.env`, every property has the correct TypeScript type.
+
+For example, after using `z.coerce.number()`:
+
+```ts
+env.PORT;
+```
+
+is typed as:
+
+```ts
+number;
+```
+
+instead of
+
+```ts
+string | undefined;
+```
+
+---
+
+## Validation Errors
+
+If validation fails, the application exits immediately with a readable error message.
+
+Example:
+
+```text
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❌ Environment Configuration Validation Failed
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• DATABASE_URL → Required
+• JWT_SECRET → String must contain at least 32 character(s)
+
+Please verify your environment variables before restarting.
+```
+
+Failing during startup prevents unexpected runtime failures caused by missing configuration.
+
+---
+
+## Default Values
+
+Use Zod defaults whenever a value is optional.
+
+```ts
+const schema = z.object({
+  PORT: z.coerce.number().default(3000)
+});
+```
+
+If `PORT` is missing, it automatically becomes:
+
+```ts
+3000;
+```
+
+---
+
+## Type Coercion
+
+Environment variables are always strings.
+
+Use `z.coerce` to convert them into useful runtime types.
+
+```ts
+const schema = z.object({
+  PORT: z.coerce.number(),
+
+  ENABLE_CACHE: z.coerce.boolean()
+});
+```
+
+Now both values are automatically parsed from strings.
+
+For example:
+
+```ts
+PORT = 5000;
+ENABLE_CACHE = true;
+```
+
+becomes
+
+```ts
+env.PORT;
+// number
+
+env.ENABLE_CACHE;
+// boolean
+```
+
+---
+
+## Testing
+
+`parseEnv()` accepts an optional environment source, making it easy to test different configurations without modifying `process.env`.
+
+```ts
+const env = parseEnv(schema, {
+  PORT: "3000",
+  DATABASE_URL: "mongodb://localhost/test"
+});
+```
+
+This is particularly useful for unit tests.
+
+---
+
+## Project Structure
+
+A common project structure looks like this.
+
+<Files>
+  <Folder name="src" defaultOpen>
+    <Folder name="blocks" defaultOpen>
+      <File name="env-config/index.ts" />
+    </Folder>
+
+    <Folder name="config" defaultOpen>
+      <File name="env.ts" />
+    </Folder>
+
+  </Folder>
+</Files>
+
+Your application should validate the environment exactly once during startup and export the resulting object for the rest of the application to consume.
+
+---
+
+## A Note on Import Extensions
+
+If your project uses `"module": "NodeNext"` (or `"Node16"`) in `tsconfig.json` together with `"type": "module"` in `package.json`, Node's ESM loader requires explicit file extensions on relative imports—`.js`, even though the source files are `.ts`. This is a Node.js requirement, not a Blockend one.
+
+For example:
+
+```ts
+import { parseEnv } from "@/blocks/env-config/index.js";
+```
+
+or
+
+```ts
+import { env } from "./env.js";
+```
+
+instead of
+
+```ts
+import { parseEnv } from "@/blocks/env-config";
+```
+
+If you're unsure which applies to you, check `package.json` for `"type": "module"` and `tsconfig.json` for `"module": "NodeNext"` (or `"Node16"`). If neither is present, you don't need the `.js` extension.
+
+---
+
+## Manual Installation
+
+Prefer copying the source code instead of using the CLI?
+
+Install the required dependencies.
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm add zod dotenv
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npm install zod dotenv
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn add zod dotenv
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bun add zod dotenv
+```
+
+</Tab>
+
+</Tabs>
+
+Create the following file.
+
+<Files>
+
+<Folder name="blocks" defaultOpen>
+
+<Folder name="env-config" defaultOpen>
+
+<File name="index.ts" />
+
+</Folder>
+
+</Folder>
+
+</Files>
+
+Copy the generated source into your project.
+
+---
+
+## API
+
+| Export               | Description                                                                                          |
+| -------------------- | ---------------------------------------------------------------------------------------------------- |
+| `parseEnv()`         | Validates an environment object against a Zod schema and returns a fully typed configuration object. |
+| `EnvValidationError` | Error thrown when validation fails. Contains the original Zod validation issues.                     |
+
+---
+
+## Production Recommendations
+
+- Load your `.env` file before calling `parseEnv()`.
+- Validate your environment exactly once during application startup.
+- Export a shared `env` object instead of accessing `process.env` throughout your application.
+- Prefer `z.coerce.number()` and `z.coerce.boolean()` for numeric and boolean values.
+- Use `.default()` for optional configuration with sensible defaults.
+- Keep secrets (API keys, JWT secrets, database URLs) in environment variables rather than hardcoding them.
+- Use descriptive validation messages for required values to make deployment failures easier to diagnose.

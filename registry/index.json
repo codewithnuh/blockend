@@ -1,4 +1,5 @@
 {
+  "$schema": "./registry-schema.json",
   "version": "1.0.0",
   "blocks": {
     "rate-limit": {
@@ -239,6 +240,28 @@
           }
         }
       }
+    },
+    "env-config": {
+      "name": "Environment Configuration",
+      "description": "Type-safe environment variable validation using Zod. Validate configuration once at startup, fail fast on invalid values, and access a fully typed environment object throughout your application.",
+      "baseFiles": [
+        {
+          "source": "blocks/env-config/index.ts",
+          "target": "index.ts"
+        }
+      ],
+      "frameworks": ["*"],
+      "adapters": {
+        "*": {
+          "variants": {
+            "default": {
+              "files": ["blocks/env-config/index.ts"]
+            }
+          }
+        }
+      },
+
+      "dependencies": ["zod", "dotenv"]
     }
   }
 }
