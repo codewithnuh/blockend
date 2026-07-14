@@ -399,11 +399,13 @@ export async function addCommand(
   };
 
   const missingProd = [
+    ...(blockMeta.dependencies ?? []),
     ...(adapterContext.dependencies ?? []),
     ...(variantMeta?.dependencies ?? [])
   ].filter((d) => !(d in installedDeps));
 
   const missingDev = [
+    ...(blockMeta.dependencies ?? []),
     ...(adapterContext.devDependencies ?? []),
     ...(variantMeta?.devDependencies ?? [])
   ].filter((d) => !(d in installedDeps));
