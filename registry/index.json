@@ -1,46 +1,60 @@
 {
-  "$schema": "./registry-schema.json",
   "version": "1.0.0",
   "blocks": {
-    "rate-limit": {
+    "rate-limiter": {
       "name": "Rate Limiter",
       "description": "IP-based rate limiting middleware with pluggable storage strategies",
-      "environments": {
+      "baseFiles": [
+        { "source": "blocks/rate-limiter/core/core.ts", "target": "core/core.ts" },
+        { "source": "blocks/rate-limiter/utils/ip.ts", "target": "utils/ip.ts" },
+        { "source": "blocks/rate-limiter/variants/store.test.ts", "target": "tests/store.test.ts" }
+      ],
+      "adapters": {
         "express": {
-          "core": "blocks/rate-limiter/express/base.ts",
-          "devDependencies": ["vitest", "supertest", "@types/supertest", "@types/express"],
           "variants": {
-            "memory": {
-              "dependencies": [],
+            "default": {
               "files": [
                 {
-                  "source": "blocks/rate-limiter/express/store-memory.ts",
-                  "target": "store-memory.ts"
-                },
+                  "source": "blocks/rate-limiter/adapters/express.ts",
+                  "target": "adapters/express.ts"
+                }
+              ]
+            }
+          }
+        },
+        "fastify": {
+          "variants": {
+            "default": {
+              "files": [
                 {
-                  "source": "blocks/rate-limiter/express/tests/store-memory.test.ts",
-                  "target": "tests/store-memory.test.ts"
-                },
+                  "source": "blocks/rate-limiter/adapters/fastify.ts",
+                  "target": "adapters/fastify.ts"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "environments": {
+        "*": {
+          "variants": {
+            "memory": {
+              "files": [
                 {
-                  "source": "blocks/rate-limiter/express/tests/base.test.ts",
-                  "target": "tests/base.test.ts"
+                  "source": "blocks/rate-limiter/variants/memory-store.ts",
+                  "target": "variants/memory-store.ts"
                 }
               ]
             },
             "redis": {
-              "dependencies": ["ioredis"],
               "files": [
                 {
-                  "source": "blocks/rate-limiter/express/store-redis.ts",
-                  "target": "store-redis.ts"
+                  "source": "blocks/rate-limiter/variants/redis-store.ts",
+                  "target": "variants/redis-store.ts"
                 },
                 {
-                  "source": "blocks/rate-limiter/express/tests/store-redist.test.ts",
-                  "target": "tests/store-redis.test.ts"
-                },
-                {
-                  "source": "blocks/rate-limiter/express/tests/base.test.ts",
-                  "target": "tests/base.test.ts"
+                  "source": "blocks/rate-limiter/variants/redis.test.ts",
+                  "target": "tests/redis.test.ts"
                 }
               ]
             }
@@ -50,13 +64,11 @@
     },
     "error-handler": {
       "name": "Global Error Handler",
-      "description": "Centralized Express error handling...",
-      "environments": {
+      "description": "Centralized Express error handling suite.",
+      "adapters": {
         "express": {
           "variants": {
             "default": {
-              "dependencies": ["zod"],
-              "devDependencies": ["vitest", "supertest", "@types/supertest", "@types/express"],
               "files": [
                 { "source": "blocks/error-handler/express/app-error.ts", "target": "app-error.ts" },
                 {
@@ -85,80 +97,44 @@
     },
     "logger": {
       "name": "Structured Context Logger",
-      "description": "Framework-agnostic context logging engine using AsyncLocalStorage with production redactions and automatic request ID tracing.",
+      "description": "Framework-agnostic context logging engine.",
       "baseFiles": [
-        {
-          "source": "blocks/logger/core.ts",
-          "target": "core.ts"
-        },
-        {
-          "source": "blocks/logger/tests/core.test.ts",
-          "target": "tests/core.test.ts"
-        }
+        { "source": "blocks/logger/core.ts", "target": "core.ts" },
+        { "source": "blocks/logger/core.test.ts", "target": "tests/core.test.ts" }
       ],
       "adapters": {
         "express": {
-          "dependencies": ["pino"],
-          "devDependencies": [
-            "pino-pretty",
-            "vitest",
-            "supertest",
-            "@types/supertest",
-            "@types/express"
-          ],
           "variants": {
             "default": {
               "files": [
+                { "source": "blocks/logger/adapters/express.ts", "target": "adapters/express.ts" },
                 {
-                  "source": "blocks/logger/adapters/express.ts",
-                  "target": "express-adapter.ts"
-                },
-                {
-                  "source": "blocks/logger/tests/express.test.ts",
-                  "target": "tests/express-adapter.test.ts"
+                  "source": "blocks/logger/adapters/express.test.ts",
+                  "target": "tests/express.test.ts"
                 }
               ]
             }
           }
         },
         "fastify": {
-          "dependencies": ["pino"],
-          "devDependencies": [
-            "pino-pretty",
-            "vitest",
-            "supertest",
-            "@types/supertest",
-            "@types/node"
-          ],
           "variants": {
             "default": {
               "files": [
+                { "source": "blocks/logger/adapters/fastify.ts", "target": "adapters/fastify.ts" },
                 {
-                  "source": "blocks/logger/adapters/fastify.ts",
-                  "target": "adapters/fastify.ts"
-                },
-                {
-                  "source": "blocks/logger/tests/fastify.test.ts",
-                  "target": "tests/fastify-adapter.test.ts"
+                  "source": "blocks/logger/adapters/fastify.test.ts",
+                  "target": "tests/fastify.test.ts"
                 }
               ]
             }
           }
         },
         "hono": {
-          "dependencies": ["pino"],
-          "devDependencies": ["pino-pretty", "vitest", "@types/node"],
           "variants": {
             "default": {
               "files": [
-                {
-                  "source": "blocks/logger/adapters/hono.ts",
-                  "target": "adapters/hono.ts"
-                },
-                {
-                  "source": "blocks/logger/tests/hono.test.ts",
-                  "target": "tests/hono-adapter.test.ts"
-                }
+                { "source": "blocks/logger/adapters/hono.ts", "target": "adapters/hono.ts" },
+                { "source": "blocks/logger/adapters/hono.test.ts", "target": "tests/hono.test.ts" }
               ]
             }
           }
@@ -167,25 +143,14 @@
     },
     "request-validator": {
       "name": "Request Validator",
-      "description": "Framework-agnostic request validation powered by Zod. Validate request bodies, query parameters, and route params through lightweight adapters while keeping validation logic independent of the web framework.",
+      "description": "Framework-agnostic request validation powered by Zod.",
       "baseFiles": [
-        {
-          "source": "blocks/request-validator/core.ts",
-          "target": "core.ts"
-        },
-        {
-          "source": "blocks/request-validator/contract.ts",
-          "target": "contract.ts"
-        },
-        {
-          "source": "blocks/request-validator/tests/core.test.ts",
-          "target": "tests/core.test.ts"
-        }
+        { "source": "blocks/request-validator/core.ts", "target": "core.ts" },
+        { "source": "blocks/request-validator/contract.ts", "target": "contract.ts" },
+        { "source": "blocks/request-validator/core.test.ts", "target": "tests/core.test.ts" }
       ],
       "adapters": {
         "express": {
-          "dependencies": ["zod", "express"],
-          "devDependencies": ["vitest", "supertest", "@types/supertest", "@types/express"],
           "variants": {
             "default": {
               "files": [
@@ -194,8 +159,8 @@
                   "target": "adapters/express.ts"
                 },
                 {
-                  "source": "blocks/request-validator/tests/express.test.ts",
-                  "target": "tests/express-adapter.test.ts"
+                  "source": "blocks/request-validator/adapters/express.test.ts",
+                  "target": "tests/express.test.ts"
                 }
               ]
             }
@@ -205,25 +170,14 @@
     },
     "response-formatter": {
       "name": "Response Formatter",
-      "description": "Framework-agnostic API response formatting with lightweight adapters. Create consistent success, error, and paginated responses while keeping formatting logic independent of the web framework.",
+      "description": "Framework-agnostic API response formatting.",
       "baseFiles": [
-        {
-          "source": "blocks/response-formatter/core.ts",
-          "target": "core.ts"
-        },
-        {
-          "source": "blocks/response-formatter/contract.ts",
-          "target": "contract.ts"
-        },
-        {
-          "source": "blocks/response-formatter/tests/core.test.ts",
-          "target": "tests/core.test.ts"
-        }
+        { "source": "blocks/response-formatter/core.ts", "target": "core.ts" },
+        { "source": "blocks/response-formatter/contract.ts", "target": "contract.ts" },
+        { "source": "blocks/response-formatter/core.test.ts", "target": "tests/core.test.ts" }
       ],
       "adapters": {
         "express": {
-          "dependencies": ["express"],
-          "devDependencies": ["vitest", "supertest", "@types/supertest", "@types/express"],
           "variants": {
             "default": {
               "files": [
@@ -232,8 +186,8 @@
                   "target": "adapters/express.ts"
                 },
                 {
-                  "source": "blocks/response-formatter/tests/express.test.ts",
-                  "target": "tests/express-adapter.test.ts"
+                  "source": "blocks/response-formatter/adapters/express.test.ts",
+                  "target": "tests/express.test.ts"
                 }
               ]
             }
@@ -243,25 +197,97 @@
     },
     "env-config": {
       "name": "Environment Configuration",
-      "description": "Type-safe environment variable validation using Zod. Validate configuration once at startup, fail fast on invalid values, and access a fully typed environment object throughout your application.",
+      "description": "Type-safe environment variable validation using Zod.",
+      "baseFiles": [{ "source": "blocks/env-config/index.ts", "target": "index.ts" }]
+    },
+    "health-check": {
+      "name": "System Health Check Monitoring",
+      "description": "Framework-agnostic health assessment suite.",
       "baseFiles": [
+        { "source": "blocks/health-check/core/build-report.ts", "target": "core/build-report.ts" },
         {
-          "source": "blocks/env-config/index.ts",
-          "target": "index.ts"
-        }
+          "source": "blocks/health-check/core/build-report.test.ts",
+          "target": "core/build-report.test.ts"
+        },
+        {
+          "source": "blocks/health-check/core/calculate-status.ts",
+          "target": "core/calculate-status.ts"
+        },
+        {
+          "source": "blocks/health-check/core/calculate-status.test.ts",
+          "target": "core/calculate-status.test.ts"
+        },
+        {
+          "source": "blocks/health-check/core/create-health.ts",
+          "target": "core/create-health.ts"
+        },
+        {
+          "source": "blocks/health-check/core/create-health.test.ts",
+          "target": "core/create-health.test.ts"
+        },
+        { "source": "blocks/health-check/core/run-check.ts", "target": "core/run-check.ts" },
+        {
+          "source": "blocks/health-check/core/run-check.test.ts",
+          "target": "core/run-check.test.ts"
+        },
+        { "source": "blocks/health-check/core/run-checks.ts", "target": "core/run-checks.ts" },
+        {
+          "source": "blocks/health-check/core/run-checks.test.ts",
+          "target": "core/run-checks.test.ts"
+        },
+        {
+          "source": "blocks/health-check/core/validate-config.ts",
+          "target": "core/validate-config.ts"
+        },
+        { "source": "blocks/health-check/types/index.ts", "target": "types/index.ts" }
       ],
-      "frameworks": ["*"],
       "adapters": {
-        "*": {
+        "express": {
           "variants": {
             "default": {
-              "files": ["blocks/env-config/index.ts"]
+              "files": [
+                {
+                  "source": "blocks/health-check/adapters/express.ts",
+                  "target": "adapters/express.ts"
+                },
+                {
+                  "source": "blocks/health-check/adapters/express.test.ts",
+                  "target": "tests/express.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "fastify": {
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/health-check/adapters/fastify.ts",
+                  "target": "adapters/fastify.ts"
+                },
+                {
+                  "source": "blocks/health-check/adapters/fastify.test.ts",
+                  "target": "tests/fastify.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "hono": {
+          "variants": {
+            "default": {
+              "files": [
+                { "source": "blocks/health-check/adapters/hono.ts", "target": "adapters/hono.ts" },
+                {
+                  "source": "blocks/health-check/adapters/hono.test.ts",
+                  "target": "tests/hono.test.ts"
+                }
+              ]
             }
           }
         }
-      },
-
-      "dependencies": ["zod", "dotenv"]
+      }
     }
   }
 }
