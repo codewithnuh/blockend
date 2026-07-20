@@ -1,0 +1,20 @@
+{
+  "name": "benchmarks",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build:blocks": "tsc -p tsconfig.bench.json",
+    "bench:rate-limit": "node rate-limiter/rate-limiter.bench.js",
+    "stress:memory": "node benchmarks/memory-stress.test.ts"
+  },
+  "keywords": [],
+  "author": "codewithnuh",
+  "license": "MIT",
+  "packageManager": "pnpm@10.33.2",
+  "devDependencies": {
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3"
+  }
+}

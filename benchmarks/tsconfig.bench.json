@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "./dist",
+    "rootDir": "../blocks",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["../blocks/**/*.ts"],
+  "exclude": ["node_modules", "dist", "../blocks/**/*.test.ts", "../blocks/**/tests/**"]
+}
