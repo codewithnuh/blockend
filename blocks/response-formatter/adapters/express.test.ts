@@ -2,7 +2,7 @@ import { describe, test, expect } from "vitest";
 import express from "express";
 import type { Request, Response } from "express";
 import request from "supertest";
-import { ExpressResponse } from "../adapters/express.js";
+import { ExpressResponse } from "./express.js";
 import type { SuccessResponse, ErrorResponse } from "../contract.js";
 
 describe("Formatter Block - Express Response Adapter", () => {

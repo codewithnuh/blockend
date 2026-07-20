@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
-import { ResponseFormatter } from "../core.js";
-import type { SuccessResponse, ErrorResponse } from "../contract.js";
+import { ResponseFormatter } from "./core.js";
+import type { SuccessResponse, ErrorResponse } from "./contract.js";
 
 describe("Formatter Block - ResponseFormatter Engine", () => {
   describe("success()", () => {
