@@ -3,7 +3,7 @@ import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import request from "supertest";
 import { z, ZodError } from "zod";
-import { expressValidator } from "../adapters/express.js";
+import { expressValidator } from "./express.js";
 
 describe("Validator Block - Express Adapter Engine", () => {
   test("should successfully validate, parse, and mutate the express request context", async () => {

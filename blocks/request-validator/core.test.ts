@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { z, ZodError } from "zod";
-import { coreValidator } from "../core.js";
+import { coreValidator } from "./core.js";
 
 describe("Validator Block - Core Validator Engine", () => {
   test("should successfully validate and return data that matches the schema", () => {
