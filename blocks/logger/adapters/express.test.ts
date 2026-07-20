@@ -5,7 +5,7 @@ import request from "supertest";
 
 // Local, relative imports to the core block code
 import { getRequestId } from "../core.js";
-import { expressLoggerAdapter } from "../adapters/express.js";
+import { expressLoggerAdapter } from "./express.js";
 
 describe("Logger Block - Express Adapter", () => {
   it("should inject request metadata seamlessly into the execution scope", async () => {

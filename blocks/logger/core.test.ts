@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { pino } from "pino";
-import { runWithLoggerContext, getRequestId, loggerContext } from "../core.js";
+import { runWithLoggerContext, getRequestId, loggerContext } from "./core.js";
 
 describe("Logger Context Fundamentals", () => {
   test("should return the correct requestId inside the context execution", () => {

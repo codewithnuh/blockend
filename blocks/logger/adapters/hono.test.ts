@@ -1,7 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { Hono } from "hono";
 import { logger } from "../core.js";
-import { honoLoggerAdapter } from "../adapters/hono.js";
+import { honoLoggerAdapter } from "./hono.js";
 
 // 🚀 Explicit interface for parsing the structured logger stream output
 interface ParsedHonoHttpLog {

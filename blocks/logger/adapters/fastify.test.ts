@@ -2,7 +2,7 @@ import { describe, test, expect } from "vitest";
 import Fastify from "fastify";
 import { DestinationStream } from "pino";
 import { logger } from "../core.js";
-import { fastifyLogger } from "../adapters/fastify.js";
+import { fastifyLogger } from "./fastify.js";
 
 interface ParsedHttpLog {
   msg: string;
