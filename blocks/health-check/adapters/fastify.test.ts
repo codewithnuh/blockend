@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { registerFastifyHealthRoute } from "./fastify";
 import { FastifyInstance } from "fastify";
-import type { Health } from "../types";
+import type { Health } from "../types/index";
 
 describe("registerFastifyHealthRoute", () => {
   it("registers a GET route at the default path", () => {

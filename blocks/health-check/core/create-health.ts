@@ -1,4 +1,4 @@
-import { CreateHealthOptions, Health } from "../types";
+import { CreateHealthOptions, Health } from "../types/index";
 import { buildReport as defaultBuildReport } from "./build-report";
 import { calculateStatus as defaultCalculateStatus } from "./calculate-status";
 import { runChecks } from "./run-checks";

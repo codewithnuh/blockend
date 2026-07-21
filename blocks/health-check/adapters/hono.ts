@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import type { Health } from "../types";
+import type { Health } from "../types/index";
 
 export function registerHonoHealthRoute(app: Hono, health: Health, path = "/health") {
   app.get(path, async (c) => {

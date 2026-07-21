@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { Health } from "../types";
+import type { Health } from "../types/index";
 export function registerFastifyHealthRoute(app: FastifyInstance, health: Health, path = "/health") {
   app.get(path, async (_request, reply) => {
     const report = await health.run();

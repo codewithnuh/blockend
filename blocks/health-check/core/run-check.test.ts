@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { runCheck } from "./run-check";
-import { HealthCheck } from "../types";
+import { HealthCheck } from "../types/index";
 
 describe("runCheck", () => {
   const baseCheck: HealthCheck = {

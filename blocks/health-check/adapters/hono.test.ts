@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { registerHonoHealthRoute } from "./hono";
 import { Hono } from "hono";
-import { Health } from "../types";
+import { Health } from "../types/index";
 
 describe("registerHonoHealthRoute", () => {
   it("registers a GET route", () => {

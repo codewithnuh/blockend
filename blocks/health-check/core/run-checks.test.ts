@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { runChecks } from "../core/run-checks";
-import { HealthCheck } from "../types";
+import { HealthCheck } from "../types/index";
 
 describe("runChecks", () => {
   it("executes all checks concurrently, not sequentially", async () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { calculateStatus } from "./calculate-status";
-import { HealthCheckResult } from "../types";
+import { HealthCheckResult } from "../types/index";
 
 const makeResult = (overrides: Partial<HealthCheckResult>): HealthCheckResult => ({
   name: "test",

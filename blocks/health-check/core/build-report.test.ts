@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { buildReport } from "../core/build-report";
-import { HealthCheckResult } from "../types";
+import { HealthCheckResult } from "../types/index";
 
 describe("buildReport", () => {
   const mockResults: HealthCheckResult[] = [

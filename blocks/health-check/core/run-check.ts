@@ -1,4 +1,4 @@
-import { HealthCheck, HealthCheckResult } from "../types";
+import { HealthCheck, HealthCheckResult } from "../types/index";
 
 export async function runCheck(
   check: HealthCheck,

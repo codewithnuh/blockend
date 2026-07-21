@@ -1,4 +1,4 @@
-import { CreateHealthOptions } from "../types";
+import { CreateHealthOptions } from "../types/index";
 
 export function validateConfig(options: CreateHealthOptions): void {
   if (!options.checks || !Array.isArray(options.checks)) {
