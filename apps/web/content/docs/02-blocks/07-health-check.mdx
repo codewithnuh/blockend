@@ -1,0 +1,459 @@
+---
+title: Health Check
+description: Type-safe health monitoring with timeout protection, concurrent execution, and framework adapters for Express, Fastify, and Hono.
+---
+
+# Health Check
+
+Type-safe health monitoring for your application with built-in timeout protection, concurrent execution, and framework adapters. Fail fast on misconfiguration and get detailed health reports.
+
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Steps } from "fumadocs-ui/components/steps";
+import { File, Files, Folder } from "fumadocs-ui/components/files";
+
+The **Health Check** block provides a standardized way to monitor your application's dependencies and internal state.
+
+Instead of scattering health checks across your codebase, define all your checks in one place, validate them during startup, and expose a health endpoint that load balancers and monitoring systems can query.
+
+---
+
+## Features
+
+- **Concurrent execution** for fast health checks
+- **Timeout protection** for each individual check
+- **Smart status mapping** - `healthy`, `degraded`, or `unhealthy`
+- **Framework adapters** for Express, Fastify, and Hono
+- **Type-safe configuration** with full TypeScript support
+- **Fail-fast validation** on startup
+- **Extension points** for custom status logic and report building
+- **Sanitized errors** to prevent leaking stack traces
+
+---
+
+## Installation
+
+Choose your preferred package manager.
+
+<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+
+<Tab>
+
+```bash
+pnpm dlx blockend-cli add health-check
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+npx blockend-cli add health-check
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+yarn dlx blockend-cli add health-check
+```
+
+</Tab>
+
+<Tab>
+
+```bash
+bunx blockend-cli add health-check
+```
+
+</Tab>
+
+</Tabs>
+
+---
+
+## Installation Flow
+
+<Steps>
+
+### Detect Project
+
+Blockend detects your project configuration and determines the correct output location.
+
+### Install Dependencies
+
+The required dependencies are installed automatically.
+
+```text
+Executing: pnpm add express @types/express fastify hono
+```
+
+### Generate Files
+
+The health check block is generated inside your configured blocks directory.
+
+</Steps>
+
+---
+
+## Generated Files
+
+<Files>
+  <Folder name="blocks" defaultOpen>
+    <Folder name="health-check" defaultOpen>
+      <Folder name="core" defaultOpen>
+        <File name="calculate-status.ts" />
+        <File name="build-report.ts" />
+        <File name="run-checks.ts" />
+        <File name="run-check.ts" />
+        <File name="validate-config.ts" />
+        <File name="create-health.ts" />
+      </Folder>
+      <Folder name="adapters" defaultOpen>
+        <File name="express.ts" />
+        <File name="fastify.ts" />
+        <File name="hono.ts" />
+      </Folder>
+      <File name="types.ts" />
+      <File name="index.ts" />
+    </Folder>
+  </Folder>
+</Files>
+
+---
+
+## Creating Your Health Checks
+
+Start by defining the dependencies you want to monitor.
+
+```ts
+import { createHealth } from "@/blocks/health-check";
+import { db } from "@/db";
+import { redis } from "@/cache";
+
+const health = createHealth({
+  checks: [
+    {
+      name: "database",
+      critical: true,
+      timeoutMs: 5000,
+      async run() {
+        await db.ping();
+      }
+    },
+    {
+      name: "redis",
+      critical: false,
+      timeoutMs: 3000,
+      async run() {
+        await redis.ping();
+      }
+    },
+    {
+      name: "external-api",
+      critical: false,
+      timeoutMs: 8000,
+      async run() {
+        const response = await fetch("https://api.example.com/health");
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}`);
+        }
+      }
+    }
+  ]
+});
+```
+
+---
+
+## Understanding Check Configuration
+
+Each health check follows this structure:
+
+| Property    | Type                  | Description                                        |
+| ----------- | --------------------- | -------------------------------------------------- |
+| `name`      | `string`              | Unique identifier for the check                    |
+| `critical`  | `boolean`             | If `true`, failure makes the application unhealthy |
+| `run`       | `() => Promise<void>` | Async function that throws on failure              |
+| `timeoutMs` | `number` (optional)   | Per-check timeout override                         |
+| `message`   | `string` (optional)   | Human-friendly message                             |
+
+### Critical vs Optional Checks
+
+Health checks are categorized based on their impact on the overall system status:
+
+```ts
+// Critical: Database failure brings the app down
+const criticalCheck = {
+  name: "database",
+  critical: true,
+  run: () => db.ping()
+};
+
+// Optional: Redis failure degrades performance but app remains available
+const optionalCheck = {
+  name: "redis",
+  critical: false,
+  run: () => redis.ping()
+};
+```
+
+The overall status is determined as follows:
+
+| Condition                 | Status      | HTTP Status |
+| ------------------------- | ----------- | ----------- |
+| All checks pass           | `healthy`   | 200         |
+| Critical check fails      | `unhealthy` | 503         |
+| Only optional checks fail | `degraded`  | 200         |
+
+---
+
+## Framework Integration
+
+### Express
+
+```ts
+import express from "express";
+import { registerExpressHealthRoute } from "@/blocks/health-check/adapters/express";
+
+const app = express();
+
+registerExpressHealthRoute(app, health);
+// GET /health returns health report
+
+registerExpressHealthRoute(app, health, "/custom-health");
+// GET /custom-health returns health report
+```
+
+**Status Codes:**
+
+- `200` for `healthy` or `degraded`
+- `503` for `unhealthy`
+
+---
+
+### Fastify
+
+```ts
+import Fastify from "fastify";
+import { registerFastifyHealthRoute } from "@/blocks/health-check/adapters/fastify";
+
+const app = Fastify();
+
+registerFastifyHealthRoute(app, health);
+// GET /health returns health report
+```
+
+---
+
+### Hono
+
+```ts
+import { Hono } from "hono";
+import { registerHonoHealthRoute } from "@/blocks/health-check/adapters/hono";
+
+const app = new Hono();
+
+registerHonoHealthRoute(app, health);
+// GET /health returns health report
+```
+
+---
+
+## Health Report Structure
+
+When you query the health endpoint, you receive:
+
+```ts
+interface HealthReport {
+  status: "healthy" | "degraded" | "unhealthy";
+  timestamp: string; // ISO 8601
+  uptime: number; // seconds
+  checks: HealthCheckResult[];
+}
+
+interface HealthCheckResult {
+  name: string;
+  critical: boolean;
+  status: "healthy" | "unhealthy";
+  duration: number; // milliseconds
+  message?: string; // optional message from the check
+  error?: string; // sanitized error message, if failed
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "degraded",
+  "timestamp": "2026-07-21T10:30:00.123Z",
+  "uptime": 86400,
+  "checks": [
+    {
+      "name": "database",
+      "critical": true,
+      "status": "healthy",
+      "duration": 15.2
+    },
+    {
+      "name": "redis",
+      "critical": false,
+      "status": "unhealthy",
+      "duration": 3500,
+      "error": "Connection timeout"
+    }
+  ]
+}
+```
+
+---
+
+## Extension Points
+
+The health check system is designed to be extensible. You can override the default behavior for status calculation and report building.
+
+### Custom Status Calculator
+
+Override how the overall status is determined from individual check results.
+
+```ts
+import { createHealth } from "@/blocks/health-check";
+
+const health = createHealth({
+  checks: [
+    /* ... */
+  ],
+  calculateStatus: (results) => {
+    const allHealthy = results.every((r) => r.status === "healthy");
+    const anyFailed = results.some((r) => r.status === "unhealthy");
+
+    if (allHealthy) return "healthy";
+    if (anyFailed) return "unhealthy";
+    return "degraded";
+  }
+});
+```
+
+### Custom Report Builder
+
+Override how health reports are constructed.
+
+```ts
+import { createHealth } from "@/blocks/health-check";
+
+const health = createHealth({
+  checks: [
+    /* ... */
+  ],
+  buildReport: (results, status) => ({
+    status,
+    checks: results,
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: "v1.2.3" // Add custom fields
+  })
+});
+```
+
+---
+
+## Testing
+
+### Unit Testing Checks
+
+Create a separate health instance for tests with mocked dependencies.
+
+```ts
+import { createHealth } from "@/blocks/health-check";
+
+describe("Health Checks", () => {
+  it("returns healthy when all dependencies pass", async () => {
+    const health = createHealth({
+      checks: [
+        {
+          name: "test",
+          critical: true,
+          run: async () => {}
+        }
+      ]
+    });
+
+    const report = await health.run();
+    expect(report.status).toBe("healthy");
+  });
+});
+```
+
+### Testing Timeouts
+
+Configure shorter timeouts for faster test execution.
+
+```ts
+const health = createHealth({
+  checks: [
+    {
+      name: "slow-dependency",
+      critical: true,
+      timeoutMs: 100,
+      run: async () => new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  ],
+  defaultTimeoutMs: 1000
+});
+```
+
+---
+
+## Validation Errors
+
+The health check system validates your configuration during initialization. If there's an issue, it throws immediately.
+
+```text
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❌ Health Configuration Error
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• 'checks' array cannot be empty
+• Check "database" is missing a valid 'run' function
+• Duplicate check name found: "redis"
+• Check "external-api" has an invalid 'timeoutMs'
+
+Please verify your health check configuration before starting.
+```
+
+This prevents your application from starting with incomplete or incorrect health check configurations.
+
+---
+
+## Security Considerations
+
+### Error Sanitization
+
+Health checks automatically sanitize error messages to prevent exposing sensitive information.
+
+```ts
+// Raw error (never exposed)
+new Error("DB connection failed: mongodb://user:pass@internal:27017");
+
+// Sanitized error (safe to expose)
+("DB connection failed");
+```
+
+### Stack Traces
+
+Stack traces are stripped from health check responses to prevent leaking internal implementation details.
+
+---
+
+## Production Recommendations
+
+- **Set appropriate timeouts** - Prevent health checks from hanging during deployment
+- **Mark critical dependencies** - Database, auth services, core APIs should be critical
+- **Mark non-critical dependencies** - Caches, analytics, monitoring should be optional
+- **Use health checks for load balancers** - Return `200` for healthy/degraded, `503` for unhealthy
+- **Monitor health reports** - Log degraded states to identify issues before complete failure
+- **Test during CI** - Verify health check configuration during testing
+- **Customize for your domain** - Use extension points to add business-specific health logic
