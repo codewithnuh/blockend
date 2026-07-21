@@ -20,6 +20,18 @@ export async function detectProject(cwd: string): Promise<ProjectContext> {
   };
 
   const srcDir = await inferSrcDir(cwd);
+  const moduleOpt = tsConfig?.compilerOptions?.module?.toLocaleLowerCase();
+  const resolutionOpt = tsConfig?.compilerOptions?.moduleResolution?.toLocaleLowerCase();
+  let importRewriteStrategy: "rewrite" | "remove" = "remove";
+  if (
+    moduleOpt === "nodenext" ||
+    moduleOpt === "node16" ||
+    resolutionOpt === "nodenext" ||
+    resolutionOpt === "node16" ||
+    (pkg.type === "module" && !resolutionOpt) // Pure Node ESM fallback rule
+  ) {
+    importRewriteStrategy = "rewrite";
+  }
 
   return {
     root: cwd,
@@ -35,7 +47,8 @@ export async function detectProject(cwd: string): Promise<ProjectContext> {
       : {},
     srcDir,
     // Default blocks directory: srcDir/lib/blocks
-    blocksDir: join(srcDir, "lib", "blocks")
+    blocksDir: join(srcDir, "lib", "blocks"),
+    importRewriteStrategy
   };
 }
 

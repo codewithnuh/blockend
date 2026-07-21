@@ -22,6 +22,14 @@ export async function detectCommand(options: { json?: boolean } = {}): Promise<v
     console.log(`  Language:         ${pc.cyan(context.language)}`);
     console.log(`  Package manager:  ${pc.cyan(context.packageManager)}`);
     console.log(`  Source dir:       ${pc.dim(context.srcDir)}`);
+
+    // Output the modern oxc-transform import strategy
+    const strategyDisplay =
+      context.importRewriteStrategy === "rewrite"
+        ? pc.yellow("NodeNext (append .js)")
+        : pc.magenta("Bundler / Extensionless");
+    console.log(`  Import strategy:  ${strategyDisplay}`);
+
     console.log(
       `  Redis:            ${context.hasRedis ? pc.green("detected") : pc.dim("not found")}`
     );

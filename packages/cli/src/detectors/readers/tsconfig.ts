@@ -7,6 +7,8 @@ export interface TsConfig {
     baseUrl?: string;
     paths?: Record<string, string[]>;
     outDir?: string;
+    module?: string;
+    moduleResolution?: string;
   };
 }
 

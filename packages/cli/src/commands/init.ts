@@ -42,18 +42,6 @@ async function resolveTsConfigPaths(cwd: string): Promise<TsConfigPaths> {
  * Given the tsconfig paths map and the chosen physical blocks directory
  * (relative to project root, e.g. "src/blocks"), derive the import alias
  * that TypeScript will resolve to that directory.
- *
- * Strategy:
- *   For each alias entry in tsconfig.paths, strip the trailing `*` wildcard
- *   from both the alias key and its target value, then check whether the
- *   chosen blocks path starts with that target prefix.  If it does, replace
- *   the target prefix with the alias prefix to build the final import alias.
- *
- * Examples:
- *   "@/*"   → ["./src/*"]   + blocksPath "src/blocks"  → "@/blocks"
- *   "~/*"   → ["./src/*"]   + blocksPath "src/blocks"  → "~/blocks"
- *   "#lib"  → ["./lib"]     + blocksPath "lib/blocks"  → "#lib/blocks"
- *   no match at all                                     → "@/blocks" (fallback)
  */
 function deriveBlockAlias(
   tsPaths: Record<string, string[]>,
@@ -80,7 +68,6 @@ function deriveBlockAlias(
 
     if (targetRoot === "") {
       // Alias maps to project root ("./") — everything matches
-      // e.g. "@/*": ["./*"] — alias is just @/src/blocks
       return `${aliasRoot}/${normalizedBlocksPath}`.replace(/\/+/g, "/");
     }
 
@@ -237,7 +224,6 @@ export async function initCommand(
   }
 
   // Normalise to a clean relative path with leading ./
-  // path.relative ensures we strip any absolute prefix the user may have typed
   const relativeBlocksPath = path
     .relative(cwd, path.resolve(cwd, rawPhysicalInput))
     .replace(/\\/g, "/");
@@ -248,20 +234,24 @@ export async function initCommand(
     : `./${relativeBlocksPath}`;
 
   // ── Alias derivation ──────────────────────────────────────────────────────
-  //
-  // We pass the path WITHOUT the leading ./ to deriveBlockAlias because the
-  // tsconfig target values are also stripped of ./ before comparison.
 
   const hasTsPaths = Object.keys(tsConfig.paths).length > 0;
 
   const finalBlockAlias = hasTsPaths
     ? deriveBlockAlias(tsConfig.paths, relativeBlocksPath)
-    : undefined; // no tsconfig paths → sensible default
+    : undefined;
 
   if (!json) {
     log.info(
       `Import alias: ${theme.state.info(finalBlockAlias === undefined ? " relative imports" : finalBlockAlias)}`
     );
+
+    // Log the underlying file strategy for extra clarity during setup
+    const strategyDisplay =
+      context.importRewriteStrategy === "rewrite"
+        ? "NodeNext (append .js)"
+        : "Bundler / Extensionless";
+    log.info(`Import strategy: ${theme.state.info(strategyDisplay)}`);
   }
 
   // ── Redis ─────────────────────────────────────────────────────────────────
@@ -287,12 +277,14 @@ export async function initCommand(
     $schema: "https://blockend.noorulhassan.com/schema.json",
     environment: (framework || "express") as "express" | "fastify" | "hono" | "next",
     language: context.language || "typescript",
+    packageManager: context.packageManager,
+    importRewriteStrategy: context.importRewriteStrategy, // PERSIST STRATEGY TO DISK
     includeRedis,
     aliases: {
       ...(finalBlockAlias ? { blocks: finalBlockAlias } : {})
     },
     paths: {
-      blocks: finalPath // e.g. "./src/blocks" — always a real physical path
+      blocks: finalPath
     }
   };
 
@@ -321,11 +313,13 @@ export type configPayloadType = {
   $schema: string;
   environment: "express" | "fastify" | "hono" | "next" | "none";
   language: "typescript" | "javascript";
+  packageManager: string;
+  importRewriteStrategy: "rewrite" | "remove"; // Explicit type definition updates
   includeRedis: boolean;
   aliases: {
-    blocks?: string; // import alias e.g. "@/blocks"
+    blocks?: string;
   };
   paths: {
-    blocks: string; // physical path e.g. "./src/blocks"
+    blocks: string;
   };
 };

@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import path, { join, dirname } from "path";
-import fs from "fs/promises";
+import fs, { readFile } from "fs/promises";
 import { exec } from "child_process";
 import { intro, outro, select, spinner, confirm, isCancel, log } from "@clack/prompts";
 import pc from "picocolors";
@@ -49,7 +49,7 @@ export interface BlockManifest {
   frameworks?: Array<"express" | "fastify" | "hono" | "next" | "*">;
   /**
    * Top-level dependencies for adapter-free blocks (frameworks: ["*"] with
-   * only baseFiles and no adapters/environments).  Merged with any
+   * only baseFiles and no adapters/environments). Merged with any
    * adapter-level deps when an adapter context also exists.
    */
   dependencies?: string[];
@@ -76,37 +76,14 @@ const MANIFEST_URL = `${RAW_CDN_BASE}/registry/index.json`;
 
 // ─── framework compatibility helpers ─────────────────────────────────────────
 
-/**
- * Returns true if `block` should be shown to a user whose project uses `envKey`.
- *
- * Resolution order:
- *   1. block.frameworks declared → use it directly.
- *      - "*" in the list means universal support.
- *      - Otherwise match against envKey.
- *   2. No frameworks field → legacy probe: check whether adapters[envKey]
- *      or environments[envKey] exists.
- */
 function blockSupportsEnv(block: BlockManifest, envKey: string): boolean {
   if (block.frameworks && block.frameworks.length > 0) {
     return block.frameworks.includes("*") || block.frameworks.includes(envKey as never);
   }
-  // Legacy fallback
   return block.adapters?.[envKey] !== undefined || block.environments?.[envKey] !== undefined;
 }
-
-/**
- * Resolves the EnvironmentConfig for a block + envKey pair.
- *
- * Returns null for adapter-free blocks (frameworks: ["*"] with only baseFiles).
- * Callers must handle null — it is not an error, just means no adapter layer.
- *
- * Resolution order:
- *   1. adapters[envKey]     — framework-specific adapter
- *   2. adapters["*"]        — universal adapter
- *   3. environments[envKey] — legacy key, framework-specific
- *   4. environments["*"]    — legacy key, universal
- *   5. null                 — adapter-free block (baseFiles only)
- */
+const getMissingDependencies = (deps: string[], installed: Record<string, string>) =>
+  [...new Set(deps)].filter((dep) => !(dep in installed));
 function resolveAdapterContext(block: BlockManifest, envKey: string): EnvironmentConfig | null {
   return (
     block.adapters?.[envKey] ??
@@ -120,45 +97,44 @@ function resolveAdapterContext(block: BlockManifest, envKey: string): Environmen
 // ─── import rewriting ────────────────────────────────────────────────────────
 
 /**
- * Rewrites relative imports inside a downloaded file to use the project's
- * configured TypeScript path alias.
- *
- * Skipped entirely when aliasBase is empty or starts with "." — in that case
- * the relative imports are already structurally correct because the target
- * layout mirrors the registry layout exactly.
- *
- * @param fileContent     Raw source text of the file being written
- * @param writtenFilePath Absolute on-disk path where the file will be saved
- * @param blocksRoot      Absolute path to the blocks root  (/project/src/blocks)
- * @param aliasBase       Alias prefix from blockend.json   ("@/blocks")
+ * Rewrites imports inside a downloaded file to use path aliases and appends/removes
+ * extensions according to the project's config strategy.
  */
 function rewriteFileImports(
   fileContent: string,
   writtenFilePath: string,
   blocksRoot: string,
-  aliasBase: string | undefined
+  aliasBase: string | undefined,
+  strategy: "rewrite" | "remove"
 ): string {
-  if (!aliasBase || aliasBase.startsWith(".")) {
-    return fileContent;
-  }
-
   // Matches: import X from "./foo", export { X } from '../bar', import("./baz")
   const importRegex = /((?:from|import)\s*)(['"`])(\.\.?\/[^'"` \n\r]+)(['"`])/g;
   const fileDir = dirname(writtenFilePath);
 
   return fileContent.replace(importRegex, (match, keyword, openQuote, relativePath, closeQuote) => {
-    // Resolve relative to THIS file's directory (critical for files in tests/)
-    const absoluteTarget = path.resolve(fileDir, relativePath);
+    let targetPath = relativePath;
 
-    // Express relative to blocks root → "logger/core" or "logger/tests/core.test"
-    const fromBlocksRoot = path.relative(blocksRoot, absoluteTarget).replace(/\\/g, "/");
+    // 1. Resolve path alias replacement if applicable
+    if (aliasBase && !aliasBase.startsWith(".")) {
+      const absoluteTarget = path.resolve(fileDir, relativePath);
+      const fromBlocksRoot = path.relative(blocksRoot, absoluteTarget).replace(/\\/g, "/");
 
-    // Import escapes blocks root — leave it alone (e.g. imports from node_modules)
-    if (fromBlocksRoot.startsWith("..")) return match;
+      if (!fromBlocksRoot.startsWith("..")) {
+        targetPath = `${aliasBase}/${fromBlocksRoot}`.replace(/\/+/g, "/");
+      }
+    }
 
-    // "@/blocks" + "logger/core" → "@/blocks/logger/core"
-    const aliased = `${aliasBase}/${fromBlocksRoot}`.replace(/\/+/g, "/");
-    return `${keyword}${openQuote}${aliased}${closeQuote}`;
+    // 2. Apply extension modifications (NodeNext append vs Bundler remove)
+    const hasJsExt = targetPath.endsWith(".js");
+    if (strategy === "rewrite" && !hasJsExt) {
+      // Remove any trailing .ts/tsx/mts extensions if present before safely appending .js
+      targetPath = targetPath.replace(/\.(ts|tsx|mts|cts)$/, "");
+      targetPath = `${targetPath}.js`;
+    } else if (strategy === "remove" && hasJsExt) {
+      targetPath = targetPath.slice(0, -3);
+    }
+
+    return `${keyword}${openQuote}${targetPath}${closeQuote}`;
   });
 }
 
@@ -254,12 +230,13 @@ export async function addCommand(
     return;
   }
 
-  // config.paths.blocks  → physical path  "./src/blocks"
-  // config.aliases.blocks → import alias  "@/blocks"
   const physicalBlocksPath = config.paths.blocks;
   const blocksRootAbsolute = path.resolve(rootDir, physicalBlocksPath);
   const aliasBase = config.aliases.blocks;
   const envKey = config.environment;
+
+  // Default fallback to "remove" strategy if not explicitly declared in an older json file
+  const rewriteStrategy = config.importRewriteStrategy ?? "remove";
 
   // ── Fetch registry ──────────────────────────────────────────────────────
 
@@ -295,8 +272,6 @@ export async function addCommand(
   let targetBlock = blockName;
 
   if (!targetBlock) {
-    // Filter using the new frameworks field — falls back to legacy probe for
-    // blocks that haven't been migrated yet
     const available = Object.entries(blockMap).filter(
       ([, block]) => block != null && blockSupportsEnv(block, envKey)
     );
@@ -327,7 +302,6 @@ export async function addCommand(
     return;
   }
 
-  // Validate the block actually supports the user's framework before proceeding
   if (!blockSupportsEnv(blockMeta, envKey)) {
     outputError(json, `Block "${targetBlock}" does not support environment: ${envKey}`);
     return;
@@ -371,8 +345,6 @@ export async function addCommand(
   }
 
   const variantMeta = adapterContext.variants[selectedVariant];
-
-  // targetFolder: /project/src/blocks/logger
   const targetFolder = path.resolve(blocksRootAbsolute, targetBlock);
 
   // ── Dependency management ───────────────────────────────────────────────
@@ -398,17 +370,22 @@ export async function addCommand(
     ...(packageJson.devDependencies ?? {})
   };
 
-  const missingProd = [
-    ...(blockMeta.dependencies ?? []),
-    ...(adapterContext.dependencies ?? []),
-    ...(variantMeta?.dependencies ?? [])
-  ].filter((d) => !(d in installedDeps));
-
-  const missingDev = [
-    ...(blockMeta.dependencies ?? []),
-    ...(adapterContext.devDependencies ?? []),
-    ...(variantMeta?.devDependencies ?? [])
-  ].filter((d) => !(d in installedDeps));
+  const missingProd = getMissingDependencies(
+    [
+      ...(blockMeta.dependencies ?? []),
+      ...(adapterContext.dependencies ?? []),
+      ...(variantMeta?.dependencies ?? [])
+    ],
+    installedDeps
+  );
+  const missingDev = getMissingDependencies(
+    [
+      ...(blockMeta.devDependencies ?? []),
+      ...(adapterContext.devDependencies ?? []),
+      ...(variantMeta?.devDependencies ?? [])
+    ],
+    installedDeps
+  );
 
   if (missingProd.length > 0 || missingDev.length > 0) {
     if (!json) log.warn(`Missing: ${pc.cyan([...missingProd, ...missingDev].join(", "))}`);
@@ -419,9 +396,8 @@ export async function addCommand(
     if (!yes) handleCancel(shouldInstall);
 
     if (shouldInstall) {
-      const pm = await fs
-        .access(join(packageJsonDir, "pnpm-lock.yaml"))
-        .then(() => "pnpm")
+      const pm = await readFile(join(packageJsonDir, "blockend.json"), "utf8")
+        .then((data) => JSON.parse(data).packageManager)
         .catch(() => "npm");
 
       if (!json) s.start(`Installing via ${pm}...`);
@@ -470,11 +446,6 @@ export async function addCommand(
   }
 
   // ── Build file list ─────────────────────────────────────────────────────
-  //
-  // Write order mirrors registry structure:
-  //   1. baseFiles  — shared framework-agnostic core
-  //   2. core       — adapter-level single-file fallback (rate-limiter style)
-  //   3. variant    — implementation + tests
 
   const filesToDownload: AssetMapping[] = [];
 
@@ -525,13 +496,6 @@ export async function addCommand(
   }
 
   // ── Download and write ──────────────────────────────────────────────────
-  //
-  // File tree on disk mirrors registry target paths exactly:
-  //   "target": "core.ts"            → <blocksRoot>/logger/core.ts
-  //   "target": "tests/core.test.ts" → <blocksRoot>/logger/tests/core.test.ts
-  //
-  // Imports are rewritten per-file using the file's own directory as the
-  // resolution anchor, so tests/ subdirectory imports resolve correctly.
 
   if (!json) s.start(`Downloading ${targetBlock}...`);
 
@@ -539,13 +503,20 @@ export async function addCommand(
 
   try {
     for (const fm of filesToDownload) {
-      const res = await fetch(`${RAW_CDN_BASE}/${fm.source}`);
+      const res = await fetch(`${MANIFEST_URL}/${fm.source}`);
       if (!res.ok) throw new Error(`Download failed: ${fm.source} (HTTP ${res.status})`);
 
       let content = await res.text();
       const writtenFilePath = path.join(targetFolder, fm.target);
 
-      content = rewriteFileImports(content, writtenFilePath, blocksRootAbsolute, aliasBase);
+      // Now correctly passes down the rewriteStrategy configuration state
+      content = rewriteFileImports(
+        content,
+        writtenFilePath,
+        blocksRootAbsolute,
+        aliasBase,
+        rewriteStrategy
+      );
 
       await fs.mkdir(dirname(writtenFilePath), { recursive: true });
       await fs.writeFile(writtenFilePath, content, "utf-8");

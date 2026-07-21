@@ -35,6 +35,8 @@ export interface ProjectContext {
 
   /** Path where Blockend should write block files */
   blocksDir: string;
+  /** Import rewriting strategy for module resolution  */
+  importRewriteStrategy: "rewrite" | "remove";
 }
 
 /**

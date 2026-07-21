@@ -8,6 +8,7 @@ export interface PackageJson {
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   engines?: Record<string, string>;
+  type?: string;
 }
 
 /**
