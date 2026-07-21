@@ -1,6 +1,6 @@
 {
   "name": "blockend-cli",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "CLI for installing production-ready backend blocks into Next.js, Express, Hono, NestJS, and other Node.js applications.",
   "type": "module",
   "main": "./dist/index.js",

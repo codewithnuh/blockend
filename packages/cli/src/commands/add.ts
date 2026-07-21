@@ -503,7 +503,7 @@ export async function addCommand(
 
   try {
     for (const fm of filesToDownload) {
-      const res = await fetch(`${MANIFEST_URL}/${fm.source}`);
+      const res = await fetch(`${RAW_CDN_BASE}/${fm.source}`);
       if (!res.ok) throw new Error(`Download failed: ${fm.source} (HTTP ${res.status})`);
 
       let content = await res.text();
