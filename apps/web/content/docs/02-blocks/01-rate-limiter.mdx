@@ -1,28 +1,32 @@
 ---
 title: Rate Limiter
-description: Protect your APIs from abuse with a flexible, production-ready rate limiting middleware.
+description: Protect your APIs from abuse using a framework-agnostic rate limiting engine with pluggable storage adapters.
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
-import { Steps } from "fumadocs-ui/components/steps";
+import { Steps, Step } from "fumadocs-ui/components/steps";
 import { File, Files, Folder } from "fumadocs-ui/components/files";
 
 The **Rate Limiter** block protects your application from abuse by limiting how many requests a client can make within a configurable time window.
 
-It supports multiple storage engines through a pluggable architecture, allowing you to start with an in-memory store during development and seamlessly migrate to Redis for production.
+It is built around a framework-independent core engine with lightweight framework adapters and pluggable storage backends, making it easy to use across different runtimes.
 
 ---
 
 ## Features
 
-- IP-based request limiting
+- Framework-agnostic core
+- Express adapter
+- Fastify adapter
+- Memory and Redis stores
 - Configurable request window
 - Configurable request limit
-- Memory and Redis storage variants
 - Custom key generation
-- Standard RateLimit headers
-- Framework-native Express middleware
-- TypeScript support
+- Standard `RateLimit` headers
+- Legacy `X-RateLimit-*` headers
+- `Retry-After` support
+- Fail-open behavior
+- Fully typed
 - Production-ready architecture
 
 ---
@@ -32,114 +36,135 @@ It supports multiple storage engines through a pluggable architecture, allowing 
 Choose your preferred package manager.
 
 <Tabs items={["pnpm", "npm", "yarn", "bun"]}>
+  <Tab>
+    ```bash
+    pnpm dlx blockend-cli add rate-limit
+    ```
+  </Tab>
 
-<Tab>
+<Tab>```bash npx blockend-cli add rate-limit ```</Tab>
 
-```bash
-pnpm dlx blockend-cli add rate-limit
-```
+<Tab>```bash yarn dlx blockend-cli add rate-limit ```</Tab>
 
-</Tab>
-
-<Tab>
-
-```bash
-npx blockend-cli add rate-limit
-```
-
-</Tab>
-
-<Tab>
-
-```bash
-yarn dlx blockend-cli add rate-limit
-```
-
-</Tab>
-
-<Tab>
-
-```bash
-bunx blockend-cli add rate-limit
-```
-
-</Tab>
-
+  <Tab>
+    ```bash
+    bunx blockend-cli add rate-limit
+    ```
+  </Tab>
 </Tabs>
 
-> During installation Blockend will automatically detect your project configuration and ask which storage variant you'd like to install.
+During installation, Blockend automatically detects your project and asks which framework adapter and storage implementation you'd like to generate.
 
 ---
 
 ## Installation Flow
 
 <Steps>
-
-### Select Storage
-
-Choose which implementation best fits your application.
-
-```text
-? Which storage variant would you like?
-
-❯ Memory
-  Redis
-```
-
-### Install Dependencies
-
-If the selected variant requires additional packages, Blockend will install them automatically.
-
-Example:
-
-```text
-✔ Installing ioredis...
-```
-
-### Generate Files
-
-The block is generated inside your configured blocks directory.
-
+  <Step>### Select Framework ```text ? Which adapter would you like? ❯ Express Fastify ```</Step>
+  <Step>### Select Storage ```text ? Which storage implementation? ❯ Memory Redis ```</Step>
+  <Step>
+    ### Install Dependencies Any required packages are installed automatically. Example: ```text ✔
+    Installing ioredis... ```
+  </Step>
+  <Step>
+    ### Generate Files The selected adapter and store are generated inside your configured blocks
+    directory.
+  </Step>
 </Steps>
 
 ---
 
 ## Generated Files
 
-### Memory Variant
+### Express + Memory
 
 <Files>
   <Folder name="blocks" defaultOpen>
     <Folder name="rate-limit" defaultOpen>
       <File name="index.ts" />
-      <File name="store-memory.ts" />
+      <Folder name="core">
+        <File name="core.ts" />
+      </Folder>
+      <Folder name="adapters">
+        <File name="express.ts" />
+      </Folder>
+      <Folder name="stores">
+        <File name="memory.ts" />
+      </Folder>
+      <Folder name="utils">
+        <File name="ip.ts" />
+      </Folder>
     </Folder>
   </Folder>
 </Files>
 
-### Redis Variant
+### Fastify + Redis
 
 <Files>
   <Folder name="blocks" defaultOpen>
     <Folder name="rate-limit" defaultOpen>
       <File name="index.ts" />
-      <File name="store-redis.ts" />
+      <Folder name="core">
+        <File name="core.ts" />
+      </Folder>
+      <Folder name="adapters">
+        <File name="fastify.ts" />
+      </Folder>
+      <Folder name="stores">
+        <File name="redis.ts" />
+      </Folder>
+      <Folder name="utils">
+        <File name="ip.ts" />
+      </Folder>
     </Folder>
   </Folder>
 </Files>
 
 ---
 
-## Basic Usage
+## Architecture
+
+```text
+                 Request
+                     │
+          Express / Fastify Adapter
+                     │
+         evaluateRateLimit() Core Engine
+                     │
+      MemoryStore / RedisStore / Custom Store
+```
+
+The adapter extracts the client identifier, invokes the core engine, applies the generated headers, and either continues the request or returns a `429 Too Many Requests` response.
+
+---
+
+## Express
 
 ```ts
-import { rateLimit, MemoryStore } from "@/blocks/rate-limit";
+import { expressRateLimit, MemoryStore } from "@/blocks/rate-limit";
 
 app.use(
   "/api",
-  rateLimit({
-    max: 100,
+  expressRateLimit({
     windowMs: 60_000,
+    max: 100,
+    store: new MemoryStore()
+  })
+);
+```
+
+---
+
+## Fastify
+
+```ts
+import { fastifyRateLimit, MemoryStore } from "@/blocks/rate-limit";
+
+fastify.addHook(
+  "onRequest",
+  fastifyRateLimit({
+    windowMs: 60_000,
+    max: 100,
     store: new MemoryStore()
   })
 );
@@ -151,14 +176,13 @@ app.use(
 
 ```ts
 import Redis from "ioredis";
-
-import { rateLimit, RedisStore } from "@/blocks/rate-limit";
+import { expressRateLimit, RedisStore } from "@/blocks/rate-limit";
 
 const redis = new Redis(process.env.REDIS_URL);
 
 app.use(
   "/api",
-  rateLimit({
+  expressRateLimit({
     max: 100,
     windowMs: 60_000,
     store: new RedisStore(redis)
@@ -170,95 +194,93 @@ app.use(
 
 ## Configuration
 
-| Option            | Type               | Default                             | Description                              |
-| ----------------- | ------------------ | ----------------------------------- | ---------------------------------------- |
-| `windowMs`        | `number`           | `60000`                             | Request window in milliseconds           |
-| `max`             | `number`           | `100`                               | Maximum requests allowed                 |
-| `message`         | `string \| object` | `{ error: "Too many requests..." }` | Response sent when the limit is exceeded |
-| `statusCode`      | `number`           | `429`                               | HTTP response status                     |
-| `standardHeaders` | `boolean`          | `true`                              | Send RateLimit response headers          |
-| `keyGenerator`    | `(req) => string`  | Client IP                           | Generates a unique client key            |
-| `store`           | `RateLimitStore`   | **Required**                        | Storage implementation                   |
+| Option            | Type               | Default        | Description                    |
+| ----------------- | ------------------ | -------------- | ------------------------------ |
+| `windowMs`        | `number`           | `60000`        | Time window in milliseconds    |
+| `max`             | `number`           | `100`          | Maximum requests allowed       |
+| `message`         | `string \| object` | Error response | Response returned when blocked |
+| `statusCode`      | `number`           | `429`          | HTTP status code               |
+| `standardHeaders` | `boolean`          | `true`         | Send RFC RateLimit headers     |
+| `legacyHeaders`   | `boolean`          | `true`         | Send X-RateLimit headers       |
+| `keyGenerator`    | `(req) => string`  | Client IP      | Generate a unique identifier   |
+| `store`           | `RateLimitStore`   | Required       | Storage implementation         |
 
 ---
 
 ## Response Headers
 
-When `standardHeaders` is enabled, the middleware automatically includes:
+When enabled, the middleware automatically generates standard rate limit headers.
 
 ```http
 RateLimit-Limit: 100
-RateLimit-Remaining: 94
-RateLimit-Reset: 1717344000
+RateLimit-Remaining: 84
+RateLimit-Reset: 42
 ```
 
-These headers allow clients to monitor their remaining request quota.
+Legacy compatibility headers are also supported.
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 84
+X-RateLimit-Reset: 1717344000
+```
+
+When a client exceeds the limit:
+
+```http
+Retry-After: 42
+```
 
 ---
 
-## Manual Installation
+## Custom Key Generator
 
-Prefer copying the source code instead of using the CLI?
+By default, the adapter identifies clients using their IP address. You can customize the key for authenticated APIs.
 
-Simply copy the following files into your project.
-
-### Memory
-
-<Files>
-  <Folder name="blocks" defaultOpen>
-    <Folder name="rate-limit" defaultOpen>
-      <File name="index.ts" />
-      <File name="store-memory.ts" />
-    </Folder>
-  </Folder>
-</Files>
-
-### Redis
-
-<Files>
-  <Folder name="blocks" defaultOpen>
-    <Folder name="rate-limit" defaultOpen>
-      <File name="index.ts" />
-      <File name="store-redis.ts" />
-    </Folder>
-  </Folder>
-</Files>
+```ts
+expressRateLimit({
+  max: 100,
+  windowMs: 60_000,
+  store: new MemoryStore(),
+  keyGenerator(req) {
+    return req.user.id;
+  }
+});
+```
 
 ---
 
-## Storage Variants
+## Stores
 
-### Memory
+### Memory Store
 
-Recommended for:
+**Recommended for:**
 
 - Development
-- Small applications
+- Local testing
 - Single-server deployments
 
-Pros:
+**Advantages:**
 
 - Zero dependencies
 - Extremely fast
-- Simple setup
+- Easy setup
 
----
+### Redis Store
 
-### Redis
-
-Recommended for:
+**Recommended for:**
 
 - Production
 - Multiple application instances
 - Load-balanced deployments
 
-Pros:
+**Advantages:**
 
-- Shared request counters
+- Shared counters
 - Distributed rate limiting
 - Horizontal scalability
 
-Requires:
+**Requires:**
 
 ```bash
 pnpm add ioredis
@@ -266,12 +288,156 @@ pnpm add ioredis
 
 ---
 
-## Production Recommendations
+## Custom Store
 
-- Use the Redis variant in production.
-- Apply stricter limits to authentication endpoints.
-- Use a custom `keyGenerator` for authenticated APIs.
-- Monitor rejected requests.
-- Combine with authentication and logging middleware.
+You can provide your own storage implementation by implementing the `RateLimitStore` interface.
+
+```ts
+import { RateLimitStore, RateLimitRecord } from "@/blocks/rate-limit";
+
+class CustomStore implements RateLimitStore {
+  async increment(key: string, windowMs: number): Promise<RateLimitRecord> {
+    // Persist counter...
+    return {
+      hits: 1,
+      resetTime: Date.now() + windowMs
+    };
+  }
+}
+```
+
+This allows integration with databases, distributed caches, cloud KV services, or any custom storage backend.
 
 ---
+
+## Why Blockend Rate Limiter?
+
+There are many excellent rate limiting libraries available for Node.js, including `express-rate-limit`. Blockend isn't trying to replace them. Instead, it provides a framework-agnostic implementation that integrates naturally with the rest of the Blockend ecosystem while giving you complete ownership of the code.
+
+**Choose Blockend when you want:**
+
+- Framework-independent business logic
+- Express and Fastify support from the same core
+- Swappable storage backends
+- Generated source code instead of hidden dependencies
+- A consistent architecture across all Blockend blocks
+
+---
+
+## Framework-Agnostic Architecture
+
+The rate limiting algorithm lives in a reusable core, while framework adapters are responsible only for integrating with Express or Fastify.
+
+```text
+Application
+      │
+      ▼
+Express / Fastify Adapter
+      │
+      ▼
+Rate Limiter Core
+      │
+      ▼
+Memory Store / Redis Store / Custom Store
+```
+
+This separation makes the implementation easier to test, extend, and maintain.
+
+---
+
+## Own Your Code
+
+Unlike traditional middleware packages, Blockend generates the source code directly into your project. This means you can:
+
+- Inspect every line of code
+- Customize the implementation
+- Debug without opening `node_modules`
+- Add project-specific features whenever needed
+
+You own the implementation from day one.
+
+---
+
+## Flexible Storage
+
+Start with an in-memory store during development.
+
+```ts
+import { MemoryStore } from "@/blocks/rate-limit";
+const store = new MemoryStore();
+```
+
+Switch to Redis in production without changing your application logic.
+
+```ts
+import Redis from "ioredis";
+import { RedisStore } from "@/blocks/rate-limit";
+
+const redis = new Redis(process.env.REDIS_URL);
+const store = new RedisStore(redis);
+```
+
+Need something else? Implement the `RateLimitStore` interface and use any storage backend you like.
+
+---
+
+## Which Should You Choose?
+
+### Choose Blockend if you want:
+
+- Express or Fastify support
+- Framework-independent architecture
+- Generated source code you fully control
+- Easy storage migration
+- Consistent APIs across Blockend blocks
+
+### Choose `express-rate-limit` if you want:
+
+- A ready-to-use Express-only middleware
+- Minimal configuration
+- An external dependency that you don't plan to customize
+
+`express-rate-limit` is a mature and well-maintained library that works well for many applications. Blockend simply targets a different use case by focusing on ownership, extensibility, and portability.
+
+---
+
+## Benchmark
+
+The following benchmark compares the Express adapter using the default memory store.
+View the latest benchmark results in the [benchmarks directory](https://github.com/codewithnuh/blockend/tree/master/benchmarks)
+
+![Express Integration Benchmark](/images/rate-limit-benchmark.png)
+
+| Library             |     Average |     p75 |     p99 |
+| ------------------- | ----------: | ------: | ------: |
+| express-rate-limit  | **2.15 ms** | 2.31 ms | 3.50 ms |
+| blockend-rate-limit | **1.94 ms** | 2.04 ms | 5.16 ms |
+
+**Benchmark Environment**
+
+- CPU: Intel Core i5-1235U (12th Gen)
+- Clock Speed: ~2.93 GHz
+- Runtime: Node.js 24.14.0
+- Platform: Windows x64
+
+In this benchmark, Blockend achieved:
+
+- Approximately **10% lower average latency**
+- Lower p75 latency
+- Comparable overall performance
+
+> **Note:** Performance should not be the primary reason for choosing a rate limiter. Network latency, database operations, and application logic typically have a much greater impact on request time. Blockend's main advantages are its framework-agnostic architecture, generated source code, and flexible storage system, with competitive performance as an additional benefit.
+
+---
+
+## Production Recommendations
+
+- Use Redis in production.
+- Rate limit authentication endpoints more aggressively.
+- Use authenticated user IDs instead of IP addresses when possible.
+- Monitor rejected requests.
+- Keep `standardHeaders` enabled for client visibility.
+- Keep `legacyHeaders` enabled if supporting older clients.
+- Combine with authentication, logging, and security middleware.
+
+Stop wasting time on vague prompts and formatting trivia. Copy this, save it, and go build something that actually makes money.
