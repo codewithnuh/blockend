@@ -78,6 +78,24 @@
               ]
             }
           }
+        },
+        "hono": {
+          "dependencies": ["hono"],
+          "variants": {
+            "default": {
+              "devDependencies": ["vitest"],
+              "files": [
+                {
+                  "source": "blocks/rate-limiter/adapters/hono.ts",
+                  "target": "adapters/hono.ts"
+                },
+                {
+                  "source": "blocks/rate-limiter/adapters/hono.test.ts",
+                  "target": "adapters/hono.test.ts"
+                }
+              ]
+            }
+          }
         }
       },
       "environments": {
@@ -251,6 +269,42 @@
               ]
             }
           }
+        },
+        "hono": {
+          "dependencies": ["hono"],
+          "devDependencies": ["vitest"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/request-validator/adapters/hono.ts",
+                  "target": "adapters/hono.ts"
+                },
+                {
+                  "source": "blocks/request-validator/adapters/hono.test.ts",
+                  "target": "adapters/hono.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "fastify": {
+          "dependencies": ["fastify"],
+          "devDependencies": ["vitest"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/request-validator/adapters/fastify.ts",
+                  "target": "adapters/fastify.ts"
+                },
+                {
+                  "source": "blocks/request-validator/adapters/fastify.test.ts",
+                  "target": "adapters/fastify.test.ts"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -277,6 +331,42 @@
                 {
                   "source": "blocks/response-formatter/adapters/express.test.ts",
                   "target": "adapters/express.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "hono": {
+          "dependencies": ["hono"],
+          "devDependencies": ["vitest"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/response-formatter/adapters/hono.ts",
+                  "target": "adapters/hono.ts"
+                },
+                {
+                  "source": "blocks/response-formatter/adapters/hono.test.ts",
+                  "target": "adapters/hono.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "fastify": {
+          "dependencies": ["fastify"],
+          "devDependencies": ["vitest"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/response-formatter/adapters/fastify.ts",
+                  "target": "adapters/fastify.ts"
+                },
+                {
+                  "source": "blocks/response-formatter/adapters/fastify.test.ts",
+                  "target": "adapters/fastify.test.ts"
                 }
               ]
             }

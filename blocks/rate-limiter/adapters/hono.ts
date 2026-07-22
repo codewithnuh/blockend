@@ -1,13 +1,14 @@
-import { Request, Response, NextFunction } from "express";
 import { evaluateRateLimit, RateLimitStore, RateLimitConfig } from "../core/core";
 import { getClientIp } from "../utils/ip";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+import type { Context, MiddlewareHandler } from "hono";
 
-export interface ExpressOptions extends Partial<RateLimitConfig> {
+export interface HonoOptions extends Partial<RateLimitConfig> {
   store: RateLimitStore;
-  keyGenerator?: (req: Request) => string;
+  keyGenerator?: (c: Context) => string;
 }
 
-export const expressRateLimit = (options: ExpressOptions) => {
+export const honoRateLimit = (options: HonoOptions): MiddlewareHandler => {
   const config: RateLimitConfig = {
     windowMs: 60 * 1000,
     max: 100,
@@ -19,28 +20,28 @@ export const expressRateLimit = (options: ExpressOptions) => {
   };
 
   const keyGen =
-    options.keyGenerator || ((req: Request) => getClientIp(req.headers, req.socket.remoteAddress));
+    options.keyGenerator ||
+    ((c: Context) => getClientIp(Object.fromEntries(c.req.raw.headers.entries()), undefined));
 
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (c, next) => {
     try {
-      const key = keyGen(req);
+      const key = keyGen(c);
       const result = await evaluateRateLimit(key, options.store, config);
 
       // Set computed rate limit headers dynamically
       for (const [name, value] of Object.entries(result.headers)) {
-        res.setHeader(name, value);
+        c.header(name, value);
       }
 
       if (result.isBlocked) {
-        res.status(result.statusCode).send(result.message);
-        return;
+        return c.json(result.message, result.statusCode as ContentfulStatusCode);
       }
 
-      next();
+      await next();
     } catch (error) {
-      // eslint-disable-next-line no-console
+      //eslint-disable-next-line no-console
       console.error("Rate limiter failure (Fail-Open):", error);
-      next(); // Fail-open pattern intact
+      await next(); // Fail-open pattern intact
     }
   };
 };
