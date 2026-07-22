@@ -381,25 +381,71 @@
       "dependencies": ["zod"],
       "devDependencies": ["vitest"],
 
-      "variants": {
-        "default": {
-          "files": [
-            {
-              "source": "blocks/env-config/index.ts",
-              "target": "index.ts"
-            },
-            {
-              "source": "blocks/env-config/index.test.ts",
-              "target": "index.test.ts"
-            }
-          ]
-        }
-      },
       "adapters": {
-        "express": { "variants": {} },
-        "fastify": { "variants": {} },
-        "hono": { "variants": {} },
-        "next": { "variants": {} }
+        "express": {
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/env-config/index.ts",
+                  "target": "index.ts"
+                },
+                {
+                  "source": "blocks/env-config/index.test.ts",
+                  "target": "index.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "fastify": {
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/env-config/index.ts",
+                  "target": "index.ts"
+                },
+                {
+                  "source": "blocks/env-config/index.test.ts",
+                  "target": "index.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "hono": {
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/env-config/index.ts",
+                  "target": "index.ts"
+                },
+                {
+                  "source": "blocks/env-config/index.test.ts",
+                  "target": "index.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "next": {
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/env-config/index.ts",
+                  "target": "index.ts"
+                },
+                {
+                  "source": "blocks/env-config/index.test.ts",
+                  "target": "index.test.ts"
+                }
+              ]
+            }
+          }
+        }
       }
     },
     "health-check": {
