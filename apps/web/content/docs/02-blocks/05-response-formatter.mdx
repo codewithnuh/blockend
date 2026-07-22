@@ -256,6 +256,38 @@ Response:
 
 ---
 
+## Usage across frameworks
+
+### Express
+
+```ts
+import { ExpressResponse } from "@blockend/response-formatter/adapters/express";
+
+app.get("/", (req, res) => {
+  return ExpressResponse.success(res, { id: 1 }, "User fetched");
+});
+```
+
+### Hono
+
+```ts
+import { HonoResponse } from "@blockend/response-formatter/adapters/hono";
+
+app.get("/", (c) => {
+  return HonoResponse.success(c, { id: 1 }, "User fetched");
+});
+```
+
+### Fastify
+
+```ts
+import { FastifyResponse } from "@blockend/response-formatter/adapters/fastify";
+
+fastify.get("/", async (_, reply) => {
+  return FastifyResponse.success(reply, { id: 1 }, "User fetched");
+});
+```
+
 ## Paginated Responses
 
 Pagination only requires the information you already know:

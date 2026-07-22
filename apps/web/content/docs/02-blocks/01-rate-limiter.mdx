@@ -46,8 +46,8 @@ Choose your preferred package manager.
 
 <Tab>```bash yarn dlx blockend-cli add rate-limit ```</Tab>
 
-  <Tab>
-    ```bash
+<Tab>
+  ```bash
     bunx blockend-cli add rate-limit
     ```
   </Tab>
@@ -61,7 +61,6 @@ During installation, Blockend automatically detects your project and asks which 
 
 <Steps>
   <Step>### Select Framework ```text ? Which adapter would you like? ❯ Express Fastify ```</Step>
-  <Step>### Select Storage ```text ? Which storage implementation? ❯ Memory Redis ```</Step>
   <Step>
     ### Install Dependencies Any required packages are installed automatically. Example: ```text ✔
     Installing ioredis... ```
@@ -186,6 +185,52 @@ app.use(
     max: 100,
     windowMs: 60_000,
     store: new RedisStore(redis)
+  })
+);
+```
+
+## Usage across frameworks
+
+### Express
+
+```ts
+import { expressRateLimit } from "@blockend/rate-limiter/adapters/express";
+
+app.use(
+  expressRateLimit({
+    store,
+    max: 100,
+    windowMs: 60_000
+  })
+);
+```
+
+### Hono
+
+```ts
+import { honoRateLimit } from "@blockend/rate-limiter/adapters/hono";
+
+app.use(
+  "*",
+  honoRateLimit({
+    store,
+    max: 100,
+    windowMs: 60_000
+  })
+);
+```
+
+### Fastify
+
+```ts
+import { fastifyRateLimit } from "@blockend/rate-limiter/adapters/fastify";
+
+fastify.addHook(
+  "onRequest",
+  fastifyRateLimit({
+    store,
+    max: 100,
+    windowMs: 60_000
   })
 );
 ```

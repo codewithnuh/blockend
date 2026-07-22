@@ -135,6 +135,72 @@ If you're unsure which applies to you, check `package.json` for `"type": "module
 
 ---
 
+## Usage across frameworks
+
+### Express
+
+```ts
+import { expressValidator } from "@blockend/request-validator/adapters/express";
+
+app.post(
+  "/users/:id",
+  expressValidator({
+    body: bodySchema,
+    query: querySchema,
+    params: paramsSchema
+  }),
+  (req, res) => {
+    const { body, query, params } = expressValidator.validated(req);
+
+    res.json({ body, query, params });
+  }
+);
+```
+
+### Hono
+
+```ts
+import { honoValidator, validated } from "@blockend/request-validator/adapters/hono";
+
+app.post(
+  "/users/:id",
+  honoValidator({
+    body: bodySchema,
+    query: querySchema,
+    params: paramsSchema
+  }),
+  (c) => {
+    const { body, query, params } = validated(c);
+
+    return c.json({ body, query, params });
+  }
+);
+```
+
+### Fastify
+
+```ts
+import { fastifyValidator } from "@blockend/request-validator/adapters/fastify";
+
+const validator = fastifyValidator({
+  body: bodySchema,
+  query: querySchema,
+  params: paramsSchema
+});
+
+fastify.post(
+  "/users/:id",
+  {
+    preHandler: validator
+  },
+  async (request) => {
+    const { body, query, params } = validator.validated(request);
+
+    return { body, query, params };
+  }
+);
+```
+
 ## Basic Usage
 
 Define the parts of the request you want to validate.
