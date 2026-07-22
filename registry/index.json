@@ -377,12 +377,30 @@
     "env-config": {
       "name": "Environment Configuration",
       "description": "Type-safe environment variable validation using Zod.",
+
       "dependencies": ["zod"],
       "devDependencies": ["vitest"],
-      "baseFiles": [
-        { "source": "blocks/env-config/index.ts", "target": "index.ts" },
-        { "source": "blocks/env-config/index.test.ts", "target": "index.test.ts" }
-      ]
+
+      "variants": {
+        "default": {
+          "files": [
+            {
+              "source": "blocks/env-config/index.ts",
+              "target": "index.ts"
+            },
+            {
+              "source": "blocks/env-config/index.test.ts",
+              "target": "index.test.ts"
+            }
+          ]
+        }
+      },
+      "adapters": {
+        "express": { "variants": {} },
+        "fastify": { "variants": {} },
+        "hono": { "variants": {} },
+        "next": { "variants": {} }
+      }
     },
     "health-check": {
       "name": "System Health Check Monitoring",
