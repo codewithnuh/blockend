@@ -1,12 +1,11 @@
 ---
 title: Request Validator
-description: Validate incoming HTTP requests using Zod with a framework-agnostic core and lightweight adapters.
+description: Validate incoming HTTP requests using Zod with a framework-agnostic core and lightweight adapters for Express, Fastify, and Hono.
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 import { Steps } from "fumadocs-ui/components/steps";
-import { File, Files, Folder } from "fumadocs-ui/components/files";
-import { Card, Cards } from "fumadocs-ui/components/card";
+import { SourceCode } from "../../../components/source-code";
 
 The **Request Validator** block validates incoming HTTP requests before they reach your route handlers.
 
@@ -21,89 +20,45 @@ It provides a framework-agnostic validation core powered by Zod and lightweight 
 - Validate request body, query parameters, and route parameters
 - Automatically parses, coerces, and normalizes request data
 - Access fully typed validated values via `validator.validated(req)`
-- Express adapter included
-- Optional integration with a global error handler
+- Express, Fastify, and Hono adapters
+- Optional error propagation to global error handler
 - TypeScript-first API
 
 ---
 
-## Architecture
+## File Structure
 
-The Request Validator block is composed of two parts:
+```text
+request-validator
+├── adapters
+│   ├── express.ts
+│   ├── fastify.ts
+│   └── hono.ts
+├── core.ts
+└── contract.ts
+```
 
-- **Core** — Validates arbitrary data using Zod. It has no dependency on Express or any other framework.
-- **Adapter** — Integrates the core with your web framework by validating incoming requests before they reach your route handler.
-
-When validation succeeds, the adapter:
-
-- Parses the request using your Zod schemas.
-- Applies defaults, coercions, and transforms.
-- Replaces `req.body`, `req.query`, and `req.params` with the validated values.
-- Exposes the validated payload through `validator.validated(req)` for fully typed access.
-
-When validation fails, the adapter can either:
-
-- Return a default `400 Bad Request` response.
-- Forward the underlying `ZodError` to your application's global error handler.
+- **adapters/** — Framework-specific middleware that integrates the core validator with Express, Fastify, and Hono.
+- **core.ts** — `coreValidator` function wrapping Zod's `schema.parse()`.
+- **contract.ts** — `RequestValidationSchema` type for defining body, query, and params schemas.
 
 ---
 
 ## Installation
 
-Choose your preferred package manager.
-
-<Tabs items={["pnpm", "npm", "yarn", "bun"]}>
-  <Tab>
-
 ```bash
 pnpm dlx blockend-cli add request-validator
 ```
-
-  </Tab>
-
-  <Tab>
-
-```bash
-npx blockend-cli add request-validator
-```
-
-  </Tab>
-
-  <Tab>
-
-```bash
-yarn dlx blockend-cli add request-validator
-```
-
-  </Tab>
-
-  <Tab>
-
-```bash
-bunx blockend-cli add request-validator
-```
-
-  </Tab>
-</Tabs>
-
----
-
-## Installation Flow
 
 <Steps>
 
 ### Detect Project
 
-Blockend detects your configured backend framework and installs the appropriate adapter automatically.
+Blockend detects your configured backend framework and installs the appropriate adapter.
 
 ### Install Dependencies
 
-The required dependencies are installed if they are not already present.
-
-```text
-✔ Installing zod...
-✔ Installing express...
-```
+`zod` is installed automatically if not already present.
 
 ### Generate Files
 
@@ -111,253 +66,350 @@ The validator block is generated inside your configured blocks directory.
 
 </Steps>
 
----
+### Peer Dependencies
 
-## Generated Files
-
-<Files>
-  <Folder name="blocks">
-    <Folder name="request-validator">
-      <File name="core.ts" />
-      <File name="contract.ts" />
-      <File name="express.ts" />
-    </Folder>
-  </Folder>
-</Files>
+| Adapter | Peer Dependency |
+| ------- | --------------- |
+| Express | `express`       |
+| Fastify | `fastify`       |
+| Hono    | `hono`          |
+| Core    | `zod`           |
 
 ---
 
-## A Note on Import Extensions
+## Manual File Setup
 
-If your project uses `"module": "NodeNext"` (or `"Node16"`) in `tsconfig.json` together with `"type": "module"` in `package.json`, Node's ESM loader requires explicit file extensions on relative imports — `.js`, even though the source file is `.ts`. This is a Node.js requirement, not a Blockend one.
+### blocks/request-validator/core.ts
 
-If you're unsure which applies to you, check `package.json` for `"type": "module"` and `tsconfig.json` for `"moduleResolution": "NodeNext"`. If neither is present, you don't need the extension.
+Core validation function wrapping Zod's `schema.parse()`.
+
+<SourceCode file="blocks/request-validator/core.ts" />
+
+### blocks/request-validator/contract.ts
+
+Type contract for defining validation schemas across body, query, and params.
+
+<SourceCode file="blocks/request-validator/contract.ts" />
+
+### blocks/request-validator/adapters/express.ts
+
+Express middleware that validates requests and exposes `validator.validated(req)`.
+
+<SourceCode file="blocks/request-validator/adapters/express.ts" />
+
+### blocks/request-validator/adapters/fastify.ts
+
+Fastify preHandler hook that validates requests and exposes `validator.validated(request)`.
+
+<SourceCode file="blocks/request-validator/adapters/fastify.ts" />
+
+### blocks/request-validator/adapters/hono.ts
+
+Hono middleware that validates requests and exposes `validated(c)`.
+
+<SourceCode file="blocks/request-validator/adapters/hono.ts" />
 
 ---
 
-## Usage across frameworks
+## Configuration
+
+| Option            | Type      | Default | Description                                                       |
+| ----------------- | --------- | ------- | ----------------------------------------------------------------- |
+| `propagateErrors` | `boolean` | `false` | Forward `ZodError` to next error handler instead of returning 400 |
+
+### Exported APIs
+
+| Export                    | Description                                                         |
+| ------------------------- | ------------------------------------------------------------------- |
+| `coreValidator`           | Validates arbitrary data against a Zod schema                       |
+| `expressValidator`        | Creates Express middleware with `validator.validated(req)`          |
+| `fastifyValidator`        | Creates Fastify preHandler hook with `validator.validated(request)` |
+| `honoValidator`           | Creates Hono middleware                                             |
+| `validated` (Hono)        | Retrieves validated data from Hono context                          |
+| `RequestValidationSchema` | Type for body, query, and params schema definitions                 |
+| `VALIDATED_KEY`           | Symbol used to store validated data on the request object           |
+
+---
+
+## Architecture
+
+```text
+Request
+   │
+   ▼
+Adapter (Express / Fastify / Hono)
+   │  (validates body, query, params against Zod schemas)
+   ▼
+Validation
+   ├── Success → Replace req.body/query/params + store typed data
+   │               │
+   │               ▼
+   │            Route Handler
+   │               │
+   │               ▼
+   │         validator.validated(req) — fully typed
+   │
+   └── Failure → Return 400 response OR propagate ZodError
+```
+
+The adapter validates each part of the request (body, query, params) independently using the core validator. On success, it replaces the original request properties with the parsed values and stores the typed data. On failure, it either returns a 400 response or forwards the `ZodError` to your global error handler.
+
+---
+
+## When to Use
+
+- You want type-safe request validation with full TypeScript inference.
+- You need consistent validation across multiple frameworks.
+- You want to separate validation logic from route handlers.
+
+## When Not to Use
+
+- You prefer a different validation library (Joi, Yup, etc.).
+- You don't need framework adapters and want to use Zod directly.
+
+---
+
+## Usage
 
 ### Express
 
 ```ts
-import { expressValidator } from "@blockend/request-validator/adapters/express";
+import { expressValidator } from "@/blocks/request-validator/adapters/express";
+import { z } from "zod";
 
-app.post(
-  "/users/:id",
-  expressValidator({
-    body: bodySchema,
-    query: querySchema,
-    params: paramsSchema
+const validator = expressValidator({
+  body: z.object({
+    name: z.string(),
+    email: z.string().email()
   }),
-  (req, res) => {
-    const { body, query, params } = expressValidator.validated(req);
-
-    res.json({ body, query, params });
-  }
-);
-```
-
-### Hono
-
-```ts
-import { honoValidator, validated } from "@blockend/request-validator/adapters/hono";
-
-app.post(
-  "/users/:id",
-  honoValidator({
-    body: bodySchema,
-    query: querySchema,
-    params: paramsSchema
+  query: z.object({
+    page: z.coerce.number().default(1)
   }),
-  (c) => {
-    const { body, query, params } = validated(c);
+  params: z.object({
+    id: z.string().uuid()
+  })
+});
 
-    return c.json({ body, query, params });
-  }
-);
+app.post("/users/:id", validator, (req, res) => {
+  const { body, query, params } = validator.validated(req);
+
+  res.json({ body, query, params });
+});
 ```
 
 ### Fastify
 
 ```ts
-import { fastifyValidator } from "@blockend/request-validator/adapters/fastify";
+import { fastifyValidator } from "@/blocks/request-validator/adapters/fastify";
+import { z } from "zod";
 
 const validator = fastifyValidator({
-  body: bodySchema,
-  query: querySchema,
-  params: paramsSchema
+  body: z.object({
+    name: z.string(),
+    age: z.coerce.number()
+  })
 });
 
-fastify.post(
-  "/users/:id",
-  {
-    preHandler: validator
-  },
-  async (request) => {
-    const { body, query, params } = validator.validated(request);
+fastify.post("/", { preHandler: validator }, async (request) => {
+  const { body } = validator.validated(request);
 
-    return { body, query, params };
+  return body;
+});
+```
+
+### Hono
+
+```ts
+import { honoValidator, validated } from "@/blocks/request-validator/adapters/hono";
+import { z } from "zod";
+
+app.post(
+  "/users/:id",
+  honoValidator({
+    body: z.object({ name: z.string() }),
+    params: z.object({ id: z.string() })
+  }),
+  (c) => {
+    const data = validated(c);
+
+    return c.json(data);
   }
 );
 ```
 
-## Basic Usage
-
-Define the parts of the request you want to validate.
+### Error Propagation
 
 ```ts
-import { z } from "zod";
-
-const createUserValidator = expressValidator({
-  body: z.object({
-    name: z.string(),
-    email: z.string().email(),
-    phoneNumber: z.number()
-  })
-});
-```
-
-Register the validator before your route handler.
-
-```ts
-app.post("/users", createUserValidator, (req, res) => {
-  const { body } = createUserValidator.validated(req);
-
-  res.json(body);
-});
-```
-
-The `validated(req)` helper returns the parsed request payload with full type inference. This includes any defaults, coercions, and transforms defined by your schemas.
-
-Only the request sections you provide are validated. For example, if you only specify `body`, the validator ignores `query` and `params`.
-
----
-
-## Validating Different Request Parts
-
-You can validate any combination of the request body, query string, and route parameters.
-
-```ts
-const getUserValidator = expressValidator({
-  body: z.object({
-    name: z.string()
-  }),
-
-  query: z.object({
-    page: z.coerce.number().default(1)
-  }),
-
-  params: z.object({
-    id: z.uuid()
-  })
-});
-
-app.get("/users/:id", getUserValidator, (req, res) => {
-  const { body, query, params } = getUserValidator.validated(req);
-
-  res.json({
-    body,
-    query,
-    params
-  });
-});
-```
-
----
-
-## Validation Failures
-
-By default, the Express adapter handles validation failures and returns a `400 Bad Request` response.
-
-```json
-{
-  "success": false,
-  "data": null,
-  "message": "Validation failed",
-  "errors": {
-    "phoneNumber": ["Invalid input: expected number, received undefined"]
-  }
-}
-```
-
-This default behavior allows the validator block to work without requiring a global error handler.
-
----
-
-## Using a Global Error Handler
-
-If your application uses Blockend's Error Handler block, you can delegate validation errors to it instead.
-
-```ts
-const validator = expressValidator(createUserSchema, {
-  propagateErrors: true
-});
+const validator = expressValidator(schema, { propagateErrors: true });
 
 app.post("/users", validator, controller);
+
+// Global error handler receives ZodError
+app.use((err, req, res, next) => {
+  if (err instanceof ZodError) {
+    return res.status(422).json({
+      error: "Validation failed",
+      details: err.issues
+    });
+  }
+  next(err);
+});
 ```
-
-When `propagateErrors` is enabled, the adapter forwards the underlying `ZodError` to Express using `next(error)` instead of generating the response itself.
-
-This is useful when you're using Blockend's Error Handler block to centralize API error responses.
-
----
-
-## Using the Core Validator
-
-The Express adapter is built on top of a framework-independent validator.
-
-```ts
-import { coreValidator } from "@/blocks/request-validator/core";
-
-const validated = coreValidator(schema, data);
-```
-
-The core validator:
-
-- Validates arbitrary input.
-- Returns parsed data when validation succeeds.
-- Throws a `ZodError` when validation fails.
-
-Because it has no framework dependencies, it can be reused by adapters for other frameworks.
 
 ---
 
 ## API Reference
 
-### `expressValidator(schema, options?)`
-
-Creates Express middleware that validates the request body, query string, and route parameters using Zod.
-
-The returned middleware also exposes a typed helper:
+#### coreValidator
 
 ```ts
-const validator = expressValidator(schema);
-
-const { body, query, params } = validator.validated(req);
+function coreValidator<TSchema extends z.ZodTypeAny>(
+  schema: TSchema,
+  data: unknown
+): z.infer<TSchema>;
 ```
 
-The returned values are fully parsed and typed according to your Zod schemas.
+Validates arbitrary data against a Zod schema. Throws `ZodError` on failure.
 
-| Parameter                 | Description                                                                                                                |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `schema`                  | Validation schema containing `body`, `query`, and/or `params`.                                                             |
-| `options.propagateErrors` | When `true`, forwards the `ZodError` to Express instead of returning the default validation response. Defaults to `false`. |
+#### expressValidator
+
+```ts
+function expressValidator<TBody, TQuery, TParams>(
+  schemas: RequestValidationSchema<TBody, TQuery, TParams>,
+  options?: { propagateErrors?: boolean }
+): ValidatorMiddleware<TBody, TQuery, TParams>;
+```
+
+Creates Express middleware. Returns a middleware function with a `.validated(req)` helper.
+
+#### fastifyValidator
+
+```ts
+function fastifyValidator<TBody, TQuery, TParams>(
+  schemas: RequestValidationSchema<TBody, TQuery, TParams>,
+  options?: FastifyValidatorOptions
+): ValidatorHook<TBody, TQuery, TParams>;
+```
+
+Creates a Fastify preHandler hook. Returns a hook function with a `.validated(request)` helper.
+
+#### honoValidator
+
+```ts
+function honoValidator<TBody, TQuery, TParams>(
+  schemas: RequestValidationSchema<TBody, TQuery, TParams>,
+  options?: HonoValidatorOptions
+): MiddlewareHandler;
+```
+
+Creates Hono middleware. Use the standalone `validated(c)` function to retrieve typed data.
+
+#### validated (Hono)
+
+```ts
+function validated<TBody, TQuery, TParams>(c: Context): ValidatedData<TBody, TQuery, TParams>;
+```
+
+Retrieves the validated request data from Hono's context. Throws if the middleware has not run.
+
+#### RequestValidationSchema
+
+```ts
+interface RequestValidationSchema<TBody, TQuery, TParams> {
+  body?: TBody;
+  query?: TQuery;
+  params?: TParams;
+}
+```
 
 ---
 
-## Best Practices
+## Examples
 
-- Validate requests before they reach your controllers.
-- Prefer `validator.validated(req)` instead of manually casting `req.body`, `req.query`, or `req.params`.
-- Prefer `z.coerce` for query parameters and route parameters.
-- Enable `propagateErrors` when using Blockend's Error Handler block.
-- Keep validation schemas close to the routes that use them.
-- Reuse validation schemas where appropriate.
+### Basic Usage
+
+```ts
+import { z } from "zod";
+import { expressValidator } from "@/blocks/request-validator/adapters/express";
+
+const createUserSchema = expressValidator({
+  body: z.object({
+    name: z.string().min(2),
+    email: z.string().email(),
+    age: z.number().min(18)
+  })
+});
+
+app.post("/users", createUserSchema, (req, res) => {
+  const { body } = createUserSchema.validated(req);
+  res.json(body);
+});
+```
+
+### Production Usage with Error Handler
+
+```ts
+import { expressValidator } from "@/blocks/request-validator/adapters/express";
+import { z } from "zod";
+import { AppError } from "@/blocks/error-handler";
+
+const validator = expressValidator(schema, { propagateErrors: true });
+
+app.use((err, req, res, next) => {
+  if (err instanceof ZodError) {
+    throw new AppError(400, "Validation failed");
+  }
+  next(err);
+});
+```
+
+### Composition with Multiple Validators
+
+```ts
+const authValidator = expressValidator({
+  body: z.object({ token: z.string() })
+});
+
+const dataValidator = expressValidator({
+  body: z.object({ title: z.string() })
+});
+
+app.post("/posts", authValidator, dataValidator, (req, res) => {
+  const auth = authValidator.validated(req);
+  const data = dataValidator.validated(req);
+  // ...
+});
+```
 
 ---
 
 ## Related Blocks
 
-<Cards>
-  <Card title="Error Handler" href="/docs/02-blocks/02-global-error-handler" />
-</Cards>
+- **Error Handler** — Enable `propagateErrors: true` to delegate validation errors to your global error handler.
+- **Response Formatter** — Format validation error responses consistently.
+
+---
+
+## FAQ
+
+**What happens when validation succeeds?**
+
+The adapter replaces `req.body`, `req.query`, and `req.params` with the parsed values. Defaults, coercions, and transforms are applied. The typed data is also accessible via `validator.validated(req)`.
+
+**What happens when validation fails?**
+
+By default, the adapter returns a `400 Bad Request` response with field-level error details. When `propagateErrors: true` is set, the `ZodError` is forwarded to the next error handler.
+
+**Can I validate only certain parts of the request?**
+
+Yes. Only the schemas you provide are validated. For example, if you only specify `body`, the validator ignores `query` and `params`.
+
+**Does `validator.validated(req)` work before the middleware runs?**
+
+No. It throws an error reminding you to register the middleware before your route handler.
+
+---
+
+## Changelog
+
+Initial documentation release.
