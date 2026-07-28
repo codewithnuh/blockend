@@ -1,9 +1,15 @@
 import { HeroSection } from "@/components/sections/HeroSection";
+import { SocialProofSection } from "@/components/sections/SocialProofSection";
 import { ProblemSection } from "@/components/sections/ProblemSection";
 import { HowItWorksSection } from "@/components/sections/HowItWorksSection";
-import { InitCLISimulator } from "@/components/sections/InitCLISimulator";
+import { GeneratedOutputSection } from "@/components/sections/GeneratedOutputSection";
+import { FeaturesSection } from "@/components/sections/FeaturesSection";
+import { BlocksCatalogSection } from "@/components/sections/BlocksCatalogSection";
+import { FrameworkSupportSection } from "@/components/sections/FrameworkSupportSection";
+import { MCPSection } from "@/components/sections/MCPSection";
 import { RoadmapSection } from "@/components/sections/RoadmapSection";
 import { PhilosophySection } from "@/components/sections/PhilosophySection";
+import { FAQSection } from "@/components/sections/FAQSection";
 import { FinalCTASection } from "@/components/sections/FinalCTASection";
 import { Footer } from "@/components/globals/Footer";
 import { RevealProvider } from "@/components/sections/RevealProvider";
@@ -11,13 +17,19 @@ import { RevealProvider } from "@/components/sections/RevealProvider";
 export default function HomePage() {
   return (
     <RevealProvider>
-      <main>
+      <main className="relative z-10 space-y-24 md:space-y-32 ">
         <HeroSection />
+        <SocialProofSection />
         <ProblemSection />
         <HowItWorksSection />
-        <InitCLISimulator />
+        <GeneratedOutputSection />
+        <FeaturesSection />
+        <BlocksCatalogSection />
+        <FrameworkSupportSection />
+        <MCPSection />
         <RoadmapSection />
         <PhilosophySection />
+        <FAQSection />
         <FinalCTASection />
       </main>
       <Footer />

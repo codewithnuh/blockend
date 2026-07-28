@@ -1,116 +1,78 @@
-import React from "react";
-import { SiNodedotjs, SiBun, SiDeno, SiExpress, SiFastify, SiHono } from "react-icons/si";
+import { PROBLEM_SECTION } from "@/lib/landing-constants";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { RotateCcw, PackageOpen, Bug, GitMerge, AlertCircle } from "lucide-react";
 
-interface TechItem {
-  name: string;
-  type: "runtime" | "framework";
-  icon: React.ComponentType<{ className?: string }>;
-  hoverColor: string;
+interface ProblemIconProps {
+  icon: string;
 }
 
-const SUPPORTED_STACK: TechItem[] = [
-  {
-    name: "Node.js",
-    type: "runtime",
-    icon: SiNodedotjs,
-    hoverColor: "group-hover:text-[#5FA04E] group-hover:drop-shadow-[0_0_10px_rgba(95,160,78,0.25)]"
-  },
-  {
-    name: "Bun",
-    type: "runtime",
-    icon: SiBun,
-    hoverColor:
-      "group-hover:text-[#FBF0DF] group-hover:drop-shadow-[0_0_10px_rgba(251,240,223,0.25)]"
-  },
-  {
-    name: "Deno",
-    type: "runtime",
-    icon: SiDeno,
-    hoverColor:
-      "group-hover:text-[#FFFFFF] group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.25)]"
-  },
-  {
-    name: "Express",
-    type: "framework",
-    icon: SiExpress,
-    hoverColor: "group-hover:text-[#EAEAEA]"
-  },
-  {
-    name: "Fastify",
-    type: "framework",
-    icon: SiFastify,
-    hoverColor:
-      "group-hover:text-[#202020] group-hover:bg-white group-hover:p-0.5 group-hover:rounded-none"
-  },
-  {
-    name: "Hono",
-    type: "framework",
-    icon: SiHono,
-    hoverColor: "group-hover:text-[#E36002] group-hover:drop-shadow-[0_0_10px_rgba(227,96,2,0.25)]"
+function ProblemIcon({ icon }: ProblemIconProps) {
+  const iconProps = {
+    className: "w-4 h-4 shrink-0",
+    "aria-hidden": true
+  };
+
+  switch (icon) {
+    case "rotate-left":
+      return <RotateCcw {...iconProps} />;
+    case "box-open":
+      return <PackageOpen {...iconProps} />;
+    case "bug":
+      return <Bug {...iconProps} />;
+    case "code-merge":
+      return <GitMerge {...iconProps} />;
+    default:
+      return <AlertCircle {...iconProps} />;
   }
-];
+}
 
 export function ProblemSection() {
   return (
     <section
-      className="relative border-t border-border bg-background py-24 text-foreground sm:py-28"
-      aria-labelledby="compatibility-heading"
+      aria-labelledby="problem-heading"
+      className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8"
     >
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12">
-        <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
-          {/* Left Side — Inter (Sans) Prose Content */}
-          <div className="reveal">
-            <p className="mb-4 font-mono text-xs font-medium uppercase tracking-widest text-primary">
-              stdout // compatibility
-            </p>
-            <h2
-              id="compatibility-heading"
-              className="text-balance font-sans text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl"
-            >
-              Engineered to run anywhere. Zero config required.
-            </h2>
-            <p className="mt-5 max-w-md font-sans text-sm leading-relaxed text-muted-foreground">
-              Drop it straight into your architecture. Native integration across premium runtimes
-              and frameworks with strict zero-overhead compilation pipelines.
-            </p>
-          </div>
+      {/* Section Header Header Group */}
+      <header className="mb-12">
+        <span className="font-mono text-[12px] text-ash tracking-widest uppercase block">
+          {PROBLEM_SECTION.badge}
+        </span>
+        <h2
+          id="problem-heading"
+          className="text-2xl sm:text-[32px] font-regular text-paper tracking-compact mt-2"
+        >
+          {PROBLEM_SECTION.headline}
+        </h2>
+      </header>
 
-          {/* Right Side — Technical Grid View */}
-          <div className="relative">
-            <div
-              className="grid grid-cols-2 sm:grid-cols-3 gap-0 border-t border-l border-border/60 bg-muted/10"
-              aria-hidden="true"
-            >
-              {SUPPORTED_STACK.map((item) => {
-                const IconComponent = item.icon;
-                return (
-                  <div
-                    key={item.name}
-                    className="group relative flex flex-col items-center justify-center p-8 border-r border-b border-border/60 transition-all duration-200 cursor-default select-none bg-background hover:bg-muted/30"
-                  >
-                    {/* Brand Icon wrapper */}
-                    <div
-                      className={`text-muted-foreground/40 filter grayscale transition-all duration-300 transform group-hover:grayscale-0 group-hover:scale-105 mb-4 ${item.hoverColor}`}
-                    >
-                      <IconComponent className="w-7 h-7" />
-                    </div>
+      {/* Grid List of Problem Cards */}
+      <ul
+        role="list"
+        aria-label="Common backend development challenges"
+        className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 list-none p-0 m-0"
+      >
+        {PROBLEM_SECTION.items.map((item) => (
+          <li key={item.title}>
+            <Card className="h-full p-5 rounded-card bg-carbon border-graphite space-y-3 shadow-none">
+              <CardHeader className="p-0 space-y-3">
+                <div
+                  aria-hidden="true"
+                  className="w-8 h-8 rounded-btn bg-obsidian border border-graphite flex items-center justify-center text-fog shrink-0"
+                >
+                  <ProblemIcon icon={item.icon} />
+                </div>
+                <CardTitle className="text-[15px] font-medium text-paper p-0 m-0 leading-snug">
+                  {item.title}
+                </CardTitle>
+              </CardHeader>
 
-                    {/* Industrial Mono Labels */}
-                    <span className="font-mono text-xs text-muted-foreground/70 group-hover:text-foreground transition-colors tracking-wide">
-                      {item.name.toLowerCase()}
-                    </span>
-
-                    {/* Edge Context Tags */}
-                    <span className="absolute bottom-1 right-2 text-[8px] font-mono opacity-0 group-hover:opacity-30 text-muted-foreground transition-opacity">
-                      {item.type}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
+              <CardContent className="p-0 m-0">
+                <p className="text-[13px] text-fog leading-relaxed">{item.description}</p>
+              </CardContent>
+            </Card>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

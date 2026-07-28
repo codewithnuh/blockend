@@ -1,73 +1,59 @@
-"use client";
-
 import { PHILOSOPHY_CARDS } from "@/lib/data";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export function PhilosophySection() {
   return (
-    <section className="relative py-24 border-t border-border dot-grid bg-background text-foreground sm:py-28">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12">
-        {/* Header Block */}
-        <div className="reveal max-w-2xl mb-16">
-          <p className="font-mono text-xs font-medium uppercase tracking-[0.2em] text-primary mb-4 flex items-center gap-2 select-none">
-            <span className="inline-block w-1.5 h-1.5 bg-primary"></span>
-            manifestio // architectural_design
-          </p>
+    <section
+      aria-labelledby="philosophy-heading"
+      className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8"
+    >
+      {/* Header Group */}
+      <header className="mb-12">
+        <Badge
+          variant="outline"
+          className="font-mono text-[12px] text-ash tracking-widest uppercase border-none bg-transparent p-0 shadow-none font-normal block"
+        >
+          manifesto // architectural_design
+        </Badge>
+        <h2
+          id="philosophy-heading"
+          className="text-2xl sm:text-[32px] font-regular text-paper tracking-compact mt-2"
+        >
+          Frontend figured this out years ago.
+        </h2>
+        <p className="text-[14px] text-fog leading-relaxed mt-4 max-w-2xl">
+          shadcn/ui proved that developers don&apos;t want another dependency—they want raw source
+          control in their own repository to wrap their custom business logic around. Backend
+          infrastructure deserves the exact same approach. No locked black boxes.
+        </p>
+      </header>
 
-          {/* Primary Editorial Title: Inter Display */}
-          <h2 className="font-display font-bold text-3xl leading-[1.1] tracking-tight text-foreground sm:text-4xl text-balance">
-            Frontend figured this out years ago.
-          </h2>
-
-          {/* Descriptive Body Copy: Standard Sans */}
-          <p className="font-sans text-sm text-muted-foreground leading-relaxed mt-5">
-            shadcn/ui proved that developers don&apos;t want another dependency—they want raw source
-            control in their own repository to wrap their custom business logic around. Backend
-            infrastructure deserves the exact same approach. No locked black boxes.
-          </p>
-        </div>
-
-        {/* Brutalist Architectural Card Layout Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 border-t border-l border-border/60 bg-muted/5">
-          {PHILOSOPHY_CARDS.map((card, i) => (
-            <div
-              key={card.title}
-              className="group relative flex flex-col justify-between p-6 sm:p-8 border-r border-b border-border/60 bg-background transition-all duration-150 hover:bg-muted/10 cursor-default select-none"
-              style={{ transitionDelay: `${i * 0.04}s` }}
-            >
-              <div>
-                {/* Structural Label Indicator: Pure Mono */}
-                <div className="font-mono text-[9px] text-muted-foreground/30 mb-3 uppercase tracking-wider">
-                  {`layer_0${i + 1} // directive`}
+      {/* Grid of Philosophy Cards */}
+      <ul
+        role="list"
+        aria-label="Architectural philosophy principles"
+        className="grid md:grid-cols-3 gap-4 list-none p-0 m-0"
+      >
+        {PHILOSOPHY_CARDS.map((card) => (
+          <li key={card.title} className="flex">
+            <Card className="w-full p-6 rounded-card bg-carbon border-graphite space-y-3 shadow-none flex flex-col justify-between">
+              <CardHeader className="p-0 space-y-3">
+                <div className="font-mono text-[9px] text-ash uppercase tracking-wider">
+                  layer directive
                 </div>
-
-                {/* Card Feature Title: Standard Sans */}
-                <h3 className="font-sans font-semibold text-sm mb-3 text-foreground tracking-tight group-hover:text-primary transition-colors">
+                <CardTitle className="text-[15px] font-medium text-paper p-0 m-0 leading-snug">
                   {card.title}
-                </h3>
+                </CardTitle>
+              </CardHeader>
 
-                {/* Body Content Node Parser: Standard Sans with Mono Inlines */}
-                <p className="text-xs text-muted-foreground/90 leading-relaxed font-sans">
-                  {card.body.split("node_modules").map((chunk, index, array) => (
-                    <span key={index}>
-                      {chunk}
-                      {index < array.length - 1 && (
-                        <code className="font-mono bg-muted/70 text-foreground border border-border/40 px-1 py-0.5 rounded-none text-[0.85em] select-all font-medium">
-                          node_modules
-                        </code>
-                      )}
-                    </span>
-                  ))}
-                </p>
-              </div>
-
-              {/* Decorative Corner Structural Hash Marker */}
-              <span className="absolute bottom-1 right-2 font-mono text-[8px] opacity-0 group-hover:opacity-30 text-muted-foreground/50 transition-opacity">
-                {`[init_src_mod_${i + 1}]`}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+              <CardContent className="p-0 m-0 flex-1">
+                <p className="text-[13px] text-fog leading-relaxed">{card.body}</p>
+              </CardContent>
+            </Card>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

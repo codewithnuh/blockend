@@ -5,17 +5,31 @@ import Image from "next/image";
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
-      // JSX supported
       title: (
-        <>
-          <span className="flex items-center justify-center space-x-2">
-            <Image src={"/blockend-logo.png"} alt="blockend" width={20} height={20} />
-            <p className="font-bold dark:text-white text-black">Blockend</p>
-          </span>
-        </>
+        <span className="flex items-center justify-center space-x-2">
+          <Image src="/blockend-logo.png" alt="blockend" width={20} height={20} />
+          <p className="font-bold dark:text-white text-black">Blockend</p>
+        </span>
       ),
       transparentMode: "top"
     },
+    // Add custom navigation links here
+    links: [
+      {
+        text: "Documentation",
+        url: "/docs",
+        active: "nested-url" // Highlights link when under /docs/*
+      },
+      {
+        text: "Catalog",
+        url: "/#catalog"
+      },
+      {
+        text: "GitHub",
+        url: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
+        external: true // Opens external links in a new tab
+      }
+    ],
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`
   };
 }

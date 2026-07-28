@@ -1,76 +1,54 @@
-"use client";
-
+import { FINAL_CTA } from "@/lib/landing-constants";
+import { CommandBlock } from "./CommandBlock";
 import Link from "next/link";
-import { Terminal, FileText } from "lucide-react";
-import { CopyButton } from "./CopyButton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export function FinalCTASection() {
   return (
-    <section className="relative py-24 sm:py-32 border-t border-border bg-background text-foreground overflow-hidden">
-      {/* Structural matrix crosshair overlay background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--border),0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(var(--border),0.1)_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none opacity-40" />
-
-      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 z-10">
-        {/* Terminal Deployment Shell Panel */}
-        <div className="rounded-none border border-border bg-card shadow-sm max-w-2xl mx-auto">
-          {/* Top Panel System Status */}
-          <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-3 select-none">
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block w-2 h-2 rounded-none bg-primary animate-pulse"></span>
-              <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/80">
-                system // terminal_deployment
-              </span>
-            </div>
-            <div className="font-mono text-[9px] text-muted-foreground/30">root_session_active</div>
-          </div>
-
-          {/* Panel Core Content */}
-          <div className="p-6 sm:p-10 text-center">
-            {/* Primary Editorial Conversion Title: Inter Display */}
+    <section
+      id="get-started"
+      aria-labelledby="cta-heading"
+      className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8"
+    >
+      <Card className="p-10 md:p-16 rounded-card bg-carbon border-graphite text-center shadow-linear-card border">
+        <CardContent className="p-0 max-w-2xl mx-auto space-y-6">
+          <header className="space-y-4">
             <h2
-              id="final-cta-heading"
-              className="reveal font-display font-bold text-2xl sm:text-3xl tracking-tight mb-4 text-foreground text-balance"
+              id="cta-heading"
+              className="text-3xl sm:text-4xl font-medium text-paper tracking-compact"
             >
-              Stop rewriting the same backend.
+              {FINAL_CTA.headline}
             </h2>
+            <p className="text-[15px] text-fog leading-relaxed">{FINAL_CTA.description}</p>
+          </header>
 
-            {/* Descriptive Body Copy: Standard Sans */}
-            <p
-              className="reveal font-sans text-xs sm:text-sm text-muted-foreground/90 max-w-md mx-auto mb-8 leading-relaxed"
-              style={{ transitionDelay: "0.08s" }}
+          {/* Action Buttons */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button
+              asChild
+              className="w-full sm:w-auto px-6 py-2.5 text-[14px] font-medium rounded-btn bg-acid-lime text-void hover:bg-[#d6e31f] transition-all shadow-linear-button text-center h-auto"
             >
-              Inject verified structural patterns into your project pipeline in under 60 seconds.
-              Zero config file overhead.
-            </p>
+              <Link href={FINAL_CTA.primaryCta.href}>{FINAL_CTA.primaryCta.label}</Link>
+            </Button>
 
-            {/* CTA Interaction Control Strip */}
-            <div
-              className="reveal flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md mx-auto"
-              style={{ transitionDelay: "0.14s" }}
+            <Button
+              asChild
+              variant="outline"
+              className="w-full sm:w-auto px-5 py-2.5 text-[13px] font-normal text-mist hover:text-paper border-graphite rounded-btn hover:bg-obsidian bg-transparent transition-all text-center h-auto"
             >
-              {/* Primary Command Interaction: Code Base Mono */}
-              <div className="flex-1 flex items-center gap-2 rounded-none border border-border bg-muted/20 px-3 py-1.5 transition-all focus-within:border-primary/40">
-                <Terminal className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 select-none" />
-                <code className="flex-1 text-left font-mono text-xs text-foreground overflow-x-auto whitespace-nowrap scrollbar-none select-all pr-2">
-                  npx blockend-cli init
-                </code>
-                <CopyButton command="npx blockend-cli init" />
-              </div>
-
-              {/* Secondary Reference Fallback: Action Mono */}
-              <Link
-                href="/docs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-none border border-border bg-background px-4 py-2 text-xs font-mono font-bold tracking-wide uppercase text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0 active:scale-[0.98]"
-              >
-                <FileText className="h-3.5 w-3.5" />
-                <span>read_docs_</span>
+              <Link href={FINAL_CTA.secondaryCta.href} target="_blank" rel="noopener noreferrer">
+                {FINAL_CTA.secondaryCta.label}
               </Link>
-            </div>
+            </Button>
           </div>
-        </div>
-      </div>
+
+          {/* CLI / Quick Installation Command */}
+          <div className="pt-4 flex justify-center">
+            <CommandBlock command={FINAL_CTA.command} />
+          </div>
+        </CardContent>
+      </Card>
     </section>
   );
 }

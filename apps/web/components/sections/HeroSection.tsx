@@ -1,89 +1,102 @@
 import Link from "next/link";
-import { CopyButton } from "./CopyButton";
-import { HeroTerminal } from "./HeroTerminal";
-import { FileText, Terminal } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { HERO, CODE_EXAMPLE } from "@/lib/landing-constants";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "./Badge";
+import { CommandBlock } from "./CommandBlock";
+import { HighlightedCode } from "./HighlightedCode";
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-[100dvh] flex items-center pt-28 pb-16 overflow-hidden bg-background text-foreground">
-      {/* Background */}
-      <div className="absolute inset-0 dot-grid pointer-events-none opacity-50 dark:opacity-100" />
-      <div className="absolute inset-0 glow-radial pointer-events-none opacity-50 dark:opacity-100" />
-      <div className="absolute inset-0 noise pointer-events-none opacity-[0.02] dark:opacity-[0.05]" />
+    <section
+      aria-labelledby="hero-heading"
+      className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-28 pb-12 sm:pb-20"
+    >
+      <div className="max-w-4xl space-y-6">
+        <StatusBadge label={HERO.badge} />
 
-      <div className="relative max-w-6xl mx-auto px-6 lg:px-12 w-full grid lg:grid-cols-[1.05fr_1fr] gap-16 items-center">
-        {/* Left */}
-        <div>
-          {/* Eyebrow */}
-          <div className="reveal inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-[0.7rem] font-mono font-semibold tracking-[0.1em] uppercase text-muted-foreground mb-7">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            Source-first backend toolkit
-          </div>
+        <h1
+          id="hero-heading"
+          className="text-[clamp(2rem,5vw,4rem)] font-medium text-paper tracking-tight leading-none"
+        >
+          {HERO.headline}
+        </h1>
 
-          {/* Headline */}
-          <h1
-            className="reveal font-display font-bold text-[clamp(2.6rem,5.4vw,4.6rem)] leading-[0.98] tracking-tight"
-            style={{ transitionDelay: "0.05s" }}
+        <p className="text-[clamp(0.9375rem,1.5vw,1.25rem)] text-fog max-w-2xl font-regular leading-snug">
+          {HERO.subheadline}
+        </p>
+
+        <nav
+          aria-label="Hero Actions"
+          className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+        >
+          <Button
+            asChild
+            className="px-5 w-full sm:w-auto py-2.5 h-auto text-[14px] font-medium rounded-btn bg-acid-lime text-void hover:bg-[#d6e31f] transition-all shadow-linear-button flex items-center justify-center gap-2"
           >
-            Build backends.
-            <br />
-            <span className="text-primary">Own</span> every line.
-          </h1>
-
-          {/* Description */}
-          <p
-            className="reveal text-[clamp(1.05rem,1.6vw,1.2rem)] leading-[1.65] text-muted-foreground mt-6 max-w-[34rem]"
-            style={{ transitionDelay: "0.12s" }}
-          >
-            Blockend generates production-ready backend infrastructure directly into your project.
-            Authentication, rate limiting, logging, and error handling — clean source code you can
-            read, modify, and ship.
-          </p>
-
-          {/* Features */}
-          <div
-            className="reveal mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs font-mono text-muted-foreground"
-            style={{ transitionDelay: "0.15s" }}
-          >
-            <span>✓ Uses battle-tested runtime dependencies</span>
-            <span>✓ Avoids insecure custom implementations</span>
-            <span>✓ Powerful, editable source code</span>
-          </div>
-
-          {/* CTA */}
-          <div
-            id="install"
-            className="reveal mt-10 flex flex-col sm:flex-row sm:items-stretch gap-3 max-w-md"
-            style={{ transitionDelay: "0.18s" }}
-          >
-            {/* Command */}
-            <div className="flex-1 flex items-center gap-2 border border-border bg-muted/10 px-3 py-1.5 focus-within:border-primary/40">
-              <Terminal className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-
-              <code className="flex-1 text-left font-mono text-xs text-foreground overflow-x-auto whitespace-nowrap scrollbar-none select-all pr-2">
-                npx blockend-cli init
-              </code>
-
-              <CopyButton
-                command="npx blockend init"
-                className="border-none bg-transparent hover:bg-muted/50 h-7"
-              />
-            </div>
-
-            {/* Docs */}
-            <Link
-              href="/docs"
-              className="flex items-center justify-center gap-2 border border-border bg-background px-5 py-2.5 text-xs font-mono font-medium tracking-wide uppercase text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Documentation
+            <Link href={HERO.cta.href}>
+              <span>{HERO.cta.label}</span>
+              <ArrowRight className="w-3 h-3 shrink-0" aria-hidden="true" />
             </Link>
-          </div>
-        </div>
+          </Button>
 
-        {/* Terminal */}
-        <HeroTerminal />
+          <Button
+            asChild
+            variant="outline"
+            className="px-4 w-full sm:w-auto py-2.5 h-auto text-[13px] font-regular text-mist hover:text-paper border-graphite rounded-btn hover:bg-carbon transition-all flex items-center justify-center gap-2 bg-transparent"
+          >
+            <Link href={HERO.secondaryCta.href}>
+              <span>{HERO.secondaryCta.label}</span>
+            </Link>
+          </Button>
+        </nav>
+
+        <div className="pt-4">
+          <CommandBlock command={HERO.command} />
+        </div>
       </div>
+
+      {/* Code Showcase Block */}
+      <figure
+        aria-label="Code Example: Rate Limiter Implementation"
+        className="mt-12 md:mt-16 rounded-card bg-[#0d0e11] border border-white/[0.08] shadow-2xl overflow-hidden"
+      >
+        <figcaption className="px-4 py-3 bg-[#121316] border-b border-white/[0.08] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[12px] font-mono">
+          {/* Window Controls & File Path */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5" aria-hidden="true">
+              <span className="w-2.5 h-2.5 rounded-full bg-white/[0.12] inline-block" />
+              <span className="w-2.5 h-2.5 rounded-full bg-white/[0.12] inline-block" />
+              <span className="w-2.5 h-2.5 rounded-full bg-white/[0.12] inline-block" />
+            </div>
+            <span className="ml-2 text-white/50 text-[12px]">src/blocks/rate-limiter.ts</span>
+          </div>
+
+          {/* Metadata Badges */}
+          <div className="flex items-center gap-2" role="list" aria-label="Code metrics">
+            <Badge
+              variant="outline"
+              role="listitem"
+              className="px-2 py-0.5 rounded-md bg-white/[0.03] border-white/[0.08] text-[11px] text-white/70 font-normal tracking-wide transition-colors hover:bg-white/[0.06]"
+            >
+              Zero Runtime Dep
+            </Badge>
+            <Badge
+              variant="outline"
+              role="listitem"
+              className="px-2 py-0.5 rounded-md bg-white/[0.03] border-white/[0.08] text-[11px] text-white/70 font-normal tracking-wide transition-colors hover:bg-white/[0.06]"
+            >
+              100% Strict TypeScript
+            </Badge>
+          </div>
+        </figcaption>
+
+        {/* Code Container */}
+        <div className="bg-[#0d0e11]">
+          <HighlightedCode code={CODE_EXAMPLE} />
+        </div>
+      </figure>
     </section>
   );
 }
