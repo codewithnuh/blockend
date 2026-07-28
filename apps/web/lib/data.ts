@@ -1,5 +1,4 @@
 import type {
-  NavLink,
   TerminalLine,
   BlockChip,
   WorkflowStep,
@@ -10,18 +9,6 @@ import type {
   SelectOption,
   FooterLink
 } from "./types";
-
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-export const NAV_LINKS: NavLink[] = [
-  { href: "#how", label: "How it works" },
-  { href: "#blocks", label: "Blocks" },
-  { href: "#roadmap", label: "Roadmap" },
-  {
-    href: "https://www.npmjs.com/package/blockend-cli",
-    label: "npm",
-    external: true
-  }
-];
 
 // ─── Hero terminal script ─────────────────────────────────────────────────────
 export const TERMINAL_SCRIPT: TerminalLine[] = [

@@ -1,7 +1,6 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { gitConfig } from "./shared";
 import Image from "next/image";
-
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
@@ -13,23 +12,7 @@ export function baseOptions(): BaseLayoutProps {
       ),
       transparentMode: "top"
     },
-    // Add custom navigation links here
-    links: [
-      {
-        text: "Documentation",
-        url: "/docs",
-        active: "nested-url" // Highlights link when under /docs/*
-      },
-      {
-        text: "Catalog",
-        url: "/#catalog"
-      },
-      {
-        text: "GitHub",
-        url: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
-        external: true // Opens external links in a new tab
-      }
-    ],
+
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`
   };
 }

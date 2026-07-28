@@ -1,8 +1,12 @@
-export interface NavLink {
-  href: string;
-  label: string;
-  external?: boolean;
-}
+export const NAV_LINKS = [
+  { url: "#how-it-works", text: "How it works" },
+  { url: "#catalog", text: "Catalog" },
+  { url: "#features", text: "Features" },
+  { url: "#mcp", text: "MCP" },
+  { url: "#roadmap", text: "Roadmap" },
+  { url: "#faq", text: "FAQ" },
+  { url: "/docs", text: "Documentation", active: "nested-url" }
+];
 
 export interface ProblemItem {
   icon: string;
@@ -292,36 +296,36 @@ export const MCP_SECTION = {
 } as const;
 
 export const ROADMAP = {
-  badge: "Future",
+  badge: "Roadmap",
   headline: "Roadmap & Vision",
   items: [
     {
-      period: "Q3 2026",
-      title: "Expanded Catalog",
-      description: "JWT authentication, CORS, and audit logging blocks.",
+      period: "Now",
+      title: "Core Blocks",
+      description: "Validation, errors, logging, health, shutdown, and response formatting.",
       color: "text-pulse-green"
     },
     {
-      period: "Q4 2026",
-      title: "Storage Adapters",
-      description: "Redis, PostgreSQL, and Upstash storage flags.",
+      period: "Next",
+      title: "Framework Coverage",
+      description: "Refine adapters for Express, Fastify, and Hono.",
       color: "text-signal-teal"
     },
     {
-      period: "Q1 2027",
-      title: "Starter Kits",
-      description: "Pre-composed starter compositions for full microservices.",
+      period: "Next",
+      title: "Security Blocks",
+      description: "JWT, password hashing, CORS, headers, idempotency, and env config.",
       color: "text-iris-violet"
     },
     {
-      period: "Future",
-      title: "AI Verification",
-      description: "Local sync verification and refactoring agents.",
+      period: "Later",
+      title: "Starter Kits",
+      description: "SaaS and API starters built from Blockend blocks.",
       color: "text-ash"
     }
   ] as RoadmapItem[],
   quote:
-    '"Blockend provides a source-first backend foundation: generating readable, battle-tested code directly into your repository without black-box framework lock-in."'
+    "Blockend generates source-first backend code directly into your repository, so you own, inspect, and extend every block."
 } as const;
 
 export const FAQ_SECTION = {

@@ -24,20 +24,24 @@ export function CommandBlock({ command, className }: CommandBlockProps) {
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-3 rounded-btn border border-graphite bg-obsidian px-3.5 py-2 font-mono text-[12px] text-mist shadow-linear-sm",
+        "inline-flex items-center gap-3 rounded-btn border border-border bg-surface-2 dark:border-graphite dark:bg-obsidian px-3.5 py-2 font-mono text-[12px] text-muted-foreground dark:text-mist shadow-sm dark:shadow-linear-sm transition-colors",
         className
       )}
     >
-      <span className="text-ash select-none">$</span>
-      <span className="text-bone whitespace-nowrap">{command}</span>
+      <span className="text-muted-foreground/70 dark:text-ash select-none transition-colors">
+        $
+      </span>
+      <span className="text-fg dark:text-bone font-medium dark:font-normal whitespace-nowrap transition-colors">
+        {command}
+      </span>
       <button
         onClick={handleCopy}
-        className="ml-auto text-ash hover:text-mist transition-colors shrink-0"
+        className="ml-auto text-muted-foreground/70 hover:text-fg dark:text-ash dark:hover:text-mist transition-colors shrink-0"
         aria-label={copied ? "Copied" : "Copy command"}
       >
         {copied ? (
           <svg
-            className="w-3.5 h-3.5 text-pulse-green"
+            className="w-3.5 h-3.5 text-emerald-600 dark:text-pulse-green"
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth={2}

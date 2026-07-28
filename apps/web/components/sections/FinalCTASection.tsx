@@ -11,31 +11,35 @@ export function FinalCTASection() {
       aria-labelledby="cta-heading"
       className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8"
     >
-      <Card className="p-10 md:p-16 rounded-card bg-carbon border-graphite text-center shadow-linear-card border">
+      <Card className="p-10 md:p-16 rounded-card bg-surface border-border dark:bg-carbon dark:border-graphite text-center shadow-sm dark:shadow-linear-card transition-colors">
         <CardContent className="p-0 max-w-2xl mx-auto space-y-6">
           <header className="space-y-4">
             <h2
               id="cta-heading"
-              className="text-3xl sm:text-4xl font-medium text-paper tracking-compact"
+              className="text-3xl sm:text-4xl font-medium text-fg dark:text-paper tracking-tight transition-colors"
             >
               {FINAL_CTA.headline}
             </h2>
-            <p className="text-[15px] text-fog leading-relaxed">{FINAL_CTA.description}</p>
+            <p className="text-[15px] text-muted-foreground dark:text-fog leading-relaxed transition-colors">
+              {FINAL_CTA.description}
+            </p>
           </header>
 
           {/* Action Buttons */}
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            {/* Primary Action Button */}
             <Button
               asChild
-              className="w-full sm:w-auto px-6 py-2.5 text-[14px] font-medium rounded-btn bg-acid-lime text-void hover:bg-[#d6e31f] transition-all shadow-linear-button text-center h-auto"
+              className="w-full sm:w-auto px-6 py-2.5 text-[14px] font-medium rounded-btn bg-lime-600 text-white hover:bg-lime-700 dark:bg-acid-lime dark:text-void dark:hover:bg-[#d6e31f] transition-all shadow-sm dark:shadow-linear-button text-center h-auto border-none"
             >
               <Link href={FINAL_CTA.primaryCta.href}>{FINAL_CTA.primaryCta.label}</Link>
             </Button>
 
+            {/* Secondary Action Button */}
             <Button
               asChild
               variant="outline"
-              className="w-full sm:w-auto px-5 py-2.5 text-[13px] font-normal text-mist hover:text-paper border-graphite rounded-btn hover:bg-obsidian bg-transparent transition-all text-center h-auto"
+              className="w-full sm:w-auto px-5 py-2.5 text-[13px] font-normal text-muted-foreground hover:text-fg border-border dark:text-mist dark:hover:text-paper dark:border-graphite rounded-btn hover:bg-surface-2 dark:hover:bg-obsidian bg-transparent transition-all text-center h-auto"
             >
               <Link href={FINAL_CTA.secondaryCta.href} target="_blank" rel="noopener noreferrer">
                 {FINAL_CTA.secondaryCta.label}

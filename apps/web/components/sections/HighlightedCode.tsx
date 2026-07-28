@@ -31,7 +31,7 @@ export async function HighlightedCode({
       tabIndex={0}
       role="region"
       aria-label={ariaLabel || `${lang.toUpperCase()} code example`}
-      className="group relative not-prose rounded-lg bg-[#0d0e11] border border-white/[0.08] p-4 sm:p-5 font-mono text-[13px] leading-relaxed text-[#f7f8f8] selection:bg-[#5e6ad2]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5e6ad2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0e11] overflow-x-auto"
+      className="group relative not-prose rounded-lg dark:bg-[#0d0e11] border border-white/[0.08] p-4 sm:p-5 font-mono text-[13px] leading-relaxed text-[#f7f8f8] selection:bg-[#5e6ad2]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5e6ad2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0e11] overflow-x-auto"
     >
       <div
         className="

@@ -15,15 +15,40 @@ function FrameworkIcon({ icon }: FrameworkIconProps) {
 
   switch (icon) {
     case "node-js":
-      return <Terminal {...iconProps} className="w-4 h-4 text-pulse-green shrink-0" />;
+      return (
+        <Terminal
+          {...iconProps}
+          className="w-4 h-4 text-emerald-600 dark:text-pulse-green shrink-0 transition-colors"
+        />
+      );
     case "bolt":
-      return <Zap {...iconProps} className="w-4 h-4 text-acid-lime shrink-0" />;
+      return (
+        <Zap
+          {...iconProps}
+          className="w-4 h-4 text-lime-600 dark:text-acid-lime shrink-0 transition-colors"
+        />
+      );
     case "fire":
-      return <Flame {...iconProps} className="w-4 h-4 text-coral-red shrink-0" />;
+      return (
+        <Flame
+          {...iconProps}
+          className="w-4 h-4 text-red-600 dark:text-coral-red shrink-0 transition-colors"
+        />
+      );
     case "n":
-      return <Layers {...iconProps} className="w-4 h-4 text-paper shrink-0" />;
+      return (
+        <Layers
+          {...iconProps}
+          className="w-4 h-4 text-fg dark:text-paper shrink-0 transition-colors"
+        />
+      );
     default:
-      return <Terminal {...iconProps} className="w-4 h-4 text-mist shrink-0" />;
+      return (
+        <Terminal
+          {...iconProps}
+          className="w-4 h-4 text-muted-foreground dark:text-mist shrink-0 transition-colors"
+        />
+      );
   }
 }
 
@@ -34,13 +59,13 @@ export function FrameworkSupportSection() {
       aria-labelledby="frameworks-heading"
       className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8"
     >
-      <Card className="p-8 md:p-14 rounded-card bg-carbon border-graphite text-center space-y-10 shadow-none border">
+      <Card className="p-8 md:p-14 rounded-card bg-surface border-border dark:bg-carbon dark:border-graphite text-center space-y-10 shadow-sm transition-colors border">
         {/* Section Header */}
         <CardHeader className="p-0 flex flex-col items-center justify-center space-y-3">
           <div>
             <Badge
               variant="outline"
-              className="font-mono text-[12px] text-ash tracking-widest uppercase border-none bg-transparent p-0 shadow-none font-normal"
+              className="font-mono text-[12px] text-muted-foreground dark:text-ash tracking-widest uppercase border-none bg-transparent p-0 shadow-none font-normal transition-colors"
             >
               {FRAMEWORKS.badge}
             </Badge>
@@ -48,13 +73,15 @@ export function FrameworkSupportSection() {
 
           <CardTitle
             id="frameworks-heading"
-            className="text-2xl sm:text-[32px] font-regular text-paper tracking-compact leading-tight max-w-[500px] mx-auto"
+            className="text-2xl sm:text-[32px] font-normal text-fg dark:text-paper tracking-tight leading-tight max-w-[500px] mx-auto transition-colors"
           >
             {FRAMEWORKS.headline}
           </CardTitle>
 
           <CardContent className="p-0 pt-1 max-w-[460px] mx-auto">
-            <p className="text-[14px] text-fog leading-relaxed">{FRAMEWORKS.description}</p>
+            <p className="text-[14px] text-muted-foreground dark:text-fog leading-relaxed transition-colors">
+              {FRAMEWORKS.description}
+            </p>
           </CardContent>
         </CardHeader>
 
@@ -66,7 +93,7 @@ export function FrameworkSupportSection() {
         >
           {FRAMEWORKS.items.map((fw) => (
             <li key={fw.name} className="flex">
-              <div className="w-full py-3 px-4 rounded-btn bg-obsidian border border-graphite flex items-center justify-center gap-2.5 text-mist hover:text-paper hover:border-smoke transition-colors">
+              <div className="w-full py-3 px-4 rounded-btn bg-surface-2 border-border dark:bg-obsidian dark:border-graphite flex items-center justify-center gap-2.5 text-muted-foreground dark:text-mist hover:text-fg dark:hover:text-paper hover:border-border/80 dark:hover:border-smoke transition-colors">
                 <FrameworkIcon icon={fw.icon} />
                 <span className="whitespace-nowrap">{fw.name}</span>
               </div>

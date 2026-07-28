@@ -91,7 +91,12 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className="scroll-smooth"
+      suppressHydrationWarning
+    >
       <body className={`${inter.variable} flex flex-col min-h-screen`}>
         <RootProvider>{children}</RootProvider>
         <Analytics />

@@ -48,7 +48,7 @@ export function GithubStarBanner() {
             </p>
           </div>
 
-          <Button asChild size="sm" className="h-8 shrink-0 bg-amber-600 px-3 hover:bg-amber-700">
+          <Button asChild size="sm" className="h-8 shrink-0 bg-amber-600  px-3 hover:bg-amber-700">
             <Link
               href="https://github.com/codewithnuh/blockend"
               target="_blank"

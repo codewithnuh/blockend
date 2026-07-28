@@ -29,17 +29,18 @@ function ProblemIcon({ icon }: ProblemIconProps) {
 export function ProblemSection() {
   return (
     <section
+      id="problem"
       aria-labelledby="problem-heading"
       className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8"
     >
-      {/* Section Header Header Group */}
+      {/* Section Header Group */}
       <header className="mb-12">
-        <span className="font-mono text-[12px] text-ash tracking-widest uppercase block">
+        <span className="font-mono text-[12px] text-muted-foreground dark:text-ash tracking-widest uppercase block transition-colors">
           {PROBLEM_SECTION.badge}
         </span>
         <h2
           id="problem-heading"
-          className="text-2xl sm:text-[32px] font-regular text-paper tracking-compact mt-2"
+          className="text-2xl sm:text-[32px] font-normal text-fg dark:text-paper tracking-tight mt-2 transition-colors"
         >
           {PROBLEM_SECTION.headline}
         </h2>
@@ -53,21 +54,23 @@ export function ProblemSection() {
       >
         {PROBLEM_SECTION.items.map((item) => (
           <li key={item.title}>
-            <Card className="h-full p-5 rounded-card bg-carbon border-graphite space-y-3 shadow-none">
+            <Card className="h-full p-5 rounded-card bg-surface border-border dark:bg-carbon dark:border-graphite space-y-3 shadow-sm transition-colors">
               <CardHeader className="p-0 space-y-3">
                 <div
                   aria-hidden="true"
-                  className="w-8 h-8 rounded-btn bg-obsidian border border-graphite flex items-center justify-center text-fog shrink-0"
+                  className="w-8 h-8 rounded-btn bg-surface-2 border-border dark:bg-obsidian dark:border-graphite flex items-center justify-center text-muted-foreground dark:text-fog shrink-0 transition-colors"
                 >
                   <ProblemIcon icon={item.icon} />
                 </div>
-                <CardTitle className="text-[15px] font-medium text-paper p-0 m-0 leading-snug">
+                <CardTitle className="text-[15px] font-medium text-fg dark:text-paper p-0 m-0 leading-snug transition-colors">
                   {item.title}
                 </CardTitle>
               </CardHeader>
 
               <CardContent className="p-0 m-0">
-                <p className="text-[13px] text-fog leading-relaxed">{item.description}</p>
+                <p className="text-[13px] text-muted-foreground dark:text-fog leading-relaxed transition-colors">
+                  {item.description}
+                </p>
               </CardContent>
             </Card>
           </li>

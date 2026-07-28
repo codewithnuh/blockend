@@ -9,7 +9,7 @@ interface DetailIconProps {
 
 function DetailIcon({ icon }: DetailIconProps) {
   const iconProps = {
-    className: "w-3.5 h-3.5 text-ash shrink-0",
+    className: "w-3.5 h-3.5 text-muted-foreground dark:text-ash shrink-0 transition-colors",
     "aria-hidden": true
   };
 
@@ -39,7 +39,7 @@ export function MCPSection() {
             <div>
               <Badge
                 variant="outline"
-                className="inline-flex items-center gap-2 px-2.5 py-1 rounded-pill bg-carbon border-graphite font-mono text-[12px] text-iris-violet font-normal"
+                className="inline-flex items-center gap-2 px-2.5 py-1 rounded-pill bg-surface-2 border-border dark:bg-carbon dark:border-graphite font-mono text-[12px] text-violet-600 dark:text-iris-violet font-normal transition-colors"
               >
                 <Cpu className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                 {MCP_SECTION.badge}
@@ -48,27 +48,30 @@ export function MCPSection() {
 
             <h2
               id="mcp-heading"
-              className="text-2xl sm:text-[32px] font-regular text-paper tracking-compact leading-tight"
+              className="text-2xl sm:text-[32px] font-normal text-fg dark:text-paper tracking-tight leading-tight transition-colors"
             >
               {MCP_SECTION.headline}
             </h2>
           </header>
 
-          <p className="text-[14px] text-fog leading-relaxed">{MCP_SECTION.description}</p>
+          <p className="text-[14px] text-muted-foreground dark:text-fog leading-relaxed transition-colors">
+            {MCP_SECTION.description}
+          </p>
 
           {/* Feature List */}
           <ul
             role="list"
             aria-label="Model Context Protocol features"
-            className="space-y-3 font-mono text-[12px] text-mist list-none p-0 m-0"
+            className="space-y-3 font-mono text-[12px] text-muted-foreground dark:text-mist list-none p-0 m-0"
           >
             {MCP_SECTION.features.map((f) => (
               <li
                 key={f.text}
-                className="p-3 rounded-btn bg-carbon border border-graphite flex items-center gap-3"
+                className="p-3 rounded-btn bg-surface border border-border dark:bg-carbon dark:border-graphite flex items-center gap-3 transition-colors"
               >
                 <DetailIcon icon={f.icon} />
                 <span
+                  className="[&>strong]:text-fg dark:[&>strong]:text-paper [&>strong]:font-semibold"
                   dangerouslySetInnerHTML={{
                     __html: f.text.replace(/(<strong>.*?<\/strong>)/g, "$1")
                   }}
@@ -79,19 +82,24 @@ export function MCPSection() {
         </div>
 
         {/* Right Column: Simulated AI Session Card */}
-        <Card className="lg:col-span-6 p-6 rounded-card bg-carbon border-graphite shadow-linear-card space-y-4 font-mono text-[12px] shadow-none">
-          <CardHeader className="p-0 pb-3 border-b border-graphite flex flex-row items-center justify-between text-ash space-y-0">
-            <CardTitle className="text-[12px] font-mono font-normal text-ash">
+        <Card className="lg:col-span-6 p-6 rounded-card bg-surface border-border dark:bg-carbon dark:border-graphite shadow-sm space-y-4 font-mono text-[12px] transition-colors">
+          <CardHeader className="p-0 pb-3 border-b border-border dark:border-graphite flex flex-row items-center justify-between text-muted-foreground dark:text-ash space-y-0 transition-colors">
+            <CardTitle className="text-[12px] font-mono font-normal text-muted-foreground dark:text-ash transition-colors">
               {MCP_SECTION.sessionTitle}
             </CardTitle>
-            <span className="text-paper">{MCP_SECTION.sessionPlatform}</span>
+            <span className="text-fg dark:text-paper transition-colors">
+              {MCP_SECTION.sessionPlatform}
+            </span>
           </CardHeader>
 
           <CardContent className="p-0">
-            <div className="p-4 rounded-btn bg-obsidian border border-graphite space-y-3">
+            <div className="p-4 rounded-btn bg-surface-2 border border-border dark:bg-obsidian dark:border-graphite space-y-3 transition-colors">
               {/* User Prompt */}
-              <div className="text-mist flex items-start gap-2">
-                <span className="text-acid-lime shrink-0" aria-hidden="true">
+              <div className="text-muted-foreground dark:text-mist flex items-start gap-2 transition-colors">
+                <span
+                  className="text-lime-600 dark:text-acid-lime shrink-0 font-bold transition-colors"
+                  aria-hidden="true"
+                >
                   &gt; Prompt:
                 </span>
                 <span>{MCP_SECTION.sessionPrompt}</span>
@@ -99,13 +107,15 @@ export function MCPSection() {
 
               {/* Terminal Execution Steps */}
               <div
-                className="pl-4 border-l border-graphite text-fog space-y-1.5"
+                className="pl-4 border-l border-border dark:border-graphite text-muted-foreground dark:text-fog space-y-1.5 transition-colors"
                 aria-label="Automated execution trace"
               >
                 {MCP_SECTION.sessionSteps.map((step, i) => (
                   <p key={i} className={step.color}>
                     {step.muted ? (
-                      <span className="text-ash text-[11px]">{step.text}</span>
+                      <span className="text-muted-foreground/70 dark:text-ash text-[11px] transition-colors">
+                        {step.text}
+                      </span>
                     ) : (
                       step.text
                     )}
