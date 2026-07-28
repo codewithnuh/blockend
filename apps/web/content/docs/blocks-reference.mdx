@@ -1,0 +1,28 @@
+---
+title: Blocks Reference
+description: Browse all available backend blocks. This page automatically updates when new blocks are added to the Blockend registry.
+---
+
+import { BlocksList } from "@/components/blocks-list";
+
+Browse the complete catalog of Blockend backend blocks. Each block is production-ready, type-safe, and framework-agnostic.
+
+Select a block below to view detailed documentation, installation instructions, API reference, and usage examples.
+
+<BlocksList />
+
+---
+
+## Adding a Block
+
+To install any of these blocks into your project:
+
+```bash
+npx blockend-cli add <block-key>
+```
+
+First make sure your project is initialized:
+
+```bash
+npx blockend-cli init
+```

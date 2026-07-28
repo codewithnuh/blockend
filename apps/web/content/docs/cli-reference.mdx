@@ -1,0 +1,257 @@
+---
+title: CLI Reference
+description: Complete reference for the Blockend CLI — all commands, options, and usage.
+---
+
+The Blockend CLI (`blockend-cli`) is the primary interface for initializing projects, discovering and installing backend blocks, and integrating with AI coding assistants via MCP.
+
+## Installation
+
+No global installation required. Run commands directly with `npx`:
+
+```bash
+npx blockend-cli <command> [options]
+```
+
+Or install globally:
+
+```bash
+npm install -g blockend-cli
+blockend <command> [options]
+```
+
+---
+
+## `blockend init`
+
+Initialize a `blockend.json` configuration for your project.
+
+```
+npx blockend init [options]
+```
+
+The `init` command scans your project, detects your framework and package manager, and generates a `blockend.json` file.
+
+### Options
+
+| Option   | Alias | Default | Description                                              |
+| -------- | ----- | ------- | -------------------------------------------------------- |
+| `--yes`  | `-y`  | `false` | Skip prompts and use auto-detected defaults              |
+| `--json` |       | `false` | Output machine-readable JSON instead of interactive text |
+
+### Interactive Prompts
+
+1. **Existing config handling** — keep, overwrite, or regenerate if `blockend.json` already exists
+2. **Framework selection** — auto-detected or manually chosen from Express, Fastify, Next.js, Hono
+3. **Blocks directory** — where block files will be installed (e.g. `src/blocks`)
+4. **Redis** — enable Redis-backed variants if Redis is detected in the project
+5. **Import alias** — derived from `tsconfig.json` paths automatically
+
+### Output
+
+Creates `blockend.json` in the project root:
+
+```json
+{
+  "$schema": "https://blockend.noorulhassan.com/schema.json",
+  "environment": "express",
+  "language": "typescript",
+  "packageManager": "pnpm",
+  "importRewriteStrategy": "remove",
+  "includeRedis": false,
+  "aliases": {
+    "blocks": "@/blocks"
+  },
+  "paths": {
+    "blocks": "./src/blocks"
+  }
+}
+```
+
+---
+
+## `blockend add <block>`
+
+Download and install a backend block into your project.
+
+```
+npx blockend add [block] [options]
+```
+
+If no block name is provided, an interactive selector shows all blocks compatible with your project's framework.
+
+### Options
+
+| Option    | Alias | Default | Description                                    |
+| --------- | ----- | ------- | ---------------------------------------------- |
+| `[block]` |       |         | Block key name (e.g. `rate-limiter`, `logger`) |
+| `--yes`   | `-y`  | `false` | Skip confirmations, auto-select first variant  |
+| `--json`  |       | `false` | Output machine-readable JSON progress          |
+
+### How It Works
+
+1. Finds `blockend.json` by walking up the directory tree
+2. Fetches the registry manifest from `raw.githubusercontent.com`
+3. Filters blocks compatible with your configured environment
+4. Prompts variant selection (e.g. memory vs Redis store) when multiple exist
+5. Installs missing npm dependencies automatically
+6. Downloads source files and writes them to the configured blocks directory
+7. Rewrites import paths according to your project's alias and strategy configuration
+
+### Variant Selection
+
+Blocks with multiple storage backends present a variant picker:
+
+```text
+? Select a storage variant:
+❯ Memory
+  Redis
+```
+
+If Redis is enabled in `blockend.json` and a Redis variant exists, it is auto-selected.
+
+### Framework Detection
+
+The CLI checks whether a block supports your target framework using its `frameworks` field or adapter map. Incompatible blocks are hidden from the selector.
+
+---
+
+## `blockend list`
+
+List available blocks for your project's framework.
+
+```
+npx blockend list [options]
+```
+
+### Options
+
+| Option   | Default | Description                                          |
+| -------- | ------- | ---------------------------------------------------- |
+| `--json` | `false` | Output machine-readable JSON array of block metadata |
+
+### Output
+
+Shows block names, descriptions, and available storage variants:
+
+```text
+Available backend blocks for express:
+
+  rate-limiter
+    IP-based rate limiting middleware with pluggable storage strategies
+    Storage Variants: memory, redis
+
+  logger
+    Framework-agnostic context logging engine
+    Storage Variants: default
+```
+
+---
+
+## `blockend detect`
+
+Scan the current project directory and report detected configuration.
+
+```
+npx blockend detect [options]
+```
+
+### Options
+
+| Option   | Default | Description                                   |
+| -------- | ------- | --------------------------------------------- |
+| `--json` | `false` | Output full detected context as a JSON object |
+
+### Detected Fields
+
+| Field                   | Description                                        |
+| ----------------------- | -------------------------------------------------- |
+| `framework`             | Detected backend framework                         |
+| `language`              | TypeScript or JavaScript                           |
+| `packageManager`        | Detected package manager (npm, pnpm, yarn)         |
+| `srcDir`                | Whether a `src/` directory exists                  |
+| `importRewriteStrategy` | NodeNext (`.js` append) or Bundler (extensionless) |
+| `hasRedis`              | Whether Redis is detected in dependencies          |
+| `hasPrisma`             | Whether Prisma is detected                         |
+| `hasDrizzle`            | Whether Drizzle ORM is detected                    |
+
+---
+
+## `blockend mcp`
+
+Start the MCP server or initialize MCP client configuration.
+
+```
+npx blockend mcp [command] [options]
+```
+
+### `blockend mcp`
+
+Start the MCP server using the Stdio transport. This allows AI coding assistants to interact with Blockend directly.
+
+When the MCP server is running, AI clients can call these tools:
+
+| Tool             | Description                                    |
+| ---------------- | ---------------------------------------------- |
+| `list_blocks`    | List all available blocks with descriptions    |
+| `add_block`      | Install a block into a specified project       |
+| `detect_project` | Analyze a project and return its configuration |
+
+### `blockend mcp init`
+
+Generate MCP configuration files for supported AI clients.
+
+```
+npx blockend mcp init [options]
+```
+
+### Options
+
+| Option      | Alias | Default | Description                                                      |
+| ----------- | ----- | ------- | ---------------------------------------------------------------- |
+| `--client`  |       |         | Target client: `claude`, `codex`, `cursor`, `vscode`, `windsurf` |
+| `--force`   |       | `false` | Overwrite existing configuration files                           |
+| `--dry-run` |       | `false` | Preview changes without writing to disk                          |
+| `--yes`     |       | `false` | Skip prompts, default to Claude Code                             |
+
+### Supported Clients
+
+| Client      | Config File             | Format |
+| ----------- | ----------------------- | ------ |
+| Claude Code | `.mcp.json`             | JSON   |
+| Cursor      | `.cursor/mcp.json`      | JSON   |
+| VS Code     | `.vscode/settings.json` | JSON   |
+| Codex CLI   | `.codex/config.toml`    | TOML   |
+| Windsurf    | `.windsurf/mcp.json`    | JSON   |
+
+---
+
+## Using `blockend` as a Package
+
+Blockend CLI is also importable as a library:
+
+```ts
+import { addCommand } from "blockend-cli";
+import { initCommand } from "blockend-cli";
+import { listCommand } from "blockend-cli";
+import { detectCommand } from "blockend-cli";
+```
+
+Each command accepts options in the same format as the CLI flags.
+
+---
+
+## Exit Codes
+
+| Code | Meaning                                               |
+| ---- | ----------------------------------------------------- |
+| `0`  | Success                                               |
+| `1`  | General error (config missing, network failure, etc.) |
+
+---
+
+## Environment
+
+- **Node.js**: >= 20
+- **Package Manager**: npm, pnpm, or yarn
+- **Language**: TypeScript (JavaScript support is limited)

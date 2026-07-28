@@ -90,13 +90,14 @@ Blockend keeps backend infrastructure close to the code that uses it.
 
 ## Available blocks
 
-| Block                                                                                    | Description                                                     |
-| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| [`rate-limiter`](https://blockend.noorulhassan.com/docs/blocks/rate-limiter)             | Token bucket rate limiting with storage adapters.               |
-| [`error-handler`](https://blockend.noorulhassan.com/docs/blocks/error-handler)           | Centralized error pipeline with typed errors and logging hooks. |
-| [`logger`](https://blockend.noorulhassan.com/docs/blocks/logger)                         | Structured request logging with async context propagation.      |
-| [`request-validator`](https://blockend.noorulhassan.com/docs/blocks/request-validator)   | Zod-based input validation with framework adapters.             |
-| [`response-formatter`](https://blockend.noorulhassan.com/docs/blocks/response-formatter) | Standard API response shapes for success and error payloads.    |
+| Block                                                                                          | Description                                                                  |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [`rate-limiter`](https://blockend.noorulhassan.com/docs/02-blocks/01-rate-limiter)             | Token bucket rate limiting with storage adapters.                            |
+| [`error-handler`](https://blockend.noorulhassan.com/docs/02-blocks/02-global-error-handler)    | Centralized error pipeline with typed errors and logging hooks.              |
+| [`logger`](https://blockend.noorulhassan.com/docs/02-blocks/03-pino-logger)                    | Structured request logging with async context propagation.                   |
+| [`request-validator`](https://blockend.noorulhassan.com/docs/02-blocks/04-request-validator)   | Zod-based input validation with framework adapters.                          |
+| [`response-formatter`](https://blockend.noorulhassan.com/docs/02-blocks/05-response-formatter) | Standard API response shapes for success and error payloads.                 |
+| [`Browse All Blocks`](https://blockend.noorulhassan.com/docs)                                  | Explore the complete collection of available blocks and their documentation. |
 
 ## Installing
 
@@ -133,8 +134,8 @@ Once connected, your AI assistant can:
 ## Docs
 
 - [Documentation](https://blockend.noorulhassan.com/docs)
-- [CLI reference](https://blockend.noorulhassan.com/docs/cli)
-- [Block reference](https://blockend.noorulhassan.com/docs/blocks)
+- [CLI reference](https://blockend.noorulhassan.com/docs/cli-reference)
+- [Block reference](https://blockend.noorulhassan.com/docs/blocks-reference)
 
 ## 🗺️ Roadmap & Vision
 
