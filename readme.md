@@ -97,7 +97,7 @@ Blockend keeps backend infrastructure close to the code that uses it.
 | [`logger`](https://blockend.noorulhassan.com/docs/02-blocks/03-pino-logger)                    | Structured request logging with async context propagation.                   |
 | [`request-validator`](https://blockend.noorulhassan.com/docs/02-blocks/04-request-validator)   | Zod-based input validation with framework adapters.                          |
 | [`response-formatter`](https://blockend.noorulhassan.com/docs/02-blocks/05-response-formatter) | Standard API response shapes for success and error payloads.                 |
-| [`Browse All Blocks`](https://blockend.noorulhassan.com/docs)                                  | Explore the complete collection of available blocks and their documentation. |
+| [`Browse All Blocks`](https://blockend.noorulhassan.com/docs/blocks-reference)                 | Explore the complete collection of available blocks and their documentation. |
 
 ## Installing
 

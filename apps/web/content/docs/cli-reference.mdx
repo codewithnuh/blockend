@@ -13,21 +13,14 @@ No global installation required. Run commands directly with `npx`:
 npx blockend-cli <command> [options]
 ```
 
-Or install globally:
-
-```bash
-npm install -g blockend-cli
-blockend <command> [options]
-```
-
 ---
 
-## `blockend init`
+## `blockend-cli init`
 
 Initialize a `blockend.json` configuration for your project.
 
 ```
-npx blockend init [options]
+npx blockend-cli init [options]
 ```
 
 The `init` command scans your project, detects your framework and package manager, and generates a `blockend.json` file.
@@ -70,12 +63,12 @@ Creates `blockend.json` in the project root:
 
 ---
 
-## `blockend add <block>`
+## `blockend-cli add <block>`
 
 Download and install a backend block into your project.
 
 ```
-npx blockend add [block] [options]
+npx blockend-cli add [block] [options]
 ```
 
 If no block name is provided, an interactive selector shows all blocks compatible with your project's framework.
@@ -116,12 +109,12 @@ The CLI checks whether a block supports your target framework using its `framewo
 
 ---
 
-## `blockend list`
+## `blockend-cli list`
 
 List available blocks for your project's framework.
 
 ```
-npx blockend list [options]
+npx blockend-cli list [options]
 ```
 
 ### Options
@@ -177,7 +170,7 @@ npx blockend detect [options]
 
 ---
 
-## `blockend mcp`
+## `blockend-cli mcp`
 
 Start the MCP server or initialize MCP client configuration.
 
@@ -185,7 +178,7 @@ Start the MCP server or initialize MCP client configuration.
 npx blockend mcp [command] [options]
 ```
 
-### `blockend mcp`
+### `blockend-cli mcp`
 
 Start the MCP server using the Stdio transport. This allows AI coding assistants to interact with Blockend directly.
 
@@ -197,12 +190,12 @@ When the MCP server is running, AI clients can call these tools:
 | `add_block`      | Install a block into a specified project       |
 | `detect_project` | Analyze a project and return its configuration |
 
-### `blockend mcp init`
+### `blockend-cli mcp init`
 
 Generate MCP configuration files for supported AI clients.
 
 ```
-npx blockend mcp init [options]
+npx blockend-cli mcp init [options]
 ```
 
 ### Options
@@ -226,7 +219,7 @@ npx blockend mcp init [options]
 
 ---
 
-## Using `blockend` as a Package
+## Using `blockend-cli` as a Package
 
 Blockend CLI is also importable as a library:
 

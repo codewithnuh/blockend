@@ -46,7 +46,7 @@ export function FAQSection() {
               <span>{item.question}</span>
             </AccordionTrigger>
 
-            <AccordionContent className="px-4 pb-14 pt-0 text-[13px] text-muted-foreground dark:text-fog leading-relaxed transition-colors">
+            <AccordionContent className="px-4 sm:pb-14 pb-20 pt-0 text-[13px] text-muted-foreground dark:text-fog leading-relaxed transition-colors">
               {item.answer}
             </AccordionContent>
           </AccordionItem>

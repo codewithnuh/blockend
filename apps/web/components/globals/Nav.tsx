@@ -19,7 +19,7 @@ interface NavbarProps {
 
 export function Navbar({
   brand = "Blockend",
-  githubUrl = "https://github.com/noorulhassan/blockend",
+  githubUrl = "https://github.com/codewithnuh/blockend",
   getStartedUrl = "#get-started"
 }: NavbarProps) {
   const { theme, setTheme } = useTheme();
