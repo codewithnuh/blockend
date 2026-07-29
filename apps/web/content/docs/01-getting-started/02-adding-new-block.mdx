@@ -8,19 +8,19 @@ The `add` command downloads a backend block from the Blockend registry and insta
 Each block is framework-aware, TypeScript-first, and follows your project's existing configuration defined in `blockend.json`.
 
 ```bash
-npx blockend add <block>
+npx blockend-cli add <block>
 ```
 
 For example:
 
 ```bash
-npx blockend add auth
+npx blockend-cli add auth
 ```
 
 If no block name is provided, Blockend launches an interactive block picker.
 
 ```bash
-npx blockend add
+npx blockend-cli add
 ```
 
 ---
@@ -47,7 +47,7 @@ Everything happens automatically—no copying files or manually installing packa
 Running the command without a block name opens an interactive selector.
 
 ```bash
-npx blockend add
+npx blockend-cli add
 ```
 
 Example:
@@ -180,28 +180,28 @@ Selecting **No** safely aborts the operation and preserves your code.
 
 ## Examples
 
-Generate an authentication block:
+Generate an rate limiter block:
 
 ```bash
-npx blockend add auth
+npx blockend-cli add rate-limiter
 ```
 
-Generate a pagination block:
+Generate a env-config block:
 
 ```bash
-npx blockend add pagination
+npx blockend add env-config
 ```
 
 Generate an upload block:
 
 ```bash
-npx blockend add upload
+npx blockend-cli add upload
 ```
 
 Open the interactive selector:
 
 ```bash
-npx blockend add
+npx blockend-cli add
 ```
 
 ---
@@ -211,7 +211,7 @@ npx blockend add
 Before using the `add` command, make sure your project has been initialized.
 
 ```bash
-npx blockend init
+npx blockend-cli init
 ```
 
 Blockend also requires:
@@ -229,13 +229,13 @@ Blockend also requires:
 
 ```text
 blockend.json not found.
-Run 'npx blockend init' first.
+Run 'npx blockend-cli init' first.
 ```
 
 Initialize your project before adding blocks.
 
 ```bash
-npx blockend init
+npx blockend-cli init
 ```
 
 ---
@@ -251,7 +251,7 @@ The requested block either doesn't exist or hasn't been published yet.
 Run the interactive command to see all available blocks.
 
 ```bash
-npx blockend add
+npx blockend-cli list
 ```
 
 ---
