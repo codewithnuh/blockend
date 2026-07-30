@@ -5,3 +5,4 @@ coverage
 .turbo
 pnpm-lock.yaml
 .next
+apps/web/.source/
