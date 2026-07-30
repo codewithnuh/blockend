@@ -106,43 +106,43 @@ The selected adapter, store, and base files are generated into your project.
 
 Core rate limiting engine and shared type definitions. Defines `evaluateRateLimit`, `RateLimitConfig`, `RateLimitStore`, `RateLimitRecord`, and `RateLimitResult`.
 
-<SourceCode file="blocks/rate-limiter/core/core.ts" />
+<SourceCode file="rate-limiter/core/core.ts" />
 
 ### blocks/rate-limiter/utils/ip.ts
 
 IP extraction utility that checks `x-forwarded-for`, `x-real-ip`, and falls back to the socket remote address.
 
-<SourceCode file="blocks/rate-limiter/utils/ip.ts" />
+<SourceCode file="rate-limiter/utils/ip.ts" />
 
 ### blocks/rate-limiter/adapters/express.ts
 
 Express middleware factory.
 
-<SourceCode file="blocks/rate-limiter/adapters/express.ts" />
+<SourceCode file="rate-limiter/adapters/express.ts" />
 
 ### blocks/rate-limiter/adapters/fastify.ts
 
 Fastify onRequest hook factory.
 
-<SourceCode file="blocks/rate-limiter/adapters/fastify.ts" />
+<SourceCode file="rate-limiter/adapters/fastify.ts" />
 
 ### blocks/rate-limiter/adapters/hono.ts
 
 Hono middleware factory.
 
-<SourceCode file="blocks/rate-limiter/adapters/hono.ts" />
+<SourceCode file="rate-limiter/adapters/hono.ts" />
 
 ### blocks/rate-limiter/variants/memory-store.ts
 
 In-memory store using a `Map` with a bounded incremental purge.
 
-<SourceCode file="blocks/rate-limiter/variants/memory-store.ts" />
+<SourceCode file="rate-limiter/variants/memory-store.ts" />
 
 ### blocks/rate-limiter/variants/redis-store.ts
 
 Redis store using atomic Lua scripts via ioredis.
 
-<SourceCode file="blocks/rate-limiter/variants/redis-store.ts" />
+<SourceCode file="rate-limiter/variants/redis-store.ts" />
 
 ---
 

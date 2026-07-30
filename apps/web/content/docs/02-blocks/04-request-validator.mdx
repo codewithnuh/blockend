@@ -83,31 +83,31 @@ The validator block is generated inside your configured blocks directory.
 
 Core validation function wrapping Zod's `schema.parse()`.
 
-<SourceCode file="blocks/request-validator/core.ts" />
+<SourceCode file="request-validator/core.ts" />
 
 ### blocks/request-validator/contract.ts
 
 Type contract for defining validation schemas across body, query, and params.
 
-<SourceCode file="blocks/request-validator/contract.ts" />
+<SourceCode file="request-validator/contract.ts" />
 
 ### blocks/request-validator/adapters/express.ts
 
 Express middleware that validates requests and exposes `validator.validated(req)`.
 
-<SourceCode file="blocks/request-validator/adapters/express.ts" />
+<SourceCode file="request-validator/adapters/express.ts" />
 
 ### blocks/request-validator/adapters/fastify.ts
 
 Fastify preHandler hook that validates requests and exposes `validator.validated(request)`.
 
-<SourceCode file="blocks/request-validator/adapters/fastify.ts" />
+<SourceCode file="request-validator/adapters/fastify.ts" />
 
 ### blocks/request-validator/adapters/hono.ts
 
 Hono middleware that validates requests and exposes `validated(c)`.
 
-<SourceCode file="blocks/request-validator/adapters/hono.ts" />
+<SourceCode file="request-validator/adapters/hono.ts" />
 
 ---
 

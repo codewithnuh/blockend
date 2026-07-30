@@ -86,7 +86,7 @@ The block is generated inside your configured blocks directory.
 
 Base class for all expected, handled application errors.
 
-<SourceCode file="blocks/error-handler/express/app-error.ts" />
+<SourceCode file="error-handler/express/app-error.ts" />
 
 The CLI generates this file without the `express/` subdirectory — the source path shown reflects the monorepo source.
 
@@ -94,37 +94,37 @@ The CLI generates this file without the `express/` subdirectory — the source p
 
 Named HTTP status code constants.
 
-<SourceCode file="blocks/error-handler/express/http-status.ts" />
+<SourceCode file="error-handler/express/http-status.ts" />
 
 ### blocks/error-handler/errors.ts
 
 Common error catalog. Use with `throwError(ERRORS.NOT_FOUND)` or reference `.message` / `.status` directly.
 
-<SourceCode file="blocks/error-handler/express/errors.ts" />
+<SourceCode file="error-handler/express/errors.ts" />
 
 ### blocks/error-handler/throw-error.ts
 
 Throws an `AppError` from a catalog entry.
 
-<SourceCode file="blocks/error-handler/express/throw-error.ts" />
+<SourceCode file="error-handler/express/throw-error.ts" />
 
 ### blocks/error-handler/async-handler.ts
 
 Wraps an async Express route handler so rejected promises are passed to `next()`.
 
-<SourceCode file="blocks/error-handler/express/async-handler.ts" />
+<SourceCode file="error-handler/express/async-handler.ts" />
 
 ### blocks/error-handler/global-error-handler.ts
 
 Express error-handling middleware. Register this last, after all routes.
 
-<SourceCode file="blocks/error-handler/express/global-error-handler.ts" />
+<SourceCode file="error-handler/express/global-error-handler.ts" />
 
 ### blocks/error-handler/index.ts
 
 Public exports — re-exports all public APIs.
 
-<SourceCode file="blocks/error-handler/express/index.ts" />
+<SourceCode file="error-handler/express/index.ts" />
 
 ---
 

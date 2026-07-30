@@ -90,61 +90,61 @@ The health check block is generated inside your configured blocks directory.
 
 Core type definitions for health checks, results, reports, and extension points.
 
-<SourceCode file="blocks/health-check/types/index.ts" />
+<SourceCode file="health-check/types/index.ts" />
 
 ### blocks/health-check/core/validate-config.ts
 
 Fail-fast configuration validation.
 
-<SourceCode file="blocks/health-check/core/validate-config.ts" />
+<SourceCode file="health-check/core/validate-config.ts" />
 
 ### blocks/health-check/core/run-check.ts
 
 Runs a single check with timeout enforcement and error sanitization.
 
-<SourceCode file="blocks/health-check/core/run-check.ts" />
+<SourceCode file="health-check/core/run-check.ts" />
 
 ### blocks/health-check/core/run-checks.ts
 
 Runs all checks concurrently using `Promise.all`.
 
-<SourceCode file="blocks/health-check/core/run-checks.ts" />
+<SourceCode file="health-check/core/run-checks.ts" />
 
 ### blocks/health-check/core/calculate-status.ts
 
 Determines overall status from individual check results.
 
-<SourceCode file="blocks/health-check/core/calculate-status.ts" />
+<SourceCode file="health-check/core/calculate-status.ts" />
 
 ### blocks/health-check/core/build-report.ts
 
 Assembles the final health report with timestamp and uptime.
 
-<SourceCode file="blocks/health-check/core/build-report.ts" />
+<SourceCode file="health-check/core/build-report.ts" />
 
 ### blocks/health-check/core/create-health.ts
 
 Factory function that validates config and wires everything together.
 
-<SourceCode file="blocks/health-check/core/create-health.ts" />
+<SourceCode file="health-check/core/create-health.ts" />
 
 ### blocks/health-check/adapters/express.ts
 
 Express health route registration.
 
-<SourceCode file="blocks/health-check/adapters/express.ts" />
+<SourceCode file="health-check/adapters/express.ts" />
 
 ### blocks/health-check/adapters/fastify.ts
 
 Fastify health route registration.
 
-<SourceCode file="blocks/health-check/adapters/fastify.ts" />
+<SourceCode file="health-check/adapters/fastify.ts" />
 
 ### blocks/health-check/adapters/hono.ts
 
 Hono health route registration.
 
-<SourceCode file="blocks/health-check/adapters/hono.ts" />
+<SourceCode file="health-check/adapters/hono.ts" />
 
 ---
 
