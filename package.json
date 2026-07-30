@@ -6,13 +6,14 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "turbo run lint",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "typecheck": "turbo run typecheck",
-    "validate": "pnpm format:check && pnpm lint && pnpm typecheck",
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "prepare": "husky"
   },
   "keywords": [
@@ -60,8 +61,7 @@
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,tsx,jsx,json,jsonc,md,mdx,yml,yaml,css,scss,html}": [
-      "prettier --write",
-      "git add"
+      "prettier --write"
     ],
     "*.{js,cjs,mjs,ts,tsx,jsx}": [
       "eslint --cache --fix"
