@@ -608,5 +608,3 @@ Every generated documentation page must:
 - explain concepts before APIs
 - be immediately usable by beginners
 - remain valuable for experienced developers
-
-The objective is to produce documentation that feels like it was written by a single maintainer, regardless of which AI agent generated it.

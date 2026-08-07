@@ -1,0 +1,564 @@
+---
+title: Production Health Checks & Graceful Shutdown
+description: End-to-end guide for combining the Health Check and Graceful Shutdown blocks so load balancers and Kubernetes stop routing traffic before your process drains and exits cleanly.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+The **Health Check** and **Graceful Shutdown** blocks solve different halves of the same production problem.
+
+- **Health Check** tells the platform whether your instance can accept traffic right now.
+- **Graceful Shutdown** stops new traffic, drains in-flight requests, and closes resources in a controlled order when the process is terminating.
+
+Used together they give you near-zero dropped requests during deploys, scale-downs, and node drains. Used separately they leave gaps.
+
+This guide shows the complete production pattern.
+
+<Callout type="info">
+  You need both blocks installed. See [Health Check](/docs/02-blocks/07-health-check) and [Graceful
+  Shutdown](/docs/02-blocks/08-graceful-shutdown) for installation and API details.
+</Callout>
+
+---
+
+## The Problem
+
+Without the combination you get one of these failure modes:
+
+| Mistake                                               | What happens                                                                               |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Only a health endpoint, no shutdown handling          | Process is killed mid-request. Open transactions, dropped responses, leaked connections.   |
+| Only graceful shutdown, readiness still returns 200   | Load balancer keeps sending traffic after SIGTERM. Requests hit a draining process → 502s. |
+| Single `/health` used for both liveness and readiness | Dependency blip restarts every pod. Cascading failure.                                     |
+| No `preStop` / short `terminationGracePeriodSeconds`  | Kubernetes sends SIGKILL before your drain finishes.                                       |
+
+The correct sequence is:
+
+1. SIGTERM arrives (or you call `shutdown.shutdown()`).
+2. `isShuttingDownState` becomes `true`.
+3. Readiness immediately returns **503**.
+4. Load balancer / Kubernetes Service stops routing new traffic.
+5. In-flight requests finish (drain).
+6. Cleanup tasks run in priority order (HTTP server → queues → DB → cache → loggers).
+7. Process exits. Hard timeout forces exit if anything hangs.
+
+---
+
+## Required Endpoints
+
+You need three endpoints. Do not collapse them into one.
+
+| Endpoint        | Purpose                  | Rules                                                                          |
+| --------------- | ------------------------ | ------------------------------------------------------------------------------ |
+| `/health/live`  | Liveness                 | Always 200 if the process is alive. **Never** check external dependencies.     |
+| `/health/ready` | Readiness                | 503 if `shutdown.isShuttingDownState` **or** a critical health check fails.    |
+| `/health`       | Deep / monitoring health | Full Health Check report (optional but recommended for dashboards and alerts). |
+
+<Callout type="warn">
+  Putting database or Redis checks in the liveness probe is one of the fastest ways to turn a
+  partial outage into a full outage. Liveness must only answer: “Is this process still running?”
+</Callout>
+
+---
+
+## Complete Example (Express)
+
+This is the production baseline. Copy it, then replace the dummy dependencies with your real clients.
+
+```ts
+import express, { Request, Response } from "express";
+import { createServer } from "node:http";
+import { setTimeout as sleep } from "node:timers/promises";
+
+import { createHealth } from "@/blocks/health-check";
+import { registerExpressHealthRoute } from "@/blocks/health-check/adapters/express";
+import { GracefulShutdown, PRIORITY } from "@/blocks/graceful-shutdown";
+import {
+  createShutdownMiddleware,
+  createExpressTracker,
+  createExpressShutdownTask
+} from "@/blocks/graceful-shutdown/adapters/express";
+
+// ---------------------------------------------------------------------------
+// Dummy dependencies (replace with real clients in production)
+// ---------------------------------------------------------------------------
+const db = {
+  async query(_sql: string) {
+    await sleep(30);
+    return { rows: [{ ok: 1 }] };
+  },
+  async end() {
+    console.log("[db] pool closed");
+    await sleep(80);
+  }
+};
+
+const redis = {
+  async ping() {
+    await sleep(15);
+    return "PONG";
+  },
+  async quit() {
+    console.log("[redis] connection closed");
+    await sleep(40);
+  }
+};
+
+const queueConsumer = {
+  async close() {
+    console.log("[queue] consumer stopped");
+    await sleep(60);
+  }
+};
+
+const logger = {
+  async flush() {
+    console.log("[logger] flushed");
+    await sleep(20);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// 1. Health Check
+// ---------------------------------------------------------------------------
+const health = createHealth({
+  defaultTimeoutMs: 4000,
+  checks: [
+    {
+      name: "postgres",
+      critical: true,
+      timeoutMs: 3000,
+      async run() {
+        await db.query("SELECT 1");
+      }
+    },
+    {
+      name: "redis",
+      critical: false, // cache failure → degraded, not dead
+      timeoutMs: 2000,
+      async run() {
+        await redis.ping();
+      }
+    }
+  ]
+});
+
+// ---------------------------------------------------------------------------
+// 2. Express + HTTP server
+// ---------------------------------------------------------------------------
+const app = express();
+const server = createServer(app);
+
+// ---------------------------------------------------------------------------
+// 3. Graceful Shutdown
+// ---------------------------------------------------------------------------
+const tracker = createExpressTracker(server); // must attach before listen
+const shutdown = new GracefulShutdown({
+  connectionTracker: tracker,
+  hardTimeoutMs: 30_000,
+  drainTimeoutMs: 12_000,
+  defaultTaskTimeoutMs: 8_000,
+  installSignalHandlers: true
+});
+
+// Reject new traffic with 503 the moment shutdown starts
+app.use(createShutdownMiddleware(shutdown));
+
+// ---------------------------------------------------------------------------
+// 4. Health endpoints
+// ---------------------------------------------------------------------------
+
+// Liveness — process is alive (no external checks)
+app.get("/health/live", (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: "alive",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Readiness — can this instance receive traffic right now?
+app.get("/health/ready", async (_req: Request, res: Response) => {
+  // 1. Shutdown state takes absolute priority
+  if (shutdown.isShuttingDownState) {
+    return res.status(503).json({
+      status: "shutting_down",
+      message: "Instance is draining and will not accept new work"
+    });
+  }
+
+  // 2. Run dependency checks
+  try {
+    const report = await health.run();
+    const statusCode = report.status === "unhealthy" ? 503 : 200;
+
+    res.status(statusCode).json({
+      status: report.status, // healthy | degraded | unhealthy
+      checks: report.checks,
+      timestamp: report.timestamp,
+      uptime: report.uptime
+    });
+  } catch {
+    res.status(503).json({
+      status: "unhealthy",
+      error: "health execution failed"
+    });
+  }
+});
+
+// Deep health (for monitoring / dashboards)
+registerExpressHealthRoute(app, health, "/health");
+
+// ---------------------------------------------------------------------------
+// 5. Application routes
+// ---------------------------------------------------------------------------
+app.get("/api/hello", (_req: Request, res: Response) => {
+  res.json({ ok: true, message: "hello" });
+});
+
+// Useful for testing drain behaviour
+app.get("/api/slow", async (_req: Request, res: Response) => {
+  await sleep(4000);
+  res.json({ ok: true, message: "slow request finished" });
+});
+
+// ---------------------------------------------------------------------------
+// 6. Ordered cleanup tasks (highest priority first)
+// ---------------------------------------------------------------------------
+shutdown.addTask(createExpressShutdownTask(server));
+
+shutdown.addTask({
+  name: "queue-consumer",
+  priority: PRIORITY.QUEUE_CONSUMER,
+  timeout: 10_000,
+  handler: async () => {
+    await queueConsumer.close();
+  }
+});
+
+shutdown.addTask({
+  name: "db-pool",
+  priority: PRIORITY.DB_POOL,
+  timeout: 5_000,
+  handler: async () => {
+    await db.end();
+  }
+});
+
+shutdown.addTask({
+  name: "redis",
+  priority: PRIORITY.CACHE,
+  handler: async () => {
+    await redis.quit();
+  }
+});
+
+shutdown.addTask({
+  name: "logger",
+  priority: PRIORITY.LOGGERS,
+  handler: async () => {
+    await logger.flush();
+  }
+});
+
+// Optional lifecycle logging
+shutdown.on("beforeShutdown", (reason) => {
+  console.log(`[shutdown] starting because of ${reason}`);
+});
+shutdown.on("draining", () => console.log("[shutdown] draining in-flight requests"));
+shutdown.on("drained", () => console.log("[shutdown] drain complete"));
+shutdown.on("drainTimeout", () => console.warn("[shutdown] drain timed out — continuing"));
+shutdown.on("afterShutdown", (result) => {
+  console.log("[shutdown] finished", {
+    success: result.success,
+    completed: result.completed,
+    failed: result.failed,
+    durationMs: result.durationMs
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. Start
+// ---------------------------------------------------------------------------
+const PORT = Number(process.env.PORT) || 3000;
+server.listen(PORT, () => {
+  console.log(`Listening on http://localhost:${PORT}`);
+});
+```
+
+### Fastify variant (key differences)
+
+```ts
+import Fastify from "fastify";
+import { createHealth } from "@/blocks/health-check";
+import { GracefulShutdown, PRIORITY } from "@/blocks/graceful-shutdown";
+import {
+  createFastifyTracker,
+  registerFastifyShutdownHooks,
+  createFastifyShutdownTask
+} from "@/blocks/graceful-shutdown/adapters/fastify";
+
+const app = Fastify({ logger: true });
+const health = createHealth({
+  /* same checks */
+});
+
+const tracker = createFastifyTracker(app);
+const shutdown = new GracefulShutdown({
+  connectionTracker: tracker,
+  hardTimeoutMs: 30_000,
+  drainTimeoutMs: 12_000
+});
+
+registerFastifyShutdownHooks(app, shutdown);
+
+app.get("/health/live", async () => ({
+  status: "alive",
+  uptime: process.uptime(),
+  timestamp: new Date().toISOString()
+}));
+
+app.get("/health/ready", async (_req, reply) => {
+  if (shutdown.isShuttingDownState) {
+    return reply.code(503).send({ status: "shutting_down" });
+  }
+
+  const report = await health.run();
+  const code = report.status === "unhealthy" ? 503 : 200;
+  return reply.code(code).send({
+    status: report.status,
+    checks: report.checks,
+    timestamp: report.timestamp,
+    uptime: report.uptime
+  });
+});
+
+shutdown.addTask(createFastifyShutdownTask(app));
+shutdown.addTask({
+  name: "db",
+  priority: PRIORITY.DB_POOL,
+  handler: () => db.end()
+});
+shutdown.addTask({
+  name: "logger",
+  priority: PRIORITY.LOGGERS,
+  handler: () => logger.flush()
+});
+
+await app.listen({ port: 3000, host: "0.0.0.0" });
+```
+
+Hono follows the same pattern using `createHonoShutdownMiddleware`, `createHonoTracker`, and `createHonoShutdownTask`.
+
+---
+
+## Kubernetes Configuration
+
+The application code only works correctly when the platform matches it. Ship this configuration in the **same PR** as the health + shutdown code.
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 3000
+  periodSeconds: 3
+  failureThreshold: 1
+  timeoutSeconds: 5
+
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 3000
+  periodSeconds: 10
+  failureThreshold: 3
+  timeoutSeconds: 5
+
+lifecycle:
+  preStop:
+    exec:
+      command: ["sleep", "5"]
+
+terminationGracePeriodSeconds: 45
+```
+
+### Why these values
+
+| Setting                             | Purpose                                                                           |
+| ----------------------------------- | --------------------------------------------------------------------------------- |
+| Readiness `failureThreshold: 1`     | Remove the pod from endpoints as soon as readiness returns 503.                   |
+| Readiness `periodSeconds: 3`        | Detect the shutdown state quickly.                                                |
+| Liveness on `/health/live` only     | Avoid cascading restarts when a dependency is slow.                               |
+| `preStop: sleep 5`                  | Give the control plane time to observe the failed readiness probe before SIGTERM. |
+| `terminationGracePeriodSeconds: 45` | Budget for preStop + drain + cleanup tasks. Raise it if your drain is longer.     |
+
+<Callout type="warn">
+  Changing these values requires measured justification. Do not raise `failureThreshold` on
+  readiness “to be safe” — that delays traffic removal and defeats the purpose of graceful shutdown.
+</Callout>
+
+---
+
+## Shutdown Sequence (what actually happens)
+
+```text
+SIGTERM / SIGINT / manual shutdown()
+        │
+        ▼
+isShuttingDownState = true
+        │
+        ▼
+/health/ready → 503          ← load balancer stops sending traffic
+adapters return 503          ← any late requests are rejected
+        │
+        ▼
+beforeShutdown event         ← stop cron jobs, etc.
+        │
+        ▼
+Drain in-flight requests     ← connection tracker
+        │
+        ▼
+Tasks (priority order)
+  1. http-server   (100)
+  2. queue-consumer (80)
+  3. db-pool       (40)
+  4. redis         (20)
+  5. logger        (10)
+        │
+        ▼
+afterShutdown event
+        │
+        ▼
+process.exit(0)  or  hardTimeout → process.exit(1)
+```
+
+---
+
+## Non-Negotiable Rules
+
+1. **Never** put external dependency checks in the liveness endpoint.
+2. Readiness must return 503 when `isShuttingDownState` is true **and** when a critical health check fails.
+3. Register the connection tracker **before** the server starts listening.
+4. Register the shutdown middleware / hooks **early** (before your routes).
+5. HTTP server close task must have the highest priority.
+6. Loggers must run last (`PRIORITY.LOGGERS`).
+7. Application code and Kubernetes probe configuration ship in the **same change**.
+8. Test with a real signal (or `shutdown.shutdown("manual")`) and confirm readiness flips to 503 before the process exits.
+
+---
+
+## Manual Testing
+
+### Healthy state
+
+```bash
+curl -i http://localhost:3000/health/live
+# → 200 { "status": "alive", ... }
+
+curl -i http://localhost:3000/health/ready
+# → 200 { "status": "healthy", "checks": [...] }
+
+curl -i http://localhost:3000/health
+# → 200 full report
+```
+
+### Degraded vs unhealthy
+
+- Make a **non-critical** check fail (e.g. Redis) → readiness stays **200**, status `"degraded"`.
+- Make a **critical** check fail (e.g. Postgres) → readiness returns **503**, status `"unhealthy"`.
+
+### Graceful shutdown
+
+<Tabs items={["Linux / WSL / macOS", "Windows"]}>
+  <Tab value="Linux / WSL / macOS">
+    ```bash
+    # Terminal 1
+    pnpm dev   # or tsx server.ts
+
+    # Terminal 2 — start a slow request (optional)
+    curl -i http://localhost:3000/api/slow &
+
+    # Terminal 2 — send SIGTERM
+    kill -TERM $(pgrep -f "server.ts")
+
+    # Terminal 2 — readiness must flip immediately
+    curl -i http://localhost:3000/health/ready
+    # → 503 { "status": "shutting_down", ... }
+    ```
+
+  </Tab>
+  <Tab value="Windows">
+    Windows signal delivery is unreliable. Prefer a temporary test route:
+
+    ```ts
+    app.post("/test/shutdown", async (_req, res) => {
+      res.json({ message: "shutdown started" });
+      setTimeout(() => {
+        shutdown.shutdown("manual").then((result) => {
+          process.exit(result.success ? 0 : 1);
+        });
+      }, 100);
+    });
+    ```
+
+    ```bash
+    curl -X POST http://localhost:3000/test/shutdown
+    curl -i http://localhost:3000/health/ready
+    # → 503 { "status": "shutting_down", ... }
+    ```
+
+    Remove the test route before shipping.
+
+  </Tab>
+</Tabs>
+
+### Expected logs on success
+
+```text
+[shutdown] starting because of SIGTERM
+[shutdown] draining in-flight requests
+[shutdown] drain complete
+[shutdown] Task "http-server" completed in ...
+[queue] consumer stopped
+[shutdown] Task "queue-consumer" completed in ...
+[db] pool closed
+[shutdown] Task "db-pool" completed in ...
+[redis] connection closed
+[shutdown] Task "redis" completed in ...
+[logger] flushed
+[shutdown] Task "logger" completed in ...
+[shutdown] finished {
+  success: true,
+  completed: [ 'http-server', 'queue-consumer', 'db-pool', 'redis', 'logger' ],
+  failed: [],
+  durationMs: ...
+}
+```
+
+If you see `0 succeeded, 0 failed`, the task list was empty when shutdown ran. Confirm `shutdown.getTaskNames()` is non-empty before any signal can arrive.
+
+---
+
+## Done Checklist
+
+Use this when reviewing a PR:
+
+- [ ] `/health/live` exists and never checks external dependencies
+- [ ] `/health/ready` returns 503 when `isShuttingDownState` is true
+- [ ] `/health/ready` returns 503 when a critical health check fails
+- [ ] Non-critical failures produce `"degraded"` (still 200 on readiness)
+- [ ] Connection tracker is attached before `listen`
+- [ ] Shutdown middleware / hooks are registered early
+- [ ] Cleanup tasks are registered with correct `PRIORITY` values
+- [ ] HTTP server task is highest priority; loggers are lowest
+- [ ] Deployment YAML includes matching readiness + liveness probes
+- [ ] `preStop: sleep 5` and adequate `terminationGracePeriodSeconds` are set
+- [ ] Manual test confirms readiness flips to 503 and tasks complete successfully
+
+---
+
+## Related Docs
+
+- [Health Check](/docs/02-blocks/07-health-check) — dependency monitoring, status mapping, framework adapters
+- [Graceful Shutdown](/docs/02-blocks/08-graceful-shutdown) — drain, ordered tasks, signal handling, API reference

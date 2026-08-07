@@ -492,6 +492,102 @@
           }
         }
       }
+    },
+    "graceful-shutdown": {
+      "name": "Graceful Shutdown",
+      "description": "Dependency-free graceful shutdown with in-flight request draining and per-framework adapters",
+      "devDependencies": ["vitest", "@types/node"],
+      "baseFiles": [
+        { "source": "blocks/graceful-shutdown/index.ts", "target": "index.ts" },
+        { "source": "blocks/graceful-shutdown/constants.ts", "target": "constants.ts" },
+        { "source": "blocks/graceful-shutdown/types.ts", "target": "types.ts" },
+        {
+          "source": "blocks/graceful-shutdown/core/shutdown.ts",
+          "target": "core/shutdown.ts"
+        },
+        {
+          "source": "blocks/graceful-shutdown/core/connection-tracker.ts",
+          "target": "core/connection-tracker.ts"
+        },
+        { "source": "blocks/graceful-shutdown/utils/index.ts", "target": "utils/index.ts" },
+        { "source": "blocks/graceful-shutdown/utils/http.ts", "target": "utils/http.ts" },
+        { "source": "blocks/graceful-shutdown/utils/state.ts", "target": "utils/state.ts" },
+        { "source": "blocks/graceful-shutdown/utils/timeout.ts", "target": "utils/timeout.ts" },
+        {
+          "source": "blocks/graceful-shutdown/tests/unit/shutdown.test.ts",
+          "target": "tests/unit/shutdown.test.ts"
+        },
+        {
+          "source": "blocks/graceful-shutdown/tests/unit/connection-tracker.test.ts",
+          "target": "tests/unit/connection-tracker.test.ts"
+        },
+        {
+          "source": "blocks/graceful-shutdown/tests/unit/http-task.test.ts",
+          "target": "tests/unit/http-task.test.ts"
+        },
+        {
+          "source": "blocks/graceful-shutdown/tests/unit/state.test.ts",
+          "target": "tests/unit/state.test.ts"
+        },
+        {
+          "source": "blocks/graceful-shutdown/tests/unit/timeout.test.ts",
+          "target": "tests/unit/timeout.test.ts"
+        }
+      ],
+      "adapters": {
+        "express": {
+          "dependencies": ["express"],
+          "devDependencies": ["@types/express"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/graceful-shutdown/adapters/express.ts",
+                  "target": "adapters/express.ts"
+                },
+                {
+                  "source": "blocks/graceful-shutdown/tests/integration/express.test.ts",
+                  "target": "tests/integration/express.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "fastify": {
+          "dependencies": ["fastify"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/graceful-shutdown/adapters/fastify.ts",
+                  "target": "adapters/fastify.ts"
+                },
+                {
+                  "source": "blocks/graceful-shutdown/tests/integration/fastify.test.ts",
+                  "target": "tests/integration/fastify.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "hono": {
+          "dependencies": ["hono", "@hono/node-server"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/graceful-shutdown/adapters/hono.ts",
+                  "target": "adapters/hono.ts"
+                },
+                {
+                  "source": "blocks/graceful-shutdown/tests/integration/hono.test.ts",
+                  "target": "tests/integration/hono.test.ts"
+                }
+              ]
+            }
+          }
+        }
+      }
     }
   }
 }
