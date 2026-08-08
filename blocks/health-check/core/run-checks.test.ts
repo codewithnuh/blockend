@@ -5,38 +5,49 @@ import { HealthCheck } from "../types/index";
 describe("runChecks", () => {
   it("executes all checks concurrently, not sequentially", async () => {
     const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    // Records the order in which checks start and finish. Concurrency is
+    // proven structurally (all three start before any of them finish), so the
+    // test is immune to machine load — no timing thresholds involved.
+    const order: string[] = [];
 
     const checks: HealthCheck[] = [
       {
         name: "c1",
         critical: true,
         run: async () => {
+          order.push("start-c1");
           await delay(50);
+          order.push("end-c1");
         }
       },
       {
         name: "c2",
         critical: true,
         run: async () => {
+          order.push("start-c2");
           await delay(50);
+          order.push("end-c2");
         }
       },
       {
         name: "c3",
         critical: true,
         run: async () => {
+          order.push("start-c3");
           await delay(50);
+          order.push("end-c3");
         }
       }
     ];
 
-    const start = performance.now();
     const results = await runChecks(checks, 5000);
-    const duration = performance.now() - start;
 
     expect(results).toHaveLength(3);
-    // If sequential, it would take ~150ms. If concurrent, ~50ms.
-    expect(duration).toBeLessThan(100);
+    // Concurrent execution: the first three recorded events are all starts.
+    // Sequential execution would interleave: start-c1, end-c1, start-c2, ...
+    expect(order.slice(0, 3)).toEqual(["start-c1", "start-c2", "start-c3"]);
+    // And every check must have started before the first one finished.
+    expect(order.indexOf("start-c3")).toBeLessThan(order.indexOf("end-c1"));
   });
 
   it("collects all results even if some checks throw errors", async () => {

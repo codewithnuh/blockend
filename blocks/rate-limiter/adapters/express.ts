@@ -38,7 +38,7 @@ export const expressRateLimit = (options: ExpressOptions) => {
 
       next();
     } catch (error) {
-      // eslint-disable-next-line no-console
+      // oxlint-disable-next-line no-console
       console.error("Rate limiter failure (Fail-Open):", error);
       next(); // Fail-open pattern intact
     }

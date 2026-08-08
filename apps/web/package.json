@@ -8,7 +8,7 @@
     "start": "next start",
     "types:check": "fumadocs-mdx && next typegen && tsc --noEmit",
     "postinstall": "fumadocs-mdx",
-    "lint": "oxlint",
+    "lint": "oxlint --type-aware",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -40,6 +40,6 @@
     "oxlint": "^1.77.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.1",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }

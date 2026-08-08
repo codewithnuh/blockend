@@ -39,7 +39,7 @@ export const honoRateLimit = (options: HonoOptions): MiddlewareHandler => {
 
       await next();
     } catch (error) {
-      //eslint-disable-next-line no-console
+      //oxlint-disable-next-line no-console
       console.error("Rate limiter failure (Fail-Open):", error);
       await next(); // Fail-open pattern intact
     }

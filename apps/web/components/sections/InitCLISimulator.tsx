@@ -205,14 +205,14 @@ export function InitCLISimulator() {
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => confirmRedis(true)}
+                        onClick={() => void confirmRedis(true)}
                         className="rounded-none bg-primary text-primary-foreground font-mono text-xs px-4 py-1.5 font-semibold transition-opacity hover:opacity-90 active:scale-[0.98]"
                       >
                         (Y)es
                       </button>
                       <button
                         type="button"
-                        onClick={() => confirmRedis(false)}
+                        onClick={() => void confirmRedis(false)}
                         className="rounded-none border border-border bg-background font-mono text-xs px-4 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-all active:scale-[0.98]"
                       >
                         (N)o
@@ -248,7 +248,7 @@ export function InitCLISimulator() {
                     </div>
                     <button
                       type="button"
-                      onClick={runScanPhase}
+                      onClick={() => void runScanPhase()}
                       className="rounded-none bg-primary text-primary-foreground px-4 py-2 text-xs font-mono font-bold tracking-wide uppercase transition-all active:scale-[0.98]"
                     >
                       Run init →

@@ -7,6 +7,23 @@ import { PRIORITY } from "../../constants";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * Resolves once the server has at least one active TCP connection.
+ *
+ * Prevents the fixed-sleep race where `server.close()` (and therefore the
+ * timeout path) behaves completely differently depending on whether the
+ * client has actually connected yet. Under load the connect can take longer
+ * than a hardcoded sleep.
+ */
+async function waitForConnection(server: Server, timeoutMs = 2_000): Promise<void> {
+  await Promise.race([
+    new Promise<void>((resolve) => server.once("connection", () => resolve())),
+    sleep(timeoutMs).then(() => {
+      throw new Error("Timed out waiting for the client to connect");
+    })
+  ]);
+}
+
 describe("createHttpShutdownTask", () => {
   const servers: Server[] = [];
 
@@ -49,7 +66,7 @@ describe("createHttpShutdownTask", () => {
     const port = (server.address() as AddressInfo).port;
 
     const inflight = fetch(`http://127.0.0.1:${port}/`);
-    await sleep(20);
+    await waitForConnection(server);
 
     const task = createHttpShutdownTask(server, { timeout: 5_000 });
     await task.handler();
@@ -76,7 +93,7 @@ describe("createHttpShutdownTask", () => {
     const port = (server.address() as AddressInfo).port;
 
     const inflight = fetch(`http://127.0.0.1:${port}/`).catch(() => {});
-    await sleep(20);
+    await waitForConnection(server);
 
     const task = createHttpShutdownTask(server, { timeout: 100 });
     await expect(task.handler()).rejects.toThrow();

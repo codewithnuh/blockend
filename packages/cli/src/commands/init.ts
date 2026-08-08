@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+/* oxlint-disable no-console */
 import path, { join } from "path";
 import fs from "fs/promises";
 import { existsSync } from "fs";

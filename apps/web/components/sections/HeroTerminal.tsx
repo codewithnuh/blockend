@@ -86,7 +86,7 @@ export function HeroTerminal() {
 
   useEffect(() => {
     cancelledRef.current = false;
-    typeLoop();
+    void typeLoop();
     return () => {
       cancelledRef.current = true;
     };

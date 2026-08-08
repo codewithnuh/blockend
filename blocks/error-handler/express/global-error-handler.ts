@@ -16,7 +16,7 @@ export const globalErrorHandler = (
   err: unknown,
   req: Request,
   res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // oxlint-disable-next-line @typescript-eslint/no-unused-vars
   next: NextFunction
 ) => {
   // -------------------------
@@ -60,7 +60,7 @@ export const globalErrorHandler = (
  * the control flow above.
  */
 function logUnhandledError(err: unknown, req: Request): void {
-  // eslint-disable-next-line no-console
+  // oxlint-disable-next-line no-console
   console.error("[UNHANDLED ERROR]", {
     method: req.method,
     path: req.path,

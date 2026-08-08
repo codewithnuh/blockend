@@ -24,7 +24,7 @@ export function CopyButton({ command, className = "" }: CopyButtonProps) {
 
   return (
     <button
-      onClick={handleCopy}
+      onClick={() => void handleCopy()}
       type="button"
       className={cn(
         "inline-flex items-center justify-center rounded-none border border-border bg-background p-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring select-none active:scale-[0.98]",

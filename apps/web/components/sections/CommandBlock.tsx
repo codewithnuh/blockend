@@ -35,7 +35,7 @@ export function CommandBlock({ command, className }: CommandBlockProps) {
         {command}
       </span>
       <button
-        onClick={handleCopy}
+        onClick={() => void handleCopy()}
         className="ml-auto text-muted-foreground/70 hover:text-fg dark:text-ash dark:hover:text-mist transition-colors shrink-0"
         aria-label={copied ? "Copied" : "Copy command"}
       >

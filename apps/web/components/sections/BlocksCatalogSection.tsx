@@ -89,7 +89,7 @@ function BlockCard({ block }: { block: (typeof BLOCKS_CATALOG.blocks)[number] })
           <Button
             variant="ghost"
             size="icon"
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
             className="h-6 w-6 p-0 hover:bg-surface-2 dark:hover:bg-obsidian hover:text-fg dark:hover:text-mist text-muted-foreground dark:text-ash transition-colors"
             aria-label={`Copy command to install ${block.name}`}
           >

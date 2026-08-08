@@ -15,7 +15,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean --out-dir dist",
+    "build": "tsup src/index.ts --format esm --clean --out-dir dist && tsc --emitDeclarationOnly --declaration",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

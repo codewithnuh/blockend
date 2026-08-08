@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+/* oxlint-disable no-console */
 import path, { join } from "node:path";
 import fs from "node:fs/promises";
 import pc from "picocolors";

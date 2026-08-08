@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+/* oxlint-disable no-console */
 import path, { join, dirname } from "path";
 import fs, { readFile } from "fs/promises";
 import { exec } from "child_process";

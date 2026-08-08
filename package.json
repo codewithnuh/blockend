@@ -8,8 +8,8 @@
     "dev": "turbo run dev",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "turbo run lint",
-    "lint:fix": "eslint . --fix",
+    "lint": "oxlint . && turbo run lint",
+    "lint:fix": "oxlint --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "typecheck": "turbo run typecheck",
@@ -36,28 +36,25 @@
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
-    "@eslint/js": "^9.39.4",
     "@hono/node-server": "^2.1.0",
     "@types/express": "^5.0.6",
     "@types/node": "^25.9.3",
     "@types/supertest": "^7.2.0",
-    "eslint": "^9.39.4",
-    "eslint-plugin-import": "^2.32.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.0",
     "fastify": "^5.10.0",
     "fastify-plugin": "^6.0.0",
-    "globals": "^16.0.0",
     "hono": "^4.12.28",
     "husky": "^9.1.7",
     "ioredis": "^5.11.1",
     "lint-staged": "^17.0.7",
     "mitata": "^1.0.34",
+    "oxlint": "^1.77.0",
+    "oxlint-tsgolint": "^7.0.2001",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
     "supertest": "^7.2.2",
-    "typescript": "6.0.3",
-    "typescript-eslint": "^8.61.0",
+    "typescript": "^7.0.2",
     "vitest": "^1.6.1",
     "zod": "^4.4.3"
   },
@@ -66,7 +63,7 @@
       "prettier --write"
     ],
     "*.{js,cjs,mjs,ts,tsx,jsx}": [
-      "eslint --cache --fix"
+      "oxlint --fix"
     ]
   }
 }

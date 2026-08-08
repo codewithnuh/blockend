@@ -30,7 +30,7 @@ describe("Logger Block - Hono Adapter Production Suite", () => {
       (sym) => sym.description === "pino.stream"
     );
     if (streamSymbol) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line @typescript-eslint/no-explicit-any
       (logger as any)[streamSymbol] = testStream;
     }
 

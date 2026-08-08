@@ -12,6 +12,25 @@ import {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * Waits until the connection tracker has registered the in-flight request.
+ * A fixed sleep is race-prone on loaded machines: if the request has not been
+ * tracked yet when shutdown starts, the drain sees zero active connections and
+ * the server closes immediately (ECONNREFUSED) instead of serving 503s.
+ */
+async function waitForActiveRequest(
+  tracker: { readonly activeCount: number },
+  timeoutMs = 2_000
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (tracker.activeCount === 0) {
+    if (Date.now() >= deadline) {
+      throw new Error("Timed out waiting for the in-flight request to be tracked");
+    }
+    await sleep(10);
+  }
+}
+
 describe("express integration", () => {
   const servers: Server[] = [];
 
@@ -56,7 +75,7 @@ describe("express integration", () => {
 
     // In-flight request that must be allowed to drain.
     const inflight = fetch(`${base}/slow`).then(async (r) => r.status);
-    await sleep(50);
+    await waitForActiveRequest(tracker);
 
     // Trigger shutdown mid-flight. Drain (waiting on /slow) keeps the server
     // listening, so a fresh request can still reach the middleware.
@@ -102,7 +121,7 @@ describe("express integration", () => {
     const base = `http://127.0.0.1:${port}`;
 
     const inflight = fetch(`${base}/slow`).catch(() => {});
-    await sleep(50);
+    await waitForActiveRequest(tracker);
     void shutdown.shutdown("test");
 
     const res = await fetch(`${base}/fast`);
