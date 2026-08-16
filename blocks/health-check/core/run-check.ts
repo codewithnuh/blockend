@@ -20,7 +20,7 @@ export async function runCheck(
       critical: check.critical,
       status: "healthy",
       duration: performance.now() - start,
-      message: check.message
+      ...(check.message === undefined ? {} : { message: check.message })
     };
   } catch (error) {
     const duration = performance.now() - start;
@@ -33,7 +33,7 @@ export async function runCheck(
       critical: check.critical,
       status: "unhealthy",
       duration,
-      message: check.message,
+      ...(check.message === undefined ? {} : { message: check.message }),
       error: errorMessage
     };
   }

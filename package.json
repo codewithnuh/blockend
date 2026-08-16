@@ -13,7 +13,8 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "typecheck": "turbo run typecheck",
-    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "typecheck:blocks": "tsc --noEmit -p blocks/tsconfig.json",
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm typecheck:blocks && pnpm test",
     "prepare": "husky"
   },
   "keywords": [
@@ -31,7 +32,7 @@
   "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee",
   "dependencies": {
     "prettier": "^3.8.4",
-    "turbo": "^2.9.18"
+    "turbo": "^2.10.8"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",

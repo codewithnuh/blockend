@@ -7,9 +7,18 @@
       "description": "IP-based rate limiting middleware with pluggable storage strategies",
       "devDependencies": ["vitest"],
       "baseFiles": [
-        { "source": "blocks/rate-limiter/core/core.ts", "target": "core/core.ts" },
-        { "source": "blocks/rate-limiter/utils/ip.ts", "target": "utils/ip.ts" },
-        { "source": "blocks/rate-limiter/utils/ip.test.ts", "target": "utils/ip.test.ts" }
+        {
+          "source": "blocks/rate-limiter/core/core.ts",
+          "target": "core/core.ts"
+        },
+        {
+          "source": "blocks/rate-limiter/utils/ip.ts",
+          "target": "utils/ip.ts"
+        },
+        {
+          "source": "blocks/rate-limiter/utils/ip.test.ts",
+          "target": "utils/ip.test.ts"
+        }
       ],
       "adapters": {
         "express": {
@@ -171,7 +180,10 @@
                   "source": "blocks/error-handler/express/http-status.ts",
                   "target": "express/http-status.ts"
                 },
-                { "source": "blocks/error-handler/express/index.ts", "target": "express/index.ts" },
+                {
+                  "source": "blocks/error-handler/express/index.ts",
+                  "target": "express/index.ts"
+                },
                 {
                   "source": "blocks/error-handler/express/throw-error.ts",
                   "target": "express/throw-error.ts"
@@ -192,8 +204,14 @@
       "dependencies": ["pino"],
       "devDependencies": ["vitest"],
       "baseFiles": [
-        { "source": "blocks/logger/core.ts", "target": "core.ts" },
-        { "source": "blocks/logger/core.test.ts", "target": "core.test.ts" }
+        {
+          "source": "blocks/logger/core.ts",
+          "target": "core.ts"
+        },
+        {
+          "source": "blocks/logger/core.test.ts",
+          "target": "core.test.ts"
+        }
       ],
       "adapters": {
         "express": {
@@ -202,7 +220,10 @@
           "variants": {
             "default": {
               "files": [
-                { "source": "blocks/logger/adapters/express.ts", "target": "adapters/express.ts" },
+                {
+                  "source": "blocks/logger/adapters/express.ts",
+                  "target": "adapters/express.ts"
+                },
                 {
                   "source": "blocks/logger/adapters/express.test.ts",
                   "target": "adapters/express.test.ts"
@@ -216,7 +237,10 @@
           "variants": {
             "default": {
               "files": [
-                { "source": "blocks/logger/adapters/fastify.ts", "target": "adapters/fastify.ts" },
+                {
+                  "source": "blocks/logger/adapters/fastify.ts",
+                  "target": "adapters/fastify.ts"
+                },
                 {
                   "source": "blocks/logger/adapters/fastify.test.ts",
                   "target": "adapters/fastify.test.ts"
@@ -230,7 +254,10 @@
           "variants": {
             "default": {
               "files": [
-                { "source": "blocks/logger/adapters/hono.ts", "target": "adapters/hono.ts" },
+                {
+                  "source": "blocks/logger/adapters/hono.ts",
+                  "target": "adapters/hono.ts"
+                },
                 {
                   "source": "blocks/logger/adapters/hono.test.ts",
                   "target": "adapters/hono.test.ts"
@@ -247,9 +274,18 @@
       "dependencies": ["zod"],
       "devDependencies": ["vitest"],
       "baseFiles": [
-        { "source": "blocks/request-validator/core.ts", "target": "core.ts" },
-        { "source": "blocks/request-validator/contract.ts", "target": "contract.ts" },
-        { "source": "blocks/request-validator/core.test.ts", "target": "core.test.ts" }
+        {
+          "source": "blocks/request-validator/core.ts",
+          "target": "core.ts"
+        },
+        {
+          "source": "blocks/request-validator/contract.ts",
+          "target": "contract.ts"
+        },
+        {
+          "source": "blocks/request-validator/core.test.ts",
+          "target": "core.test.ts"
+        }
       ],
       "adapters": {
         "express": {
@@ -313,9 +349,18 @@
       "description": "Framework-agnostic API response formatting.",
       "devDependencies": ["vitest"],
       "baseFiles": [
-        { "source": "blocks/response-formatter/core.ts", "target": "core.ts" },
-        { "source": "blocks/response-formatter/contract.ts", "target": "contract.ts" },
-        { "source": "blocks/response-formatter/core.test.ts", "target": "core.test.ts" }
+        {
+          "source": "blocks/response-formatter/core.ts",
+          "target": "core.ts"
+        },
+        {
+          "source": "blocks/response-formatter/contract.ts",
+          "target": "contract.ts"
+        },
+        {
+          "source": "blocks/response-formatter/core.test.ts",
+          "target": "core.test.ts"
+        }
       ],
       "adapters": {
         "express": {
@@ -404,7 +449,10 @@
       "description": "Framework-agnostic health assessment suite.",
       "devDependencies": ["vitest"],
       "baseFiles": [
-        { "source": "blocks/health-check/core/build-report.ts", "target": "core/build-report.ts" },
+        {
+          "source": "blocks/health-check/core/build-report.ts",
+          "target": "core/build-report.ts"
+        },
         {
           "source": "blocks/health-check/core/build-report.test.ts",
           "target": "core/build-report.test.ts"
@@ -425,12 +473,18 @@
           "source": "blocks/health-check/core/create-health.test.ts",
           "target": "core/create-health.test.ts"
         },
-        { "source": "blocks/health-check/core/run-check.ts", "target": "core/run-check.ts" },
+        {
+          "source": "blocks/health-check/core/run-check.ts",
+          "target": "core/run-check.ts"
+        },
         {
           "source": "blocks/health-check/core/run-check.test.ts",
           "target": "core/run-check.test.ts"
         },
-        { "source": "blocks/health-check/core/run-checks.ts", "target": "core/run-checks.ts" },
+        {
+          "source": "blocks/health-check/core/run-checks.ts",
+          "target": "core/run-checks.ts"
+        },
         {
           "source": "blocks/health-check/core/run-checks.test.ts",
           "target": "core/run-checks.test.ts"
@@ -439,7 +493,10 @@
           "source": "blocks/health-check/core/validate-config.ts",
           "target": "core/validate-config.ts"
         },
-        { "source": "blocks/health-check/types/index.ts", "target": "types/index.ts" }
+        {
+          "source": "blocks/health-check/types/index.ts",
+          "target": "types/index.ts"
+        }
       ],
       "adapters": {
         "express": {
@@ -482,7 +539,10 @@
           "variants": {
             "default": {
               "files": [
-                { "source": "blocks/health-check/adapters/hono.ts", "target": "adapters/hono.ts" },
+                {
+                  "source": "blocks/health-check/adapters/hono.ts",
+                  "target": "adapters/hono.ts"
+                },
                 {
                   "source": "blocks/health-check/adapters/hono.test.ts",
                   "target": "adapters/hono.test.ts"
@@ -498,9 +558,18 @@
       "description": "Dependency-free graceful shutdown with in-flight request draining and per-framework adapters",
       "devDependencies": ["vitest", "@types/node"],
       "baseFiles": [
-        { "source": "blocks/graceful-shutdown/index.ts", "target": "index.ts" },
-        { "source": "blocks/graceful-shutdown/constants.ts", "target": "constants.ts" },
-        { "source": "blocks/graceful-shutdown/types.ts", "target": "types.ts" },
+        {
+          "source": "blocks/graceful-shutdown/index.ts",
+          "target": "index.ts"
+        },
+        {
+          "source": "blocks/graceful-shutdown/constants.ts",
+          "target": "constants.ts"
+        },
+        {
+          "source": "blocks/graceful-shutdown/types.ts",
+          "target": "types.ts"
+        },
         {
           "source": "blocks/graceful-shutdown/core/shutdown.ts",
           "target": "core/shutdown.ts"
@@ -509,10 +578,22 @@
           "source": "blocks/graceful-shutdown/core/connection-tracker.ts",
           "target": "core/connection-tracker.ts"
         },
-        { "source": "blocks/graceful-shutdown/utils/index.ts", "target": "utils/index.ts" },
-        { "source": "blocks/graceful-shutdown/utils/http.ts", "target": "utils/http.ts" },
-        { "source": "blocks/graceful-shutdown/utils/state.ts", "target": "utils/state.ts" },
-        { "source": "blocks/graceful-shutdown/utils/timeout.ts", "target": "utils/timeout.ts" },
+        {
+          "source": "blocks/graceful-shutdown/utils/index.ts",
+          "target": "utils/index.ts"
+        },
+        {
+          "source": "blocks/graceful-shutdown/utils/http.ts",
+          "target": "utils/http.ts"
+        },
+        {
+          "source": "blocks/graceful-shutdown/utils/state.ts",
+          "target": "utils/state.ts"
+        },
+        {
+          "source": "blocks/graceful-shutdown/utils/timeout.ts",
+          "target": "utils/timeout.ts"
+        },
         {
           "source": "blocks/graceful-shutdown/tests/unit/shutdown.test.ts",
           "target": "tests/unit/shutdown.test.ts"
@@ -582,6 +663,185 @@
                 {
                   "source": "blocks/graceful-shutdown/tests/integration/hono.test.ts",
                   "target": "tests/integration/hono.test.ts"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "idempotency": {
+      "name": "Idempotency",
+      "description": "Exactly-once request execution with pluggable stores and cache, plus an Express adapter",
+      "devDependencies": ["vitest", "@types/node"],
+      "baseFiles": [
+        {
+          "source": "blocks/idempotency/index.ts",
+          "target": "index.ts"
+        },
+        {
+          "source": "blocks/idempotency/core/idempotency-handler.ts",
+          "target": "core/idempotency-handler.ts"
+        },
+        {
+          "source": "blocks/idempotency/core/idempotency-handler.test.ts",
+          "target": "core/idempotency-handler.test.ts"
+        },
+        {
+          "source": "blocks/idempotency/core/core.test.ts",
+          "target": "core/core.test.ts"
+        },
+        {
+          "source": "blocks/idempotency/errors/codes.ts",
+          "target": "errors/codes.ts"
+        },
+        {
+          "source": "blocks/idempotency/errors/idempotency-errors.ts",
+          "target": "errors/idempotency-errors.ts"
+        },
+        {
+          "source": "blocks/idempotency/interfaces/cache.ts",
+          "target": "interfaces/cache.ts"
+        },
+        {
+          "source": "blocks/idempotency/interfaces/logger.ts",
+          "target": "interfaces/logger.ts"
+        },
+        {
+          "source": "blocks/idempotency/interfaces/observability.ts",
+          "target": "interfaces/observability.ts"
+        },
+        {
+          "source": "blocks/idempotency/interfaces/store.ts",
+          "target": "interfaces/store.ts"
+        },
+        {
+          "source": "blocks/idempotency/types/index.ts",
+          "target": "types/index.ts"
+        },
+        {
+          "source": "blocks/idempotency/services/cache-manager.ts",
+          "target": "services/cache-manager.ts"
+        },
+        {
+          "source": "blocks/idempotency/services/cache-manager.test.ts",
+          "target": "services/cache-manager.test.ts"
+        },
+        {
+          "source": "blocks/idempotency/jobs/record-cleaner.ts",
+          "target": "jobs/record-cleaner.ts"
+        },
+        {
+          "source": "blocks/idempotency/jobs/record-cleaner.test.ts",
+          "target": "jobs/record-cleaner.test.ts"
+        },
+        {
+          "source": "blocks/idempotency/jobs/record-recovery.ts",
+          "target": "jobs/record-recovery.ts"
+        },
+        {
+          "source": "blocks/idempotency/jobs/record-recovery.test.ts",
+          "target": "jobs/record-recovery.test.ts"
+        },
+        {
+          "source": "blocks/idempotency/utils/constant-time-equals.ts",
+          "target": "utils/constant-time-equals.ts"
+        },
+        {
+          "source": "blocks/idempotency/utils/constant-time-equals.test.ts",
+          "target": "utils/constant-time-equals.test.ts"
+        },
+        {
+          "source": "blocks/idempotency/utils/create-logger.ts",
+          "target": "utils/create-logger.ts"
+        },
+        {
+          "source": "blocks/idempotency/utils/key-validator.ts",
+          "target": "utils/key-validator.ts"
+        },
+        {
+          "source": "blocks/idempotency/utils/key-validator.test.ts",
+          "target": "utils/key-validator.test.ts"
+        },
+        {
+          "source": "blocks/idempotency/utils/serializer.ts",
+          "target": "utils/serializer.ts"
+        },
+        {
+          "source": "blocks/idempotency/utils/serializer.test.ts",
+          "target": "utils/serializer.test.ts"
+        },
+        {
+          "source": "blocks/idempotency/adapters/shared.ts",
+          "target": "adapters/shared.ts"
+        }
+      ],
+      "adapters": {
+        "express": {
+          "dependencies": ["express"],
+          "devDependencies": ["@types/express", "supertest", "@types/supertest"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/idempotency/adapters/express.ts",
+                  "target": "adapters/express.ts"
+                },
+                {
+                  "source": "blocks/idempotency/adapters/express.test.ts",
+                  "target": "adapters/express.test.ts"
+                },
+                {
+                  "source": "blocks/idempotency/adapters/express.integration.test.ts",
+                  "target": "adapters/express.integration.test.ts"
+                },
+                {
+                  "source": "blocks/idempotency/adapters/express.security.test.ts",
+                  "target": "adapters/express.security.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "fastify": {
+          "dependencies": ["fastify"],
+          "devDependencies": ["vitest"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/idempotency/adapters/fastify.ts",
+                  "target": "adapters/fastify.ts"
+                },
+                {
+                  "source": "blocks/idempotency/adapters/fastify.test.ts",
+                  "target": "adapters/fastify.test.ts"
+                },
+                {
+                  "source": "blocks/idempotency/adapters/fastify.integration.test.ts",
+                  "target": "adapters/fastify.integration.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "hono": {
+          "dependencies": ["hono"],
+          "devDependencies": ["vitest"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/idempotency/adapters/hono.ts",
+                  "target": "adapters/hono.ts"
+                },
+                {
+                  "source": "blocks/idempotency/adapters/hono.test.ts",
+                  "target": "adapters/hono.test.ts"
+                },
+                {
+                  "source": "blocks/idempotency/adapters/hono.integration.test.ts",
+                  "target": "adapters/hono.integration.test.ts"
                 }
               ]
             }

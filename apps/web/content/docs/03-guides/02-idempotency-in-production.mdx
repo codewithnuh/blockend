@@ -1,0 +1,358 @@
+---
+title: Idempotency in Production
+description: End-to-end guide for running the Idempotency block in production — keys, stores, error classification, observability with the Logger block, background jobs, and what happens when things go wrong.
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Callout } from "fumadocs-ui/components/callout";
+
+The **Idempotency** block gives you exactly-once execution, but "exactly-once" is a _system property_, not a library property. It only holds when the store is correct, the key is generated correctly, errors are classified correctly, and the background jobs actually run.
+
+This guide covers the decisions that turn the block into a production guarantee — and the failure modes you must design for anyway.
+
+<Callout type="info">
+  You need the block installed first. See [Idempotency](/docs/02-blocks/09-idempotency) for
+  installation and API details. You'll also want the [Logger](/docs/02-blocks/03-pino-logger) and
+  [Error Handler](/docs/02-blocks/02-global-error-handler) blocks for the observability and error
+  sections.
+</Callout>
+
+---
+
+## The Contract with Your Clients
+
+Idempotency starts with the client. Document it and enforce it:
+
+1. **Clients generate a key once per operation** — before the first request — and reuse the exact same key and payload for every retry of that operation. UUID v4 is the standard choice; a random string is fine. Never generate a new key per retry (that defeats the entire purpose).
+2. **Retries must be exact.** The same key with a _different_ payload is a conflict (`409 KEY_REUSED_WITH_DIFFERENT_REQUEST`), not a new operation. This is by design — a changed payload means the client is doing something different.
+3. **Keys are scoped to `(userId, operation, key)`.** The same key used by two users, or for two operations, is two independent operations. This is how you keep one tenant's response from being replayed to another.
+
+| Client behavior                    | What the block does                                                        |
+| ---------------------------------- | -------------------------------------------------------------------------- |
+| Retry same key + same payload      | Replays the stored response — logic runs once.                             |
+| Retry same key + different payload | `409` conflict.                                                            |
+| Two concurrent requests, same key  | Second gets `409 REQUEST_IN_PROGRESS` until the first finishes.            |
+| Retry after a failed operation     | `409 REQUEST_FAILED` (permanent) or runs again (transient, within budget). |
+
+---
+
+## The Store Is the Source of Truth
+
+The cache is optional. **The store is not.** Everything the block guarantees rests on one contract in `IdempotencyStore.create`:
+
+> `create` must return `CREATED` or `DUPLICATE` **atomically** — no two concurrent inserts may both return `CREATED` for the same `(operation, userId, key)`.
+
+In SQL terms, that's a unique constraint:
+
+```sql
+CREATE TABLE idempotency_records (
+  id            BIGSERIAL PRIMARY KEY,
+  operation     TEXT        NOT NULL,
+  user_id       TEXT        NOT NULL,
+  key           TEXT        NOT NULL,
+  request_hash  TEXT        NOT NULL,
+  status        TEXT        NOT NULL,          -- PROCESSING | SUCCESS | FAILED
+  response      JSONB,
+  retry_count   INTEGER     NOT NULL DEFAULT 0, -- MUST survive record deletion
+  expires_at    TIMESTAMPTZ NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (operation, user_id, key)
+);
+```
+
+Then `create` is:
+
+```sql
+INSERT INTO idempotency_records (operation, user_id, key, request_hash, status, expires_at)
+VALUES ($1, $2, $3, $4, 'PROCESSING', $5)
+ON CONFLICT (operation, user_id, key) DO NOTHING
+RETURNING id; -- row returned  → CREATED,  no row → DUPLICATE
+```
+
+### The retry counter must outlive the row
+
+This is the easiest store bug to get wrong. After a transient failure the handler **deletes** the record so the client can retry, then creates a fresh row on the next attempt. If `retry_count` lives on the row, it resets to `0` on every re-create — `MAX_ALLOWED_RETRIES` (3) is never reached, and a permanently-flaky operation retries forever instead of being poisoned.
+
+Two correct designs:
+
+- A dedicated counter table upserted by `(operation, user_id, key)`, never deleted on retry.
+- A separate `retry_counts` table joined at `incrementRetryCount` time.
+
+### Marking must be conditional
+
+`markSuccess` / `markFailed` should be conditional updates so a stale process can't corrupt a fresh one:
+
+```sql
+UPDATE idempotency_records
+SET status = 'FAILED', updated_at = now()
+WHERE operation = $1 AND user_id = $2 AND key = $3
+  AND status = 'PROCESSING';   -- never flip a SUCCESS to FAILED
+```
+
+<Callout type="warn">
+  If your store cannot give you an atomic `create` (for example, a key-value store without
+  compare-and-set), the block cannot guarantee exactly-once under concurrency. Two requests could
+  both see "no record" and both run your logic. Consider an alternate strategy for that storage
+  layer (e.g. a per-key lock), or accept at-least-once semantics.
+</Callout>
+
+---
+
+## Scoping Keys to Users
+
+The default `getUserId` falls back to `"anonymous"` when `req.user`/`c.get("user")` is unset. If that ever happens in production, **every user shares one global key space**: any client that learns a key + payload could replay another client's stored response — including a payment confirmation.
+
+Always resolve a real, authenticated per-user id:
+
+```ts
+// Express
+getUserId: (req) => req.user.id,            // never "anonymous"
+
+// Fastify — after your auth hook sets request.user
+getUserId: (request) => (request as any).user.id,
+
+// Hono — after your auth middleware does c.set("user", user)
+getUserId: (c) => (c.get("user") as { id: string }).id,
+```
+
+And consider whether `operation` should carry the tenant too — for example, have `getOperation` return a string like `"acme:payments:create"` where `acme` is resolved from the authenticated user. The more scope in the key, the safer the isolation.
+
+---
+
+## Classifying Errors: Permanent vs Transient
+
+`isPermanentError` decides whether a failed execution poisons the key (`FAILED`, blocks all retries) or releases the lock so the client can retry (up to 3 times, then poisoned).
+
+```ts
+isPermanentError: (err) =>
+  err instanceof ValidationError ||     // 4xx-class: never retryable
+  err instanceof InsufficientFundsError,
+```
+
+| Error type                      | Classify as | What the client sees                                         |
+| ------------------------------- | ----------- | ------------------------------------------------------------ |
+| Validation / 4xx business error | permanent   | `409 REQUEST_FAILED` on every retry. Honest and fast.        |
+| Timeout, connection reset       | transient   | Lock released; retry re-executes. Up to 3 attempts.          |
+| Downstream 5xx (3rd party)      | your call   | Transient usually wins — the operation may succeed on retry. |
+
+Be deliberate. **Poisoning a key on a transient failure burns the client's operation forever; releasing a lock on a permanent failure lets a doomed request re-run 3 times before failing.** Both are survivable, but only if the choice is intentional.
+
+<Callout type="warn">
+  The default classifier treats **every** error as permanent. If you don't set `isPermanentError`,
+  one network blip inside your business logic permanently blocks that key. Decide this explicitly
+  for every route you protect.
+</Callout>
+
+---
+
+## Observability: Logger + Metrics
+
+Pass a logger and metrics sink when you construct the handler — otherwise you fly blind into the exact situations idempotency exists for.
+
+### With the Logger block
+
+The Logger block exposes a pino instance whose call signature (`logger.info(obj, msg)`) matches the block's `Logger` interface, so you can pass it directly:
+
+```ts
+import { logger } from "@/blocks/logger"; // Logger block
+import { runWithLoggerContext } from "@/blocks/logger";
+import { IdempotencyHandler } from "@/blocks/idempotency";
+
+const handler = new IdempotencyHandler(myStore, myCache, { logger });
+```
+
+The handler emits structured context (`key`, `userId`, `operation`, `status`) on every log line — dedupe hits, lock acquisitions, failures, and cleanup runs are all traceable. Combine with the Logger block's `requestId` to correlate the idempotency decision with the rest of the request trace:
+
+```ts
+app.post("/payments", (req, res, next) => {
+  runWithLoggerContext(req.headers["x-request-id"], () => {
+    // the idempotency logs inside this request now carry requestId
+    next();
+  });
+});
+```
+
+### With any other logger
+
+Don't use the Logger block? Bridge your own with `createLoggerAdapter`:
+
+```ts
+import { createLoggerAdapter } from "@/blocks/idempotency/utils/create-logger";
+
+const logger = createLoggerAdapter((level, msg, meta) => {
+  console[level](msg, meta ?? "");
+});
+const handler = new IdempotencyHandler(myStore, undefined, { logger });
+```
+
+Or, if your logger already has pino-like `(obj, msg)` methods, pass it directly — the interface is duck-typed.
+
+### Metrics that matter
+
+Wire the `Metrics` hook to Prometheus (or your metric system) and alert on these:
+
+| Metric                                | What it tells you                           | Alert when                    |
+| ------------------------------------- | ------------------------------------------- | ----------------------------- |
+| `idempotency_duplicates_total`        | Replays + conflicts. Healthy dedupe volume. | Spike in `status: failed`     |
+| `idempotency_store_errors_total`      | Store is down or misbehaving.               | `> 0` sustained               |
+| `idempotency_latency_seconds`         | Overhead + execution time histogram.        | p99 above your SLO            |
+| `idempotency_recovered_records_total` | Crashed workers left stuck locks.           | `succeeded > 0` — investigate |
+
+A sudden rise in `idempotency_duplicates_total` is often your _clients_ telling you something is wrong on their side — retry storms, or a client bug reusing keys.
+
+### The per-request context
+
+Every adapter attaches an `IdempotencyContext` to the request (`res.locals.idempotency` / `request.idempotency` / `c.get("idempotency")`) with the key, user, operation, request hash, and outcome. Log it from a response hook to audit every dedupe decision:
+
+```ts
+// Fastify
+app.addHook("onResponse", (request, reply, done) => {
+  request.log.info({ idempotency: request.idempotency }, "idempotency decision");
+  done();
+});
+```
+
+---
+
+## Background Jobs Are Not Optional
+
+Two cron jobs keep the system healthy. Without them, keys stay blocked forever after crashes, and storage grows unboundedly.
+
+```ts
+import { IdempotencyHandler } from "@/blocks/idempotency";
+
+const handler = new IdempotencyHandler(myStore);
+
+// Every 5 minutes — fail PROCESSING records untouched for > 5 minutes
+await handler.recoverStuckRecords({ timeoutInMs: 5 * 60 * 1000, limit: 100 });
+
+// Every hour — purge expired SUCCESS/FAILED records so keys become reusable
+await handler.cleanupExpiredRecords({ limit: 500 });
+```
+
+### The lease-race warning
+
+`recoverStuckRecords` marks a `PROCESSING` record as `FAILED` when its `updatedAt` is older than the timeout. If a **legitimate** operation runs longer than the timeout without touching `updatedAt`, recovery can mark it `FAILED` while it's still executing — a retry then re-runs it (double execution) and/or loses its result.
+
+Mitigations for long-running jobs:
+
+1. Heartbeat: touch `updatedAt` while the job runs (or pick a `timeoutInMs` comfortably above your worst-case execution time).
+2. Make `markFailed` conditional on `status = 'PROCESSING'` (see [The Store](#the-store-is-the-source-of-truth)) so a just-completed `SUCCESS` can never be flipped.
+
+---
+
+## Failure Modes: What Actually Goes Wrong
+
+| Failure                                   | What happens                                                                                                 | What you do                                                                                                                                    |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Store is down                             | Every protected route returns `503 STORE_UNAVAILABLE` — **fail-closed, by design.**                          | Alert on `idempotency_store_errors_total`. Consider `requireKey: false` on non-critical routes so they degrade to unprotected rather than 503. |
+| Cache (Redis) is down                     | Nothing breaks. Cache failures are swallowed; requests fall back to the store.                               | No action needed. Add cache capacity alerts so you notice.                                                                                     |
+| Node crashes mid-request                  | A `PROCESSING` lock is left dangling. Duplicates get `409 REQUEST_IN_PROGRESS` forever — until recovery.     | Run `recoverStuckRecords` on a cron (above). Without it, keys are blocked permanently.                                                         |
+| Client retries with changed payload       | `409 KEY_REUSED_WITH_DIFFERENT_REQUEST`.                                                                     | This is correct behavior. Log it — it's usually a client bug.                                                                                  |
+| Clock skew between app and DB             | Records' `expires_at`/`updatedAt` drift. Cleanup may purge too early; recovery may misfire.                  | Use the DB clock for expiry cutoffs where possible; keep NTP healthy.                                                                          |
+| A job outlives the recovery timeout       | Recovery marks it `FAILED` while it still runs → a retry re-executes it.                                     | Heartbeat `updatedAt`; conditional `markFailed`.                                                                                               |
+| Client sends no key                       | Route runs **unprotected** (unless `requireKey: true`).                                                      | Set `requireKey: true` on state-changing routes you care about.                                                                                |
+| Business logic throws transiently         | Lock released, retry re-runs — up to 3 times, then the key is poisoned.                                      | Set `isPermanentError` deliberately.                                                                                                           |
+| Response sent, then the store write fails | Client got the response, but the record is stuck `PROCESSING` → later retries get `409 REQUEST_IN_PROGRESS`. | Recovery job converts it to `FAILED`. Rare; acceptable if your store is healthy.                                                               |
+
+---
+
+## Composing with Other Blocks
+
+### Error Handler
+
+`IdempotencyError` carries a stable machine-readable `code`, and every adapter maps it to HTTP automatically (`400`/`404`/`409`/`503`/`500`). For everything else, forward to your global error handler:
+
+```ts
+// Express — non-idempotency errors reach your error middleware
+app.post("/payments", idempotent(handler, route));
+app.use((err, _req, res, _next) => {
+  if (err instanceof IdempotencyError) {
+    return res
+      .status(idempotencyErrorStatus(err))
+      .json({ error: { code: err.code, message: err.message } });
+  }
+  return res.status(500).json({ error: "internal_error" });
+});
+```
+
+Use `statusMap` to adjust the mapping per route (e.g. `REQUEST_IN_PROGRESS: 425` if you prefer the "Too Early" semantics).
+
+### Response Formatter
+
+The stored response is the exact payload your route produced. Wrap it consistently — the deduplicated response and the fresh response are byte-identical, so clients can't tell the difference, which is exactly what you want.
+
+### Rate Limiter
+
+Combine with the [Rate Limiter](/docs/02-blocks/01-rate-limiter) to stop retry storms from hammering your store: idempotency dedupes, rate limiting protects the lock path itself.
+
+---
+
+## Non-Negotiable Rules
+
+1. `create` must be atomic — a unique constraint or equivalent. Everything else is negotiable.
+2. `getUserId` must resolve a real authenticated user id. Never ship the `"anonymous"` default.
+3. Set `isPermanentError` explicitly on every protected route.
+4. Set `requireKey: true` on state-changing routes you care about.
+5. Run `recoverStuckRecords` and `cleanupExpiredRecords` on a schedule from day one.
+6. The retry counter must survive record deletion.
+7. `markSuccess`/`markFailed` should be conditional on the current status.
+8. Wire logger + metrics before your first deploy — the first incident will need them.
+9. Document the client contract (same key + same payload per retry) and enforce it.
+10. Test the failure modes, not just the happy path (below).
+
+---
+
+## Testing Checklist
+
+Your test suite should cover at least:
+
+- [ ] Duplicate request replays the stored response, logic runs once.
+- [ ] Same key + different payload → 409.
+- [ ] Concurrent duplicates → one runs, the other gets 409 `REQUEST_IN_PROGRESS`.
+- [ ] Permanent failure poisons the key (retry → 409 `REQUEST_FAILED`).
+- [ ] Transient failure releases the lock; the key re-executes.
+- [ ] 3 transient failures poison the key.
+- [ ] Store down → 503 `STORE_UNAVAILABLE`.
+- [ ] Cache down → still works (falls back to store).
+- [ ] Keys are isolated per user and per operation.
+- [ ] `recoverStuckRecords` unblocks a crashed worker's key.
+- [ ] `cleanupExpiredRecords` frees an expired key.
+- [ ] The capture-style middleware never records an error response as a success.
+
+The block ships unit + integration tests for every adapter (Express, Fastify, Hono) covering all of these — they're a template for your own route tests.
+
+---
+
+## Hard Questions
+
+**"Exactly-once" — really?**  
+Within one service and one store, yes, as long as `create` is atomic. Across multiple services, databases, or partitions there is no free lunch: you need a distributed transaction or a consensus protocol. The block gives you the standard single-store guarantee; don't oversell it beyond that.
+
+**What if my operation is not idempotent-friendly?**  
+Wrap the _mutation_ in the protected route and keep side effects inside the callback that `execute()` invokes. Anything that must happen exactly once (charging a card, decrementing inventory) must live inside that callback — never before the route.
+
+**Should I hash the whole body?**  
+Only the fields that define the operation. If you hash `timestamp` or `traceId` (which change on retry), the same logical request looks like a different request and you lose deduplication. Use `getBody` to slice: `getBody: (req) => ({ amount: req.body.amount, currency: req.body.currency })`.
+
+**When should keys expire?**  
+The default TTL is 24 hours — long enough for the client's entire retry window, short enough that storage doesn't balloon. Make it at least as long as your client's retry horizon, or retries after expiry will re-execute.
+
+**What does `REQUEST_IN_PROGRESS` tell the client?**  
+The first request is still running. Clients should retry with backoff (that's what the `409` + retry budget is for), not abandon. Stripe documents the same semantics for its in-progress state.
+
+**Do I need the cache at all?**  
+No — it's a fast path. It shines when replaying large stored responses or when the store is slow. Because failures are swallowed, it can only help. Start without it, add it when your replay volume justifies it.
+
+**How do I know the block is actually deduplicating in prod?**  
+The metrics: `idempotency_duplicates_total` (with `status` label), `idempotency_cache_hits_total`, and the context attached to every request. If duplicates are 0, your clients aren't retrying — or your key contract is broken.
+
+---
+
+## Related Docs
+
+- [Idempotency](/docs/02-blocks/09-idempotency) — block reference, API, adapters
+- [Logger](/docs/02-blocks/03-pino-logger) — structured context logging with `requestId`
+- [Error Handler](/docs/02-blocks/02-global-error-handler) — centralized error handling and status mapping
+- [Rate Limiter](/docs/02-blocks/01-rate-limiter) — protect the lock path from retry storms

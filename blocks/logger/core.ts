@@ -21,16 +21,18 @@ export const logger = pino({
     paths: ["Authorization", "*.token", "token", "*.password", "password"],
     censor: "[REDACTED]"
   },
-  transport: isProduction
-    ? undefined
+  ...(isProduction
+    ? {}
     : {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          translateTime: "SYS:standard",
-          ignore: "hostname,pid"
+        transport: {
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+            translateTime: "SYS:standard",
+            ignore: "hostname,pid"
+          }
         }
-      }
+      })
 });
 
 export function runWithLoggerContext<T>(
