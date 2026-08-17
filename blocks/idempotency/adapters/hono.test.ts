@@ -16,10 +16,12 @@ import {
 // ---------------------------------------------------------------------------
 
 function createMockHandler() {
-  const execute = vi.fn<
-    Parameters<IdempotencyHandler["execute"]>,
-    ReturnType<IdempotencyHandler["execute"]>
-  >();
+  const execute =
+    vi.fn<
+      (
+        ...args: Parameters<IdempotencyHandler["execute"]>
+      ) => ReturnType<IdempotencyHandler["execute"]>
+    >();
 
   return {
     handler: { execute } as unknown as IdempotencyHandler,
@@ -407,7 +409,11 @@ describe("idempotencyMiddleware (hono)", () => {
     // value in vitest (not the promise), so we assert on the captured promise.
     let downstream: Promise<unknown> | undefined;
     const execute = vi
-      .fn<Parameters<IdempotencyHandler["execute"]>, ReturnType<IdempotencyHandler["execute"]>>()
+      .fn<
+        (
+          ...args: Parameters<IdempotencyHandler["execute"]>
+        ) => ReturnType<IdempotencyHandler["execute"]>
+      >()
       .mockImplementation(async (_u, _o, _k, _b, exec) => {
         downstream = exec() as Promise<unknown>;
         return downstream;

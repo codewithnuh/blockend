@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { evaluateRateLimit, RateLimitConfig } from "../core/core";
+import { evaluateRateLimit } from "../core/core";
+import type { RateLimitConfig } from "../core/core";
 import { MemoryStore } from "./memory-store";
 
 describe("Rate Limiter Core & MemoryStore", () => {

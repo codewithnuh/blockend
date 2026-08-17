@@ -1,4 +1,4 @@
-import type { CreateRecordResult, IdempotencyRecord } from "../types";
+import type { CreateRecordResult, IdempotencyRecord } from "../types/index";
 
 export interface FindAllFilters {
   status?: "PROCESSING" | "SUCCESS" | "FAILED";

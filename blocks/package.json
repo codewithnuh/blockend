@@ -1,0 +1,8 @@
+{
+  "name": "@blockend/blocks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

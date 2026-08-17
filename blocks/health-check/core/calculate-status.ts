@@ -1,4 +1,4 @@
-import { HealthCheckResult, HealthStatus } from "../types/index";
+import type { HealthCheckResult, HealthStatus } from "../types/index";
 
 export function calculateStatus(results: HealthCheckResult[]): HealthStatus {
   const hasCriticalFailure = results.some(

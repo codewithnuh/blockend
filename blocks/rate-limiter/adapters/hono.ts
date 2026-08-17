@@ -1,4 +1,5 @@
-import { evaluateRateLimit, RateLimitStore, RateLimitConfig } from "../core/core";
+import { evaluateRateLimit } from "../core/core";
+import type { RateLimitStore, RateLimitConfig } from "../core/core";
 import { getClientIp } from "../utils/ip";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Context, MiddlewareHandler } from "hono";

@@ -18,8 +18,9 @@ function createMetrics(): Metrics {
 
 function createStore() {
   const deleteExpired = vi.fn<
-    Parameters<IdempotencyStore["deleteExpired"]>,
-    ReturnType<IdempotencyStore["deleteExpired"]>
+    (
+      ...args: Parameters<IdempotencyStore["deleteExpired"]>
+    ) => ReturnType<IdempotencyStore["deleteExpired"]>
   >(async () => 0);
 
   return { store: { deleteExpired }, deleteExpired };

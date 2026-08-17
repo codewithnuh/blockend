@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createHealth } from "../core/create-health";
-import { HealthCheck, HealthCheckResult, HealthStatus } from "../types/index";
+import type { HealthCheck, HealthCheckResult, HealthStatus } from "../types/index";
 
 describe("createHealth", () => {
   afterEach(() => {

@@ -72,13 +72,16 @@ function createMockReq(overrides: Partial<Record<string, unknown>> = {}) {
 // `execute` and `hashRequest` are returned separately so tests can drive and
 // assert on the mocks directly.
 function createMockHandler() {
-  const execute = vi.fn<
-    Parameters<IdempotencyHandler["execute"]>,
-    ReturnType<IdempotencyHandler["execute"]>
-  >();
+  const execute =
+    vi.fn<
+      (
+        ...args: Parameters<IdempotencyHandler["execute"]>
+      ) => ReturnType<IdempotencyHandler["execute"]>
+    >();
   const hashRequest = vi.fn<
-    Parameters<IdempotencyHandler["hashRequest"]>,
-    ReturnType<IdempotencyHandler["hashRequest"]>
+    (
+      ...args: Parameters<IdempotencyHandler["hashRequest"]>
+    ) => ReturnType<IdempotencyHandler["hashRequest"]>
   >(() => "hash");
 
   return {

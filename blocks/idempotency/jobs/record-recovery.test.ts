@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Logger, Metrics } from "../interfaces/observability";
 import type { IdempotencyStore } from "../interfaces/store";
-import type { IdempotencyRecord } from "../types";
+import type { IdempotencyRecord } from "../types/index";
 import { recoverStuckRecords } from "./record-recovery";
 
 function createLogger(): Logger {
@@ -18,12 +18,12 @@ function createMetrics(): Metrics {
 }
 function createStore() {
   const findAll = vi.fn<
-    Parameters<IdempotencyStore["findAll"]>,
-    ReturnType<IdempotencyStore["findAll"]>
+    (...args: Parameters<IdempotencyStore["findAll"]>) => ReturnType<IdempotencyStore["findAll"]>
   >(async () => []);
   const markFailed = vi.fn<
-    Parameters<IdempotencyStore["markFailed"]>,
-    ReturnType<IdempotencyStore["markFailed"]>
+    (
+      ...args: Parameters<IdempotencyStore["markFailed"]>
+    ) => ReturnType<IdempotencyStore["markFailed"]>
   >(async () => {});
 
   return { store: { findAll, markFailed }, findAll, markFailed };

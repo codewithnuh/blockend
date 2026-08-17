@@ -1,5 +1,6 @@
-import { FastifyRequest, FastifyReply } from "fastify";
-import { evaluateRateLimit, RateLimitStore, RateLimitConfig } from "../core/core";
+import type { FastifyRequest, FastifyReply } from "fastify";
+import { evaluateRateLimit } from "../core/core";
+import type { RateLimitStore, RateLimitConfig } from "../core/core";
 import { getClientIp } from "../utils/ip";
 
 export interface FastifyOptions extends Partial<RateLimitConfig> {

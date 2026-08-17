@@ -13,10 +13,12 @@ import { idempotencyErrorStatus } from "./shared";
 // ---------------------------------------------------------------------------
 
 function createMockHandler() {
-  const execute = vi.fn<
-    Parameters<IdempotencyHandler["execute"]>,
-    ReturnType<IdempotencyHandler["execute"]>
-  >();
+  const execute =
+    vi.fn<
+      (
+        ...args: Parameters<IdempotencyHandler["execute"]>
+      ) => ReturnType<IdempotencyHandler["execute"]>
+    >();
 
   return {
     handler: { execute } as unknown as IdempotencyHandler,
@@ -346,7 +348,11 @@ describe("idempotent (fastify) — reply.send capture & guards", () => {
   it("does not crash when the route responds and the idempotency layer then fails", async () => {
     const app = Fastify({ logger: false });
     const execute = vi
-      .fn<Parameters<IdempotencyHandler["execute"]>, ReturnType<IdempotencyHandler["execute"]>>()
+      .fn<
+        (
+          ...args: Parameters<IdempotencyHandler["execute"]>
+        ) => ReturnType<IdempotencyHandler["execute"]>
+      >()
       .mockImplementation(async (_u, _o, _k, _b, run) => {
         await run();
         // The route already replied, but the idempotency layer rejects.

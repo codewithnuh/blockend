@@ -2,7 +2,7 @@ import { IDEMPOTENCY_ERROR_CODES } from "../errors/codes";
 import { IdempotencyError } from "../errors/idempotency-errors";
 import type { IdempotencyCache } from "../interfaces/cache";
 import type { Logger, Metrics } from "../interfaces/observability";
-import type { CachedResponse } from "../types";
+import type { CachedResponse } from "../types/index";
 import { constantTimeEquals } from "../utils/constant-time-equals";
 
 export const DEFAULT_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms

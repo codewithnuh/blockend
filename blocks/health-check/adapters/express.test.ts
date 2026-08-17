@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { registerExpressHealthRoute } from "./express";
-import { Health, HealthReport } from "../types/index";
+import type { Health, HealthReport } from "../types/index";
 import type { Express } from "express";
 describe("registerExpressHealthRoute", () => {
   it("registers a GET route at the specified path", () => {
@@ -22,7 +22,7 @@ describe("registerExpressHealthRoute", () => {
     const mockHealth = { run: vi.fn().mockResolvedValue(mockReport) };
 
     registerExpressHealthRoute(mockApp as unknown as Express, mockHealth as unknown as Health);
-    const handler = mockApp.get.mock.calls[0][1];
+    const handler = mockApp.get.mock.calls[0]![1];
 
     const mockRes = { status: vi.fn().mockReturnThis(), json: vi.fn() };
     await handler({}, mockRes as unknown);
@@ -37,7 +37,7 @@ describe("registerExpressHealthRoute", () => {
     const mockHealth = { run: vi.fn().mockResolvedValue(mockReport) };
 
     registerExpressHealthRoute(mockApp as unknown as Express, mockHealth as unknown as Health);
-    const handler = mockApp.get.mock.calls[0][1];
+    const handler = mockApp.get.mock.calls[0]![1];
 
     const mockRes = { status: vi.fn().mockReturnThis(), json: vi.fn() };
     await handler({}, mockRes as unknown);
@@ -51,7 +51,7 @@ describe("registerExpressHealthRoute", () => {
     const mockHealth = { run: vi.fn().mockResolvedValue(mockReport) };
 
     registerExpressHealthRoute(mockApp as unknown as Express, mockHealth as unknown as Health);
-    const handler = mockApp.get.mock.calls[0][1];
+    const handler = mockApp.get.mock.calls[0]![1];
 
     const mockRes = { status: vi.fn().mockReturnThis(), json: vi.fn() };
     await handler({}, mockRes as unknown);

@@ -36,7 +36,7 @@ export type {
   CreateRecordResult,
   IdempotencyRecord,
   IdempotencyStatus
-} from "./types";
+} from "./types/index";
 
 // Services
 export { CacheManager, DEFAULT_CACHE_TTL } from "./services/cache-manager";

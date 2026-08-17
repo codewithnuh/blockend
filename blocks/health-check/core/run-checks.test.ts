@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { runChecks } from "../core/run-checks";
-import { HealthCheck } from "../types/index";
+import type { HealthCheck } from "../types/index";
 
 describe("runChecks", () => {
   it("executes all checks concurrently, not sequentially", async () => {
@@ -65,8 +65,8 @@ describe("runChecks", () => {
     const results = await runChecks(checks, 5000);
 
     expect(results).toHaveLength(2);
-    expect(results[0].status).toBe("healthy");
-    expect(results[1].status).toBe("unhealthy");
-    expect(results[1].error).toBe("boom");
+    expect(results[0]!.status).toBe("healthy");
+    expect(results[1]!.status).toBe("unhealthy");
+    expect(results[1]!.error).toBe("boom");
   });
 });

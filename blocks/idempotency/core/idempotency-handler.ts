@@ -8,7 +8,11 @@ import type {
   RecoverStuckRecordsOptions,
   RecoveryResult
 } from "../interfaces/store";
-import type { CreateIdempotencyRecord, CreateProcessingResult, IdempotencyRecord } from "../types";
+import type {
+  CreateIdempotencyRecord,
+  CreateProcessingResult,
+  IdempotencyRecord
+} from "../types/index";
 import { validateKey } from "../utils/key-validator";
 import type { KeyValidationOptions } from "../utils/key-validator";
 import { hashRequest, serialize } from "../utils/serializer";

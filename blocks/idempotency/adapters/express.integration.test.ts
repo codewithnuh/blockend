@@ -4,7 +4,7 @@ import type { Express, NextFunction, Request, Response } from "express";
 import request from "supertest";
 import { IdempotencyHandler } from "../core/idempotency-handler";
 import type { IdempotencyCache } from "../interfaces/cache";
-import type { CreateRecordResult, CachedResponse, IdempotencyRecord } from "../types";
+import type { CreateRecordResult, CachedResponse, IdempotencyRecord } from "../types/index";
 import type { DeleteExpiredParams, FindAllFilters, IdempotencyStore } from "../interfaces/store";
 import { idempotencyMiddleware, idempotent } from "./express";
 import type { ExpressIdempotencyOptions } from "./express";

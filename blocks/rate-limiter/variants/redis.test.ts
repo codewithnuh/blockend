@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { RedisStore, RedisWithRateLimit } from "./redis-store";
+import { RedisStore } from "./redis-store";
+import type { RedisWithRateLimit } from "./redis-store";
 describe("Redis Store Atomic Operations", () => {
   it("should parse dynamic Redis Lua matrix return types properly", async () => {
     // Construct a mock interface mirroring the dynamic defineCommand evaluation execution

@@ -4,7 +4,7 @@ import { IdempotencyHandler } from "./idempotency-handler";
 import type { IdempotencyCache } from "../interfaces/cache";
 import type { Logger, Metrics } from "../interfaces/observability";
 import type { IdempotencyStore } from "../interfaces/store";
-import type { IdempotencyRecord } from "../types";
+import type { IdempotencyRecord } from "../types/index";
 
 /**
  * Security & robustness tests for the handler orchestration. These complement
@@ -14,41 +14,68 @@ import type { IdempotencyRecord } from "../types";
 
 function createStore() {
   return {
-    create: vi.fn<Parameters<IdempotencyStore["create"]>, ReturnType<IdempotencyStore["create"]>>(),
-    find: vi.fn<Parameters<IdempotencyStore["find"]>, ReturnType<IdempotencyStore["find"]>>(),
-    findAll: vi.fn<
-      Parameters<IdempotencyStore["findAll"]>,
-      ReturnType<IdempotencyStore["findAll"]>
+    create:
+      vi.fn<
+        (...args: Parameters<IdempotencyStore["create"]>) => ReturnType<IdempotencyStore["create"]>
+      >(),
+    find: vi.fn<
+      (...args: Parameters<IdempotencyStore["find"]>) => ReturnType<IdempotencyStore["find"]>
     >(),
-    delete: vi.fn<Parameters<IdempotencyStore["delete"]>, ReturnType<IdempotencyStore["delete"]>>(),
-    markSuccess: vi.fn<
-      Parameters<IdempotencyStore["markSuccess"]>,
-      ReturnType<IdempotencyStore["markSuccess"]>
-    >(),
-    markProcessing: vi.fn<
-      Parameters<IdempotencyStore["markProcessing"]>,
-      ReturnType<IdempotencyStore["markProcessing"]>
-    >(),
-    incrementRetryCount: vi.fn<
-      Parameters<IdempotencyStore["incrementRetryCount"]>,
-      ReturnType<IdempotencyStore["incrementRetryCount"]>
-    >(),
-    markFailed: vi.fn<
-      Parameters<IdempotencyStore["markFailed"]>,
-      ReturnType<IdempotencyStore["markFailed"]>
-    >(),
-    deleteExpired: vi.fn<
-      Parameters<IdempotencyStore["deleteExpired"]>,
-      ReturnType<IdempotencyStore["deleteExpired"]>
-    >()
+    findAll:
+      vi.fn<
+        (
+          ...args: Parameters<IdempotencyStore["findAll"]>
+        ) => ReturnType<IdempotencyStore["findAll"]>
+      >(),
+    delete:
+      vi.fn<
+        (...args: Parameters<IdempotencyStore["delete"]>) => ReturnType<IdempotencyStore["delete"]>
+      >(),
+    markSuccess:
+      vi.fn<
+        (
+          ...args: Parameters<IdempotencyStore["markSuccess"]>
+        ) => ReturnType<IdempotencyStore["markSuccess"]>
+      >(),
+    markProcessing:
+      vi.fn<
+        (
+          ...args: Parameters<IdempotencyStore["markProcessing"]>
+        ) => ReturnType<IdempotencyStore["markProcessing"]>
+      >(),
+    incrementRetryCount:
+      vi.fn<
+        (
+          ...args: Parameters<IdempotencyStore["incrementRetryCount"]>
+        ) => ReturnType<IdempotencyStore["incrementRetryCount"]>
+      >(),
+    markFailed:
+      vi.fn<
+        (
+          ...args: Parameters<IdempotencyStore["markFailed"]>
+        ) => ReturnType<IdempotencyStore["markFailed"]>
+      >(),
+    deleteExpired:
+      vi.fn<
+        (
+          ...args: Parameters<IdempotencyStore["deleteExpired"]>
+        ) => ReturnType<IdempotencyStore["deleteExpired"]>
+      >()
   };
 }
 
 function createCache() {
   return {
-    get: vi.fn<Parameters<IdempotencyCache["get"]>, ReturnType<IdempotencyCache["get"]>>(),
-    set: vi.fn<Parameters<IdempotencyCache["set"]>, ReturnType<IdempotencyCache["set"]>>(),
-    delete: vi.fn<Parameters<IdempotencyCache["delete"]>, ReturnType<IdempotencyCache["delete"]>>()
+    get: vi.fn<
+      (...args: Parameters<IdempotencyCache["get"]>) => ReturnType<IdempotencyCache["get"]>
+    >(),
+    set: vi.fn<
+      (...args: Parameters<IdempotencyCache["set"]>) => ReturnType<IdempotencyCache["set"]>
+    >(),
+    delete:
+      vi.fn<
+        (...args: Parameters<IdempotencyCache["delete"]>) => ReturnType<IdempotencyCache["delete"]>
+      >()
   };
 }
 

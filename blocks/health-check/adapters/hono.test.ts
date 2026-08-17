@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { registerHonoHealthRoute } from "./hono";
-import { Hono } from "hono";
-import { Health } from "../types/index";
+import type { Hono } from "hono";
+import type { Health } from "../types/index";
 
 describe("registerHonoHealthRoute", () => {
   it("registers a GET route", () => {
@@ -18,7 +18,7 @@ describe("registerHonoHealthRoute", () => {
     const mockHealth = { run: vi.fn() };
 
     registerHonoHealthRoute(mockApp as unknown as Hono, mockHealth as unknown as Health);
-    const handler = mockApp.get.mock.calls[0][1];
+    const handler = mockApp.get.mock.calls[0]![1];
 
     const mockCtx = { json: vi.fn() };
 
@@ -37,7 +37,7 @@ describe("registerHonoHealthRoute", () => {
     const mockHealth = { run: vi.fn().mockResolvedValue(mockReport) };
 
     registerHonoHealthRoute(mockApp as unknown as Hono, mockHealth as unknown as Health);
-    const handler = mockApp.get.mock.calls[0][1];
+    const handler = mockApp.get.mock.calls[0]![1];
 
     const mockCtx = { json: vi.fn() };
     await handler(mockCtx as unknown);

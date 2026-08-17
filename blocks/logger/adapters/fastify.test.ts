@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import Fastify from "fastify";
-import { DestinationStream } from "pino";
+import type { DestinationStream } from "pino";
 import { logger } from "../core.js";
 import { fastifyLogger } from "./fastify.js";
 

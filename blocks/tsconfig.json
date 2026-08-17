@@ -2,7 +2,19 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "exactOptionalPropertyTypes": true
+
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
   },
   "include": ["**/*.ts"]
 }

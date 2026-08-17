@@ -1,4 +1,4 @@
-import { CachedResponse } from "../types";
+import type { CachedResponse } from "../types/index";
 
 type CacheResult =
   | {

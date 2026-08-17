@@ -17,15 +17,15 @@ function createMetrics(): Metrics {
   return { increment: vi.fn(), histogram: vi.fn() };
 }
 function createCache(overrides: Partial<IdempotencyCache> = {}) {
-  const get = vi.fn<Parameters<IdempotencyCache["get"]>, ReturnType<IdempotencyCache["get"]>>(
-    async () => ({ status: "MISS" })
-  );
-  const set = vi.fn<Parameters<IdempotencyCache["set"]>, ReturnType<IdempotencyCache["set"]>>(
-    async () => {}
-  );
-  const del = vi.fn<Parameters<IdempotencyCache["delete"]>, ReturnType<IdempotencyCache["delete"]>>(
-    async () => {}
-  );
+  const get = vi.fn<
+    (...args: Parameters<IdempotencyCache["get"]>) => ReturnType<IdempotencyCache["get"]>
+  >(async () => ({ status: "MISS" }));
+  const set = vi.fn<
+    (...args: Parameters<IdempotencyCache["set"]>) => ReturnType<IdempotencyCache["set"]>
+  >(async () => {});
+  const del = vi.fn<
+    (...args: Parameters<IdempotencyCache["delete"]>) => ReturnType<IdempotencyCache["delete"]>
+  >(async () => {});
 
   return {
     cache: { get, set, delete: del, ...overrides },

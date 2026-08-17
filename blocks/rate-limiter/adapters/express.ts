@@ -1,5 +1,6 @@
-import { Request, Response, NextFunction } from "express";
-import { evaluateRateLimit, RateLimitStore, RateLimitConfig } from "../core/core";
+import type { Request, Response, NextFunction } from "express";
+import { evaluateRateLimit } from "../core/core";
+import type { RateLimitStore, RateLimitConfig } from "../core/core";
 import { getClientIp } from "../utils/ip";
 
 export interface ExpressOptions extends Partial<RateLimitConfig> {

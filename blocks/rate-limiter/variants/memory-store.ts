@@ -53,7 +53,7 @@ export class MemoryStore implements RateLimitStore {
     // we only look at the oldest items at the front of our queue.
     // The moment we hit an item that hasn't expired yet, we can STOP instantly.
     while (this.queueIndex < this.expirationQueue.length) {
-      const entry = this.expirationQueue[this.queueIndex];
+      const entry = this.expirationQueue[this.queueIndex]!;
 
       if (entry.resetTime > now) {
         break; // Stop immediately. Everything after this is still valid.

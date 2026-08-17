@@ -6,7 +6,7 @@ import { IDEMPOTENCY_ERROR_CODES } from "../errors/codes";
 import { IdempotencyError } from "../errors/idempotency-errors";
 import { IdempotencyHandler } from "../core/idempotency-handler";
 import type { IdempotencyCache } from "../interfaces/cache";
-import type { CreateRecordResult, CachedResponse, IdempotencyRecord } from "../types";
+import type { CreateRecordResult, CachedResponse, IdempotencyRecord } from "../types/index";
 import type { DeleteExpiredParams, FindAllFilters, IdempotencyStore } from "../interfaces/store";
 import { idempotent } from "./express";
 
@@ -229,7 +229,11 @@ describe("Express adapter - response already sent (double-send guard)", () => {
     // idempotency layer rejects. Without the headersSent guard the adapter
     // would call sendIdempotencyError and crash with "headers already sent".
     const execute = vi
-      .fn<Parameters<IdempotencyHandler["execute"]>, ReturnType<IdempotencyHandler["execute"]>>()
+      .fn<
+        (
+          ...args: Parameters<IdempotencyHandler["execute"]>
+        ) => ReturnType<IdempotencyHandler["execute"]>
+      >()
       .mockImplementation(async (_u, _o, _k, _b, run) => {
         await run();
         throw new IdempotencyError(

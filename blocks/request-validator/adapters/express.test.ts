@@ -104,7 +104,7 @@ describe("Validator Block - Express Adapter Engine", () => {
         res.status(422).json({
           interceptorCaught: true,
           issuesCount: err.issues.length,
-          firstFieldFailure: err.issues[0].path[0]
+          firstFieldFailure: err.issues[0]!.path[0]
         });
         return;
       }

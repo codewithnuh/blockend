@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { registerFastifyHealthRoute } from "./fastify";
-import { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import type { Health } from "../types/index";
 
 describe("registerFastifyHealthRoute", () => {
@@ -21,7 +21,7 @@ describe("registerFastifyHealthRoute", () => {
     const mockHealth = { run: vi.fn() };
 
     registerFastifyHealthRoute(mockApp as unknown as FastifyInstance, mockHealth as Health);
-    const handler = mockApp.get.mock.calls[0][1];
+    const handler = mockApp.get.mock.calls[0]![1];
 
     const mockReply = { code: vi.fn().mockReturnThis(), send: vi.fn() };
 
@@ -45,7 +45,7 @@ describe("registerFastifyHealthRoute", () => {
       mockApp as unknown as FastifyInstance,
       mockHealth as unknown as Health
     );
-    const handler = mockApp.get.mock.calls[0][1];
+    const handler = mockApp.get.mock.calls[0]![1];
 
     const mockReply = { code: vi.fn().mockReturnThis(), send: vi.fn() };
     await handler({}, mockReply as unknown);

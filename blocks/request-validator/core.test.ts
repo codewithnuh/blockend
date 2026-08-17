@@ -66,8 +66,8 @@ describe("Validator Block - Core Validator Engine", () => {
       expect(error.issues).toHaveLength(2);
 
       // paths are arrays, so check the first segment
-      expect(error.issues[0].path[0]).toBe("title");
-      expect(error.issues[1].path[0]).toBe("price");
+      expect(error.issues[0]!.path[0]).toBe("title");
+      expect(error.issues[1]!.path[0]).toBe("price");
     }
   });
 });

@@ -1,6 +1,6 @@
 packages:
   - "apps/*"
-  - "blocks/*"
+  - "blocks"
   - "packages/*"
 allowBuilds:
   esbuild: true
