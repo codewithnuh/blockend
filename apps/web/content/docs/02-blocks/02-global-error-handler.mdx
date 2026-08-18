@@ -4,7 +4,8 @@ description: Centralized, type-safe error handling pipeline for Express applicat
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
-import { Steps } from "fumadocs-ui/components/steps";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 import { SourceCode } from "../../../components/source-code";
 
 The **Error Handler** block gives your Express application a single, predictable place to handle every error — expected or not.
@@ -50,81 +51,86 @@ error-handler
 
 ## Installation
 
-```bash
-pnpm dlx blockend-cli add error-handler
-```
+<Tabs items={["CLI", "Manual"]}>
+  <Tab value="CLI">
+    ```bash
+    pnpm dlx blockend-cli add error-handler
+    ```
 
-<Steps>
+    <Steps>
+      <Step>
+        ### Detect Configuration
 
-### Detect Configuration
+        Blockend reads your project's language, framework, and alias setup.
+      </Step>
+      <Step>
+        ### Install Dependencies
 
-Blockend reads your project's language, framework, and alias setup.
+        `zod` is required for validation error formatting. Blockend installs it automatically if it isn't already present.
+      </Step>
+      <Step>
+        ### Generate Files
 
-### Install Dependencies
+        The block is generated inside your configured blocks directory.
+      </Step>
+    </Steps>
 
-`zod` is required for validation error formatting. Blockend installs it automatically if it isn't already present.
+  </Tab>
+  <Tab value="Manual">
+    Copy the files below into your project's blocks directory.
 
-### Generate Files
+    ### Peer Dependencies
 
-The block is generated inside your configured blocks directory.
+    | Dependency | Required for |
+    | ---------- | ------------ |
+    | `express` | Express middleware |
+    | `zod` | Validation error formatting |
+    | `@types/express` | TypeScript types (dev) |
 
-</Steps>
+    ### `blocks/error-handler/app-error.ts`
 
-### Peer Dependencies
+    Base class for all expected, handled application errors.
 
-| Dependency       | Required |
-| ---------------- | -------- |
-| `express`        | Yes      |
-| `zod`            | Yes      |
-| `@types/express` | Dev      |
+    <SourceCode file="error-handler/express/app-error.ts" />
 
----
+    ### `blocks/error-handler/http-status.ts`
 
-## Manual File Setup
+    Named HTTP status code constants.
 
-### blocks/error-handler/app-error.ts
+    <SourceCode file="error-handler/express/http-status.ts" />
 
-Base class for all expected, handled application errors.
+    ### `blocks/error-handler/errors.ts`
 
-<SourceCode file="error-handler/express/app-error.ts" />
+    Common error catalog. Use with `throwError(ERRORS.NOT_FOUND)` or reference `.message` / `.status` directly.
 
-The CLI generates this file without the `express/` subdirectory — the source path shown reflects the monorepo source.
+    <SourceCode file="error-handler/express/errors.ts" />
 
-### blocks/error-handler/http-status.ts
+    ### `blocks/error-handler/throw-error.ts`
 
-Named HTTP status code constants.
+    Throws an `AppError` from a catalog entry.
 
-<SourceCode file="error-handler/express/http-status.ts" />
+    <SourceCode file="error-handler/express/throw-error.ts" />
 
-### blocks/error-handler/errors.ts
+    ### `blocks/error-handler/async-handler.ts`
 
-Common error catalog. Use with `throwError(ERRORS.NOT_FOUND)` or reference `.message` / `.status` directly.
+    Wraps an async Express route handler so rejected promises are passed to `next()`.
 
-<SourceCode file="error-handler/express/errors.ts" />
+    <SourceCode file="error-handler/express/async-handler.ts" />
 
-### blocks/error-handler/throw-error.ts
+    ### `blocks/error-handler/global-error-handler.ts`
 
-Throws an `AppError` from a catalog entry.
+    Express error-handling middleware. Register this last, after all routes.
 
-<SourceCode file="error-handler/express/throw-error.ts" />
+    <SourceCode file="error-handler/express/global-error-handler.ts" />
 
-### blocks/error-handler/async-handler.ts
+    ### `blocks/error-handler/index.ts`
 
-Wraps an async Express route handler so rejected promises are passed to `next()`.
+    Public exports — re-exports all public APIs.
 
-<SourceCode file="error-handler/express/async-handler.ts" />
+    <SourceCode file="error-handler/express/index.ts" />
 
-### blocks/error-handler/global-error-handler.ts
-
-Express error-handling middleware. Register this last, after all routes.
-
-<SourceCode file="error-handler/express/global-error-handler.ts" />
-
-### blocks/error-handler/index.ts
-
-Public exports — re-exports all public APIs.
-
-<SourceCode file="error-handler/express/index.ts" />
+  </Tab>
+</Tabs>
 
 ---
 
@@ -179,49 +185,47 @@ The `globalErrorHandler` is registered last in your Express middleware stack. It
 
 ## Usage
 
-Register the handler last, after all your routes and other middleware.
+### Setup
+
+Register the handler last, after all your routes and middleware:
 
 ```ts
 import express from "express";
-import { globalErrorHandler } from "@/blocks/error-handler";
+import { globalErrorHandler, asyncHandler, throwError, ERRORS } from "@/blocks/error-handler";
 
 const app = express();
 
-// ...your routes go here
+app.get(
+  "/users/:id",
+  asyncHandler(async (req, res) => {
+    if (!req.params.id) throwError(ERRORS.BAD_REQUEST);
+    const user = await db.user.findUnique({ where: { id: req.params.id } });
+    if (!user) throwError(ERRORS.NOT_FOUND);
+    res.json(user);
+  })
+);
 
-app.use(globalErrorHandler);
-
+app.use(globalErrorHandler); // Must be last
 app.listen(3000);
 ```
 
 ### Throwing Errors
 
-```ts
-import { asyncHandler, throwError, ERRORS } from "@/blocks/error-handler";
-
-router.get(
-  "/users/:id",
-  asyncHandler(async (req, res) => {
-    const user = await db.user.findUnique({ where: { id: req.params.id } });
-
-    if (!user) throwError(ERRORS.NOT_FOUND);
-
-    res.json(user);
-  })
-);
-```
-
-### Using AppError Directly
+Use the catalog for common cases, `AppError` for one-off errors:
 
 ```ts
-import { AppError } from "@/blocks/error-handler";
+import { throwError, ERRORS, AppError } from "@/blocks/error-handler";
 
-if (!isValidPlan(plan)) {
-  throw new AppError(400, `Unsupported plan: ${plan}`);
-}
+// From the catalog — consistent messages across your API
+throwError(ERRORS.NOT_FOUND);
+
+// One-off error with a custom message
+throw new AppError(400, `Unsupported plan: ${plan}`);
 ```
 
 ### Validation Errors
+
+Zod errors are automatically formatted when they reach `globalErrorHandler`:
 
 ```ts
 import { z } from "zod";
@@ -235,7 +239,7 @@ const createUserSchema = z.object({
 router.post(
   "/users",
   asyncHandler(async (req, res) => {
-    const data = createUserSchema.parse(req.body);
+    const data = createUserSchema.parse(req.body); // throws ZodError on failure
     const user = await db.user.create({ data });
     res.status(201).json(user);
   })
@@ -259,6 +263,8 @@ Response on failure:
 
 ### Mapping Database Errors
 
+Map database-specific errors to `AppError` in your data layer:
+
 ```ts
 router.post(
   "/users",
@@ -280,9 +286,7 @@ router.post(
 
 ## API Reference
 
-#### AppError
-
-Base class for all expected application errors.
+### AppError
 
 ```ts
 class AppError extends Error {
@@ -290,23 +294,17 @@ class AppError extends Error {
     public readonly statusCode: number,
     message: string,
     public readonly isOperational: boolean = true
-  )
+  );
 }
 ```
 
-**Parameters**
-
-| Name            | Type      | Required | Default | Description                                       |
+| Parameter       | Type      | Required | Default | Description                                       |
 | --------------- | --------- | -------- | ------- | ------------------------------------------------- |
 | `statusCode`    | `number`  | Yes      | —       | HTTP status code                                  |
 | `message`       | `string`  | Yes      | —       | Error message                                     |
 | `isOperational` | `boolean` | No       | `true`  | Whether the error is safe to expose to the client |
 
-**Throws** — Always use `throw new AppError(...)` or `throwError()`.
-
-#### ERRORS
-
-Record of common error catalog entries.
+### ERRORS
 
 | Key                     | Status | Message                                           |
 | ----------------------- | ------ | ------------------------------------------------- |
@@ -326,7 +324,7 @@ Record of common error catalog entries.
 | `INTERNAL_SERVER_ERROR` | 500    | Internal server error                             |
 | `SERVICE_UNAVAILABLE`   | 503    | Service temporarily unavailable                   |
 
-#### throwError
+### throwError
 
 ```ts
 function throwError(error: { message: string; status: number }): never;
@@ -334,7 +332,7 @@ function throwError(error: { message: string; status: number }): never;
 
 Throws an `AppError` from a catalog entry. Use for catalog errors; use `new AppError(status, message)` directly for one-off errors.
 
-#### globalErrorHandler
+### globalErrorHandler
 
 ```ts
 const globalErrorHandler: (err: unknown, req: Request, res: Response, next: NextFunction) => void;
@@ -342,7 +340,7 @@ const globalErrorHandler: (err: unknown, req: Request, res: Response, next: Next
 
 Express 4-argument error-handling middleware. Register last.
 
-#### asyncHandler
+### asyncHandler
 
 ```ts
 const asyncHandler: (
@@ -352,7 +350,7 @@ const asyncHandler: (
 
 Wraps async route handlers so rejected promises are forwarded to `next()`.
 
-#### HTTP_STATUS
+### HTTP_STATUS
 
 ```ts
 const HTTP_STATUS: {
@@ -369,61 +367,13 @@ const HTTP_STATUS: {
 };
 ```
 
-Named HTTP status code constants.
-
 ---
 
 ## Examples
 
-### Basic Usage
-
-```ts
-import express from "express";
-import { globalErrorHandler, asyncHandler, throwError, ERRORS } from "@/blocks/error-handler";
-
-const app = express();
-
-app.get(
-  "/users/:id",
-  asyncHandler(async (req, res) => {
-    if (!req.params.id) throwError(ERRORS.BAD_REQUEST);
-    const user = await db.user.findUnique({ where: { id: req.params.id } });
-    if (!user) throwError(ERRORS.NOT_FOUND);
-    res.json(user);
-  })
-);
-
-app.use(globalErrorHandler);
-app.listen(3000);
-```
-
-### Production Usage with Logger
-
-```ts
-import { globalErrorHandler, AppError } from "@/blocks/error-handler";
-import { logger } from "@/blocks/logger/core";
-
-// Replace internal console.error with structured logger
-app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
-      success: false,
-      data: null,
-      message: err.message
-    });
-  }
-
-  logger.error({ err, method: req.method, path: req.path }, "Unhandled error");
-
-  res.status(500).json({
-    success: false,
-    data: null,
-    message: "Internal server error"
-  });
-});
-```
-
 ### Extending the Error Catalog
+
+Add domain-specific errors to the shared catalog:
 
 ```ts
 // blocks/error-handler/errors.ts
@@ -442,7 +392,6 @@ export const ERRORS = {
 
 - **Logger** — Replace the internal `console.error` call with a structured logger for production error tracking.
 - **Response Formatter** — Format error responses consistently across your API.
-- **Request Validator** — Pair with `propagateErrors: true` to centralize validation error handling.
 
 ---
 
@@ -459,9 +408,3 @@ Create entries in the `ERRORS` catalog or throw `new AppError(status, message)` 
 **Does this block work with databases?**
 
 No. It makes no database assumptions. Map database-specific errors to `AppError` in your own data layer.
-
----
-
-## Changelog
-
-Initial documentation release.

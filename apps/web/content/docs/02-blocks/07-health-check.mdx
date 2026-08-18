@@ -1,11 +1,10 @@
 ---
 title: Health Check
 description: Type-safe health monitoring with timeout protection, concurrent execution, and framework adapters for Express, Fastify, and Hono.
-index: 3
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
-import { Steps } from "fumadocs-ui/components/steps";
+import { Steps, Step } from "fumadocs-ui/components/steps";
 import { SourceCode } from "../../../components/source-code";
 
 The **Health Check** block provides a standardized way to monitor your application's dependencies and internal state.
@@ -55,97 +54,104 @@ health-check
 
 ## Installation
 
-```bash
-pnpm dlx blockend-cli add health-check
-```
+<Tabs items={["CLI", "Manual"]}>
+  <Tab value="CLI">
+    ```bash
+    pnpm dlx blockend-cli add health-check
+    ```
 
-<Steps>
+    <Steps>
+      <Step>
+        ### Detect Project
 
-### Detect Project
+        Blockend detects your project configuration and determines the correct output location.
+      </Step>
+      <Step>
+        ### Install Dependencies
 
-Blockend detects your project configuration and determines the correct output location.
+        Required packages are installed automatically.
+      </Step>
+      <Step>
+        ### Generate Files
 
-### Install Dependencies
+        The health check block is generated inside your configured blocks directory.
+      </Step>
+    </Steps>
 
-Required packages are installed automatically.
+  </Tab>
+  <Tab value="Manual">
+    Copy the files below into your project's blocks directory.
 
-### Generate Files
+    ### Peer Dependencies
 
-The health check block is generated inside your configured blocks directory.
+    | Package | Required for |
+    | ------- | ------------ |
+    | `express` | Express adapter |
+    | `fastify` | Fastify adapter |
+    | `hono` | Hono adapter |
 
-</Steps>
+    ### `blocks/health-check/types/index.ts`
 
-### Peer Dependencies
+    Core type definitions for health checks, results, reports, and extension points.
 
-| Adapter | Peer Dependency |
-| ------- | --------------- |
-| Express | `express`       |
-| Fastify | `fastify`       |
-| Hono    | `hono`          |
+    <SourceCode file="health-check/types/index.ts" />
 
----
+    ### `blocks/health-check/core/validate-config.ts`
 
-## Manual File Setup
+    Fail-fast configuration validation.
 
-### blocks/health-check/types/index.ts
+    <SourceCode file="health-check/core/validate-config.ts" />
 
-Core type definitions for health checks, results, reports, and extension points.
+    ### `blocks/health-check/core/run-check.ts`
 
-<SourceCode file="health-check/types/index.ts" />
+    Runs a single check with timeout enforcement and error sanitization.
 
-### blocks/health-check/core/validate-config.ts
+    <SourceCode file="health-check/core/run-check.ts" />
 
-Fail-fast configuration validation.
+    ### `blocks/health-check/core/run-checks.ts`
 
-<SourceCode file="health-check/core/validate-config.ts" />
+    Runs all checks concurrently using `Promise.all`.
 
-### blocks/health-check/core/run-check.ts
+    <SourceCode file="health-check/core/run-checks.ts" />
 
-Runs a single check with timeout enforcement and error sanitization.
+    ### `blocks/health-check/core/calculate-status.ts`
 
-<SourceCode file="health-check/core/run-check.ts" />
+    Determines overall status from individual check results.
 
-### blocks/health-check/core/run-checks.ts
+    <SourceCode file="health-check/core/calculate-status.ts" />
 
-Runs all checks concurrently using `Promise.all`.
+    ### `blocks/health-check/core/build-report.ts`
 
-<SourceCode file="health-check/core/run-checks.ts" />
+    Assembles the final health report with timestamp and uptime.
 
-### blocks/health-check/core/calculate-status.ts
+    <SourceCode file="health-check/core/build-report.ts" />
 
-Determines overall status from individual check results.
+    ### `blocks/health-check/core/create-health.ts`
 
-<SourceCode file="health-check/core/calculate-status.ts" />
+    Factory function that validates config and wires everything together.
 
-### blocks/health-check/core/build-report.ts
+    <SourceCode file="health-check/core/create-health.ts" />
 
-Assembles the final health report with timestamp and uptime.
+    ### `blocks/health-check/adapters/express.ts`
 
-<SourceCode file="health-check/core/build-report.ts" />
+    Express health route registration.
 
-### blocks/health-check/core/create-health.ts
+    <SourceCode file="health-check/adapters/express.ts" />
 
-Factory function that validates config and wires everything together.
+    ### `blocks/health-check/adapters/fastify.ts`
 
-<SourceCode file="health-check/core/create-health.ts" />
+    Fastify health route registration.
 
-### blocks/health-check/adapters/express.ts
+    <SourceCode file="health-check/adapters/fastify.ts" />
 
-Express health route registration.
+    ### `blocks/health-check/adapters/hono.ts`
 
-<SourceCode file="health-check/adapters/express.ts" />
+    Hono health route registration.
 
-### blocks/health-check/adapters/fastify.ts
+    <SourceCode file="health-check/adapters/hono.ts" />
 
-Fastify health route registration.
-
-<SourceCode file="health-check/adapters/fastify.ts" />
-
-### blocks/health-check/adapters/hono.ts
-
-Hono health route registration.
-
-<SourceCode file="health-check/adapters/hono.ts" />
+  </Tab>
+</Tabs>
 
 ---
 
@@ -240,13 +246,20 @@ const health = createHealth({
       async run() {
         await db.ping();
       }
+    },
+    {
+      name: "redis",
+      critical: false,
+      timeoutMs: 3000,
+      async run() {
+        await redis.ping();
+      }
     }
   ]
 });
 
 const app = express();
-registerExpressHealthRoute(app, health);
-// GET /health returns health report
+registerExpressHealthRoute(app, health); // GET /health
 ```
 
 ### Fastify
@@ -258,9 +271,7 @@ import { registerFastifyHealthRoute } from "@/blocks/health-check/adapters/fasti
 
 const health = createHealth({ checks: [...] });
 const app = Fastify();
-
-registerFastifyHealthRoute(app, health);
-// GET /health returns health report
+registerFastifyHealthRoute(app, health); // GET /health
 ```
 
 ### Hono
@@ -272,12 +283,12 @@ import { registerHonoHealthRoute } from "@/blocks/health-check/adapters/hono";
 
 const health = createHealth({ checks: [...] });
 const app = new Hono();
-
-registerHonoHealthRoute(app, health);
-// GET /health returns health report
+registerHonoHealthRoute(app, health); // GET /health
 ```
 
 ### Custom Status Calculator
+
+Override the default status logic:
 
 ```ts
 const health = createHealth({
@@ -285,15 +296,16 @@ const health = createHealth({
   calculateStatus: (results) => {
     const allHealthy = results.every((r) => r.status === "healthy");
     const anyFailed = results.some((r) => r.status === "unhealthy");
-
     if (allHealthy) return "healthy";
     if (anyFailed) return "unhealthy";
     return "degraded";
-  }
+  },
 });
 ```
 
 ### Custom Report Builder
+
+Add custom fields to the health report:
 
 ```ts
 const health = createHealth({
@@ -303,8 +315,8 @@ const health = createHealth({
     checks: results,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    version: "v1.2.3"
-  })
+    version: "v1.2.3",
+  }),
 });
 ```
 
@@ -312,7 +324,7 @@ const health = createHealth({
 
 ## API Reference
 
-#### createHealth
+### createHealth
 
 ```ts
 function createHealth(options: CreateHealthOptions): Health;
@@ -328,7 +340,7 @@ Creates a health check instance. Validates configuration immediately (fail fast)
 
 **Throws** — On invalid configuration (empty checks, missing names, duplicates, missing `run`).
 
-#### health.run
+### health.run
 
 ```ts
 async function run(): Promise<HealthReport>;
@@ -336,33 +348,27 @@ async function run(): Promise<HealthReport>;
 
 Executes all checks concurrently and returns a health report.
 
-#### registerExpressHealthRoute
+### registerExpressHealthRoute
 
 ```ts
 function registerExpressHealthRoute(app: Express, health: Health, path?: string): void;
 ```
 
-Registers a GET route at the specified path (default: `/health`).
+Registers a GET route at the specified path (default: `/health`). Returns 200 for healthy/degraded, 503 for unhealthy.
 
-Status codes: 200 for healthy/degraded, 503 for unhealthy.
-
-#### registerFastifyHealthRoute
+### registerFastifyHealthRoute
 
 ```ts
 function registerFastifyHealthRoute(app: FastifyInstance, health: Health, path?: string): void;
 ```
 
-Same interface as Express adapter.
-
-#### registerHonoHealthRoute
+### registerHonoHealthRoute
 
 ```ts
 function registerHonoHealthRoute(app: Hono, health: Health, path?: string): void;
 ```
 
-Same interface as Express adapter.
-
-#### HealthReport
+### HealthReport
 
 ```ts
 interface HealthReport {
@@ -373,7 +379,7 @@ interface HealthReport {
 }
 ```
 
-#### HealthCheckResult
+### HealthCheckResult
 
 ```ts
 interface HealthCheckResult {
@@ -386,7 +392,7 @@ interface HealthCheckResult {
 }
 ```
 
-#### HealthCheck
+### HealthCheck
 
 ```ts
 interface HealthCheck {
@@ -402,37 +408,9 @@ interface HealthCheck {
 
 ## Examples
 
-### Basic Usage
+### Production Setup with Multiple Checks
 
-```ts
-import { createHealth } from "@/blocks/health-check";
-import { registerExpressHealthRoute } from "@/blocks/health-check/adapters/express";
-
-const health = createHealth({
-  checks: [
-    {
-      name: "database",
-      critical: true,
-      timeoutMs: 5000,
-      async run() {
-        await db.raw("SELECT 1");
-      }
-    },
-    {
-      name: "redis",
-      critical: false,
-      timeoutMs: 3000,
-      async run() {
-        await redis.ping();
-      }
-    }
-  ]
-});
-
-registerExpressHealthRoute(app, health);
-```
-
-### Production Usage with Multiple Checks
+A realistic production config with critical and non-critical checks:
 
 ```ts
 const health = createHealth({
@@ -459,14 +437,6 @@ const health = createHealth({
         const res = await fetch("https://api.example.com/health");
         if (!res.ok) throw new Error(`API returned ${res.status}`);
       }
-    },
-    {
-      name: "disk-space",
-      critical: true,
-      async run() {
-        const usage = await checkDiskUsage();
-        if (usage > 90) throw new Error("Disk usage above 90%");
-      }
     }
   ]
 });
@@ -478,15 +448,8 @@ const health = createHealth({
 describe("Health Checks", () => {
   it("returns healthy when all dependencies pass", async () => {
     const health = createHealth({
-      checks: [
-        {
-          name: "test",
-          critical: true,
-          run: async () => {}
-        }
-      ]
+      checks: [{ name: "test", critical: true, run: async () => {} }]
     });
-
     const report = await health.run();
     expect(report.status).toBe("healthy");
   });
@@ -503,7 +466,6 @@ describe("Health Checks", () => {
         }
       ]
     });
-
     const report = await health.run();
     expect(report.status).toBe("unhealthy");
   });
@@ -515,7 +477,6 @@ describe("Health Checks", () => {
 ## Related Blocks
 
 - **Logger** — Log health check results for monitoring and alerting.
-- **Response Formatter** — Format health check responses consistently with the rest of your API.
 
 ---
 
@@ -536,9 +497,3 @@ The check is rejected with a timeout error and reported as unhealthy. The rest o
 **Can I add custom fields to the health report?**
 
 Yes. Use the `buildReport` extension point to add any custom fields to the report object.
-
----
-
-## Changelog
-
-Initial documentation release.

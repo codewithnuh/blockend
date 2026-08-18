@@ -4,14 +4,19 @@ description: Exactly-once request execution with pluggable stores and cache, key
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
-import { Steps } from "fumadocs-ui/components/steps";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 import { SourceCode } from "../../../components/source-code";
 
 The **Idempotency** block makes retries safe. When a client retries the same request — because a network connection dropped, a timeout fired, or a payment form was double-submitted — the block guarantees your business logic runs **exactly once**, and every retry receives the stored result of the first attempt.
 
 It wraps a piece of business logic in an atomic lock keyed by `(userId, operation, idempotency-key)`. The first request acquires the lock and executes; every duplicate request either replays the stored response or is rejected with a precise error. This is the same pattern used by Stripe's `Idempotency-Key` header.
 
-> **Production tip:** the block ships two parts — a framework-agnostic core (`IdempotencyHandler` + pluggable `IdempotencyStore` / `IdempotencyCache` interfaces) and adapters for Express, Fastify, and Hono. You can use the core with any framework by implementing the two interfaces, or drop an adapter in and go. For a full production walkthrough (keys, stores, error classification, observability, and failure modes), see [Idempotency in Production](/docs/03-guides/02-idempotency-in-production).
+<Callout type="warn">
+  Always provide a real, authenticated per-user id in production. The default `getUserId` falls back
+  to `"anonymous"`, which makes all keys global — any client that learns a key and payload could
+  replay another client's stored response.
+</Callout>
 
 ---
 
@@ -65,7 +70,7 @@ idempotency
 └── index.ts
 ```
 
-- **adapters/** — Framework-specific bridges for Express, Fastify, and Hono, plus `shared.ts` with the common error-code → HTTP status mapping. The core stays framework-agnostic.
+- **adapters/** — Framework-specific bridges for Express, Fastify, and Hono, plus `shared.ts` with the common error-code → HTTP status mapping.
 - **core/** — The `IdempotencyHandler` orchestration class and its private store-coordination helpers.
 - **errors/** — The typed `IdempotencyError` and its machine-readable error codes.
 - **interfaces/** — Contracts for the store, cache, logger, and metrics that you plug in.
@@ -73,212 +78,175 @@ idempotency
 - **services/** — L1 cache orchestration (`CacheManager`) with the collision-proof key layout.
 - **types/** — Shared public types: records, statuses, and result shapes.
 - **utils/** — Key validation, deterministic serialization, request hashing, constant-time comparison, and a logger bridge.
-- **index.ts** — Framework-agnostic public barrel (the Express adapter is imported directly from its own module).
+- **index.ts** — Framework-agnostic public barrel (adapters are imported directly from their own module).
 
 ---
 
 ## Installation
 
-```bash
-pnpm dlx blockend-cli add idempotency
-```
-
-<Steps>
-### Detect Project
-Blockend reads your project configuration and determines the output location.
-
-### Select Adapter
-
-Choose the framework adapter for your application: Express, Fastify, or Hono. The core itself is framework-agnostic.
-
-### Install Dependencies
-
-The packages required by the selected adapter are installed automatically.
-
-### Generate Files
-
-The core files, the selected adapter, and the test files are copied into your configured blocks directory.
-
-</Steps>
-
-### Peer Dependencies
-
-| Adapter | Peer Dependency |
-| ------- | --------------- |
-| Express | `express`       |
-| Fastify | `fastify`       |
-| Hono    | `hono`          |
-
-The core itself has no peer dependencies — it only relies on Node.js built-ins (`node:crypto`).
-
-### Manual Installation
-
-Prefer to wire the block up yourself instead of using the CLI? Install the packages for the adapter you use, plus the dev dependencies needed to run the block's tests.
-
-<Tabs items={["pnpm", "npm"]}>
-  <Tab value="pnpm">
+<Tabs items={["CLI", "Manual"]}>
+  <Tab value="CLI">
     ```bash
-    # Express adapter
-    pnpm add express
-    pnpm add -D @types/express supertest @types/supertest
-
-    # Fastify adapter
-    pnpm add fastify
-
-    # Hono adapter
-    pnpm add hono
-
-    # Dev dependencies (core tests)
-    pnpm add -D vitest
+    pnpm dlx blockend-cli add idempotency
     ```
+
+    <Steps>
+      <Step>
+        ### Detect Project
+
+        Blockend reads your project configuration and determines the output location.
+      </Step>
+      <Step>
+        ### Select Adapter
+
+        Choose the framework adapter for your application: Express, Fastify, or Hono. The core itself is framework-agnostic.
+      </Step>
+      <Step>
+        ### Install Dependencies
+
+        The packages required by the selected adapter are installed automatically.
+      </Step>
+      <Step>
+        ### Generate Files
+
+        The core files, the selected adapter, and the test files are copied into your configured blocks directory.
+      </Step>
+    </Steps>
 
   </Tab>
-  <Tab value="npm">
-    ```bash
-    # Express adapter
-    npm install express
-    npm install --save-dev @types/express supertest @types/supertest
+  <Tab value="Manual">
+    Copy the files below into your project's blocks directory. The core itself has **zero runtime dependencies** — it only relies on Node.js built-ins (`node:crypto`).
 
-    # Fastify adapter
-    npm install fastify
+    ### Peer Dependencies
 
-    # Hono adapter
-    npm install hono
+    | Package | Required for |
+    | ------- | ------------ |
+    | `express` | Express adapter |
+    | `fastify` | Fastify adapter |
+    | `hono` | Hono adapter |
 
-    # Dev dependencies (core tests)
-    npm install --save-dev vitest
-    ```
+    ### `blocks/idempotency/index.ts`
+
+    Framework-agnostic public barrel. Re-exports the handler, errors, interfaces, types, services, jobs, and utils.
+
+    <SourceCode file="idempotency/index.ts" />
+
+    ### `blocks/idempotency/core/idempotency-handler.ts`
+
+    The `IdempotencyHandler` class: key validation, hashing, cache fast-path, atomic lock acquisition, business-logic execution, and failure classification.
+
+    <SourceCode file="idempotency/core/idempotency-handler.ts" />
+
+    ### `blocks/idempotency/errors/codes.ts`
+
+    The `IDEMPOTENCY_ERROR_CODES` constant and `IdempotencyErrorCode` union.
+
+    <SourceCode file="idempotency/errors/codes.ts" />
+
+    ### `blocks/idempotency/errors/idempotency-errors.ts`
+
+    The typed `IdempotencyError` class carrying a machine-readable `code`.
+
+    <SourceCode file="idempotency/errors/idempotency-errors.ts" />
+
+    ### `blocks/idempotency/interfaces/store.ts`
+
+    The `IdempotencyStore` contract your database adapter must implement.
+
+    <SourceCode file="idempotency/interfaces/store.ts" />
+
+    ### `blocks/idempotency/interfaces/cache.ts`
+
+    The `IdempotencyCache` contract for the optional L1 cache.
+
+    <SourceCode file="idempotency/interfaces/cache.ts" />
+
+    ### `blocks/idempotency/interfaces/observability.ts`
+
+    The `Logger` and `Metrics` contracts, the canonical `MetricName` list, and the noop fallbacks.
+
+    <SourceCode file="idempotency/interfaces/observability.ts" />
+
+    ### `blocks/idempotency/interfaces/logger.ts`
+
+    Pino-style logging contracts used by `createLoggerAdapter` to bridge arbitrary loggers.
+
+    <SourceCode file="idempotency/interfaces/logger.ts" />
+
+    ### `blocks/idempotency/types/index.ts`
+
+    Shared public types: `IdempotencyRecord`, `IdempotencyStatus`, `CachedResponse`, and the create/processing result shapes.
+
+    <SourceCode file="idempotency/types/index.ts" />
+
+    ### `blocks/idempotency/services/cache-manager.ts`
+
+    `CacheManager` — owns the length-prefixed cache key layout, distinguishes HIT/MISS/UNAVAILABLE, and enforces the hash-mismatch check.
+
+    <SourceCode file="idempotency/services/cache-manager.ts" />
+
+    ### `blocks/idempotency/jobs/record-cleaner.ts`
+
+    `cleanupExpiredRecords` — deletes expired `SUCCESS`/`FAILED` records. `PROCESSING` records are never deleted here.
+
+    <SourceCode file="idempotency/jobs/record-cleaner.ts" />
+
+    ### `blocks/idempotency/jobs/record-recovery.ts`
+
+    `recoverStuckRecords` — marks records stuck in `PROCESSING` as `FAILED` so clients can retry safely.
+
+    <SourceCode file="idempotency/jobs/record-recovery.ts" />
+
+    ### `blocks/idempotency/utils/key-validator.ts`
+
+    `validateKey` — trims, then enforces length, charset, and optional UUID format.
+
+    <SourceCode file="idempotency/utils/key-validator.ts" />
+
+    ### `blocks/idempotency/utils/serializer.ts`
+
+    `serialize` — deterministic, key-sorted stringification. `hashRequest` — the SHA-256 fingerprint of a request payload.
+
+    <SourceCode file="idempotency/utils/serializer.ts" />
+
+    ### `blocks/idempotency/utils/constant-time-equals.ts`
+
+    `constantTimeEquals` — `crypto.timingSafeEqual`-based comparison for request hashes.
+
+    <SourceCode file="idempotency/utils/constant-time-equals.ts" />
+
+    ### `blocks/idempotency/utils/create-logger.ts`
+
+    `createLoggerAdapter` — converts any `(level, msg, meta?)` log function into the block's `CoreLogger` shape.
+
+    <SourceCode file="idempotency/utils/create-logger.ts" />
+
+    ### `blocks/idempotency/adapters/shared.ts`
+
+    Adapter-agnostic HTTP helpers: the default error-code → HTTP status map and the error envelope builder.
+
+    <SourceCode file="idempotency/adapters/shared.ts" />
+
+    ### `blocks/idempotency/adapters/express.ts`
+
+    The Express adapter: `idempotent()` route wrapper, `idempotencyMiddleware()` capture middleware, and `getIdempotencyKey()`.
+
+    <SourceCode file="idempotency/adapters/express.ts" />
+
+    ### `blocks/idempotency/adapters/fastify.ts`
+
+    The Fastify adapter: the `idempotent()` route wrapper and `request.idempotency` context.
+
+    <SourceCode file="idempotency/adapters/fastify.ts" />
+
+    ### `blocks/idempotency/adapters/hono.ts`
+
+    The Hono adapter: `idempotent()` route wrapper, `idempotencyMiddleware()` capture middleware, and `c.get("idempotency")` context.
+
+    <SourceCode file="idempotency/adapters/hono.ts" />
 
   </Tab>
 </Tabs>
-
-Then copy the block files into your project. The destination for every file — including the framework-agnostic core and the Express adapter — is listed in [Manual File Setup](#manual-file-setup) below.
-
----
-
-## Manual File Setup
-
-The framework-agnostic files and unit tests are always copied, including `adapters/shared.ts` (the common error mapping). Adapter files (`adapters/<framework>.ts` and their tests) are copied only for the framework you selected.
-
-### blocks/idempotency/index.ts
-
-Framework-agnostic public barrel. Re-exports the handler, errors, interfaces, types, services, jobs, and utils. The Express adapter is intentionally not re-exported here.
-
-<SourceCode file="idempotency/index.ts" />
-
-### blocks/idempotency/core/idempotency-handler.ts
-
-The `IdempotencyHandler` class: key validation, hashing, cache fast-path, atomic lock acquisition, business-logic execution, and failure classification.
-
-<SourceCode file="idempotency/core/idempotency-handler.ts" />
-
-### blocks/idempotency/errors/codes.ts
-
-The `IDEMPOTENCY_ERROR_CODES` constant and `IdempotencyErrorCode` union.
-
-<SourceCode file="idempotency/errors/codes.ts" />
-
-### blocks/idempotency/errors/idempotency-errors.ts
-
-The typed `IdempotencyError` class carrying a machine-readable `code`.
-
-<SourceCode file="idempotency/errors/idempotency-errors.ts" />
-
-### blocks/idempotency/interfaces/store.ts
-
-The `IdempotencyStore` contract your database adapter must implement — create, find, mark success/processing/failed, retry counter, delete, and delete-expired.
-
-<SourceCode file="idempotency/interfaces/store.ts" />
-
-### blocks/idempotency/interfaces/cache.ts
-
-The `IdempotencyCache` contract for the optional L1 cache — get, set, delete.
-
-<SourceCode file="idempotency/interfaces/cache.ts" />
-
-### blocks/idempotency/interfaces/observability.ts
-
-The `Logger` and `Metrics` contracts, the canonical `MetricName` list, and the noop fallbacks.
-
-<SourceCode file="idempotency/interfaces/observability.ts" />
-
-### blocks/idempotency/interfaces/logger.ts
-
-Pino-style logging contracts used by `createLoggerAdapter` to bridge arbitrary loggers.
-
-<SourceCode file="idempotency/interfaces/logger.ts" />
-
-### blocks/idempotency/types/index.ts
-
-Shared public types: `IdempotencyRecord`, `IdempotencyStatus`, `CachedResponse`, and the create/processing result shapes.
-
-<SourceCode file="idempotency/types/index.ts" />
-
-### blocks/idempotency/services/cache-manager.ts
-
-`CacheManager` — owns the length-prefixed cache key layout, distinguishes HIT/MISS/UNAVAILABLE, and enforces the hash-mismatch check. Cache failures are swallowed so the database stays the source of truth.
-
-<SourceCode file="idempotency/services/cache-manager.ts" />
-
-### blocks/idempotency/jobs/record-cleaner.ts
-
-`cleanupExpiredRecords` — deletes expired `SUCCESS`/`FAILED` records. `PROCESSING` records are intentionally never deleted here.
-
-<SourceCode file="idempotency/jobs/record-cleaner.ts" />
-
-### blocks/idempotency/jobs/record-recovery.ts
-
-`recoverStuckRecords` — marks records stuck in `PROCESSING` (for example, after a crashed worker) as `FAILED` so clients can retry safely.
-
-<SourceCode file="idempotency/jobs/record-recovery.ts" />
-
-### blocks/idempotency/utils/key-validator.ts
-
-`validateKey` — trims, then enforces length, charset, and optional UUID format. Exports `DEFAULT_MIN_KEY_LENGTH`, `DEFAULT_MAX_KEY_LENGTH`, and `UUID_REGEX`.
-
-<SourceCode file="idempotency/utils/key-validator.ts" />
-
-### blocks/idempotency/utils/serializer.ts
-
-`serialize` — deterministic, key-sorted stringification with cycle/depth protection. `hashRequest` — the SHA-256 fingerprint of a request payload.
-
-<SourceCode file="idempotency/utils/serializer.ts" />
-
-### blocks/idempotency/utils/constant-time-equals.ts
-
-`constantTimeEquals` — `crypto.timingSafeEqual`-based comparison for request hashes.
-
-<SourceCode file="idempotency/utils/constant-time-equals.ts" />
-
-### blocks/idempotency/utils/create-logger.ts
-
-`createLoggerAdapter` — converts any `(level, msg, meta?)` log function into the block's `CoreLogger` shape.
-
-<SourceCode file="idempotency/utils/create-logger.ts" />
-
-### blocks/idempotency/adapters/shared.ts
-
-Adapter-agnostic HTTP helpers: the default error-code → HTTP status map, `idempotencyErrorStatus`, and the `{ error: { code, message } }` envelope builder. Used by every adapter.
-
-<SourceCode file="idempotency/adapters/shared.ts" />
-
-### blocks/idempotency/adapters/express.ts
-
-The Express adapter: `idempotent()` route wrapper, `idempotencyMiddleware()` capture middleware, and `getIdempotencyKey()`. Copied only for Express.
-
-<SourceCode file="idempotency/adapters/express.ts" />
-
-### blocks/idempotency/adapters/fastify.ts
-
-The Fastify adapter: the `idempotent()` route wrapper (covers both return-value and `reply.send` routes), `getIdempotencyKey()`, and `request.idempotency` context. Copied only for Fastify.
-
-<SourceCode file="idempotency/adapters/fastify.ts" />
-
-### blocks/idempotency/adapters/hono.ts
-
-The Hono adapter: `idempotent()` route wrapper, `idempotencyMiddleware()` capture middleware, `getIdempotencyKey()`, and the `c.get("idempotency")` context. Copied only for Hono.
-
-<SourceCode file="idempotency/adapters/hono.ts" />
 
 ---
 
@@ -286,36 +254,32 @@ The Hono adapter: `idempotent()` route wrapper, `idempotencyMiddleware()` captur
 
 ### IdempotencyHandlerOptions
 
-| Option    | Type      | Default       | Required | Description                                                |
-| --------- | --------- | ------------- | -------- | ---------------------------------------------------------- |
-| `logger`  | `Logger`  | `noopLogger`  | No       | Structured logger. Accepts any pino/winston-shaped logger. |
-| `metrics` | `Metrics` | `noopMetrics` | No       | Metrics sink. Emits counters and a latency histogram.      |
+| Option    | Type      | Default       | Description                                                |
+| --------- | --------- | ------------- | ---------------------------------------------------------- |
+| `logger`  | `Logger`  | `noopLogger`  | Structured logger. Accepts any pino/winston-shaped logger. |
+| `metrics` | `Metrics` | `noopMetrics` | Metrics sink. Emits counters and a latency histogram.      |
 
 ### KeyValidationOptions
 
-| Option        | Type                         | Default            | Required | Description                                   |
-| ------------- | ---------------------------- | ------------------ | -------- | --------------------------------------------- |
-| `minLength`   | `number`                     | `1`                | No       | Minimum key length after trimming.            |
-| `maxLength`   | `number`                     | `128`              | No       | Maximum key length after trimming.            |
-| `requireUuid` | `boolean`                    | `false`            | No       | When `true`, the key must be a UUID v1–v5.    |
-| `pattern`     | `{ value: RegExp, message }` | `[A-Za-z0-9._:-]+` | No       | Custom charset pattern and its error message. |
-
-Keys are **trimmed first**, before any length or format check, so whitespace-only input can't bypass limits.
+| Option        | Type                         | Default            | Description                                   |
+| ------------- | ---------------------------- | ------------------ | --------------------------------------------- |
+| `minLength`   | `number`                     | `1`                | Minimum key length after trimming.            |
+| `maxLength`   | `number`                     | `128`              | Maximum key length after trimming.            |
+| `requireUuid` | `boolean`                    | `false`            | When `true`, the key must be a UUID v1–v5.    |
+| `pattern`     | `{ value: RegExp, message }` | `[A-Za-z0-9._:-]+` | Custom charset pattern and its error message. |
 
 ### ExpressIdempotencyOptions
 
-| Option             | Type                                            | Default                           | Required | Description                                                          |
-| ------------------ | ----------------------------------------------- | --------------------------------- | -------- | -------------------------------------------------------------------- |
-| `key`              | `IdempotencyKeySource`                          | header only                       | No       | Where to look for the key: `header`, `bodyField`, `queryParam`.      |
-| `requireKey`       | `boolean`                                       | `false`                           | No       | When `true`, a request without a key is rejected with 400.           |
-| `getUserId`        | `(req) => string \| undefined`                  | `req.user?.id` or `"anonymous"`   | No       | Resolves the tenant/user id that scopes the key.                     |
-| `getOperation`     | `(req) => string`                               | `` `${req.method}:${req.path}` `` | No       | Resolves the operation name.                                         |
-| `getBody`          | `(req) => unknown`                              | `req.body ?? {}`                  | No       | Resolves the payload to hash.                                        |
-| `isPermanentError` | `(err) => boolean`                              | `() => true`                      | No       | Classifies failures as permanent (mark FAILED) or transient (retry). |
-| `attachContext`    | `boolean`                                       | `true`                            | No       | Attaches metadata to `res.locals.idempotency`.                       |
-| `statusMap`        | `Partial<Record<IdempotencyErrorCode, number>>` | `{}`                              | No       | Overrides the default error-code to HTTP-status mapping.             |
-
-> **Security:** the default `getUserId` falls back to `"anonymous"`. If `req.user` is unset, every request shares one global scope — any client that learns a key and payload could replay another client's stored response. Always provide a real, authenticated per-user id in production.
+| Option             | Type                                            | Default                           | Description                                                          |
+| ------------------ | ----------------------------------------------- | --------------------------------- | -------------------------------------------------------------------- |
+| `key`              | `IdempotencyKeySource`                          | header only                       | Where to look for the key: `header`, `bodyField`, `queryParam`.      |
+| `requireKey`       | `boolean`                                       | `false`                           | When `true`, a request without a key is rejected with 400.           |
+| `getUserId`        | `(req) => string \| undefined`                  | `req.user?.id` or `"anonymous"`   | Resolves the tenant/user id that scopes the key.                     |
+| `getOperation`     | `(req) => string`                               | `` `${req.method}:${req.path}` `` | Resolves the operation name.                                         |
+| `getBody`          | `(req) => unknown`                              | `req.body ?? {}`                  | Resolves the payload to hash.                                        |
+| `isPermanentError` | `(err) => boolean`                              | `() => true`                      | Classifies failures as permanent (mark FAILED) or transient (retry). |
+| `attachContext`    | `boolean`                                       | `true`                            | Attaches metadata to `res.locals.idempotency`.                       |
+| `statusMap`        | `Partial<Record<IdempotencyErrorCode, number>>` | `{}`                              | Overrides the default error-code to HTTP-status mapping.             |
 
 ### Job Options
 
@@ -369,20 +333,6 @@ IdempotencyHandler.execute()
                   └── ≥ 3 retries → mark record FAILED
 ```
 
-### Lifecycle of a request
-
-1. **Key resolution** — the adapter extracts the key from the header, body field, or query parameter. With `requireKey: true`, a missing key is rejected up front with 400.
-2. **Validation and hashing** — the key is trimmed and validated; the payload is hashed deterministically so identical payloads always produce identical fingerprints regardless of key order.
-3. **Cache fast-path** — if an L1 cache is configured and holds a matching entry, the stored response is returned without touching the database.
-4. **Lock acquisition** — the store's `create` performs an atomic insert. Success means this request owns the lock; a duplicate means another request (past or present) owns the key.
-5. **Execution** — the business logic runs exactly once, then the record is marked `SUCCESS` and the cache is written asynchronously.
-6. **Failure classification** — permanent failures poison the key (`FAILED`); transient failures release the lock so the client can retry, until the retry budget is exhausted.
-
-### Background jobs
-
-- `cleanupExpiredRecords` — deletes expired `SUCCESS`/`FAILED` records so keys become reusable. It **never** deletes `PROCESSING` records, even expired ones — purging an active lock would let a duplicate request run concurrently. Run it on a cron schedule.
-- `recoverStuckRecords` — finds `PROCESSING` records whose `updatedAt` is older than the timeout (a worker crashed mid-execution) and marks them `FAILED` so clients get a fast, safe retry. Each record is processed independently so one DB hiccup can't abort the batch.
-
 ---
 
 ## When to Use
@@ -403,22 +353,18 @@ IdempotencyHandler.execute()
 
 ## Usage
 
-The Express adapter supports two styles, plus a framework-agnostic core path for other frameworks.
-
 ### Express — `idempotent()` wrapper
 
-Use this when your route logic **returns** the response payload. The wrapper runs it inside `handler.execute`, stores the result, and sends it with `res.json`.
+Use this when your route logic **returns** the response payload:
 
 ```ts
 import express from "express";
 import { IdempotencyHandler } from "@/blocks/idempotency";
 import { idempotent } from "@/blocks/idempotency/adapters/express";
-import { createCharge } from "./charges";
 
 const app = express();
 app.use(express.json());
 
-// Provide a real per-user id — never rely on the "anonymous" default in production.
 const handler = new IdempotencyHandler(myStore, myCache, {
   logger: myLogger,
   metrics: myMetrics
@@ -433,7 +379,7 @@ app.post(
       return { id: charge.id, status: charge.status };
     },
     {
-      getUserId: (req) => req.user.id,
+      getUserId: (req) => req.user.id, // always provide a real user id
       getOperation: (req) => "payments:create",
       isPermanentError: (err) => err instanceof ValidationError
     }
@@ -445,39 +391,23 @@ The first request with a given `Idempotency-Key` runs `createCharge` once. Every
 
 ### Express — `idempotencyMiddleware()`
 
-Use this when your route already sends its own response with `res.json(...)`. The middleware intercepts the JSON body your route sends, stores it as the idempotent response, and replays it on duplicates.
+Use this when your route already sends its own response with `res.json(...)`:
 
 ```ts
-import express from "express";
-import { IdempotencyHandler } from "@/blocks/idempotency";
 import { idempotencyMiddleware } from "@/blocks/idempotency/adapters/express";
-
-const app = express();
-app.use(express.json());
-
-const handler = new IdempotencyHandler(myStore);
 
 app.post("/payments", idempotencyMiddleware(handler, { requireKey: true }), async (req, res) => {
   const charge = await createCharge(req.body);
-  res.json(charge);
+  res.json(charge); // middleware intercepts and stores this response
 });
 ```
 
-If the downstream chain responds with a 4xx/5xx status, the middleware marks the record `FAILED` instead of `SUCCESS` — an error body is never stored as a successful result.
+If the downstream chain responds with a 4xx/5xx status, the middleware marks the record `FAILED` instead of `SUCCESS`.
 
 ### Fastify
 
 ```ts
-import Fastify from "fastify";
-import { IdempotencyHandler } from "@/blocks/idempotency";
 import { idempotent } from "@/blocks/idempotency/adapters/fastify";
-
-const app = Fastify({ logger: true });
-
-const handler = new IdempotencyHandler(myStore, myCache, {
-  logger: myLogger,
-  metrics: myMetrics
-});
 
 // The route can RETURN the payload (Fastify sends it)…
 app.post(
@@ -497,19 +427,12 @@ app.post(
 );
 ```
 
-The wrapper resolves `userId`, `operation`, and `body` from the request by default (`request.user?.id`, `METHOD:routerPath`, `request.body`), and every option hook from `ExpressIdempotencyOptions` is available (`getUserId`, `getOperation`, `getBody`, `isPermanentError`, `requireKey`, `statusMap`, ...). The per-request context is attached to `request.idempotency` (readable in hooks) — TypeScript types are augmented automatically.
-
 ### Hono
 
 ```ts
-import { Hono } from "hono";
-import { IdempotencyHandler } from "@/blocks/idempotency";
 import { idempotent, idempotencyMiddleware } from "@/blocks/idempotency/adapters/hono";
 
-const app = new Hono();
-const handler = new IdempotencyHandler(myStore);
-
-// Wrapper style — the route returns the payload (or an already built Response):
+// Wrapper style — the route returns the payload:
 app.post(
   "/payments",
   idempotent(handler, async (c) => {
@@ -518,18 +441,16 @@ app.post(
   })
 );
 
-// Capture style — the route sends its own response with c.json:
+// Capture style — the route sends its own response:
 app.post("/refunds", idempotencyMiddleware(handler, { requireKey: true }), async (c) => {
   const refund = await createRefund(await c.req.json());
   return c.json(refund);
 });
 ```
 
-The payload is hashed from a **non-consuming clone** of the request body, so the route can still call `await c.req.json()` after the wrapper/middleware has read it. The per-request context is available to the route via `getIdempotencyContext(c)` (or `c.get("idempotency")`) — it carries the key, user, operation, and outcome, and flips from `"processing"` to `"completed"`/`"failed"` once execution settles.
-
 ### Framework-Agnostic Core
 
-No Express? Implement the `IdempotencyStore` interface (and optionally `IdempotencyCache`) and call the handler directly from any framework handler:
+No adapter needed — implement `IdempotencyStore` and call the handler directly:
 
 ```ts
 import { IdempotencyHandler } from "@/blocks/idempotency";
@@ -561,21 +482,19 @@ app.post("/payments", async (req, res) => {
 
 ## API Reference
 
-#### IdempotencyHandler
+### IdempotencyHandler
 
 ```ts
-class IdempotencyHandler
+class IdempotencyHandler {}
 ```
-
-Wraps business logic so retries of the same request are safe: a request keyed by `(operation, userId, key)` executes exactly once, and subsequent attempts receive the stored result instead.
 
 ##### new IdempotencyHandler(store, cache?, options?)
 
-| Parameter | Type                        | Required | Description                                 |
-| --------- | --------------------------- | -------- | ------------------------------------------- |
-| `store`   | `IdempotencyStore`          | Yes      | The persistent record store.                |
-| `cache`   | `IdempotencyCache`          | No       | Optional L1 cache for fast replays.         |
-| `options` | `IdempotencyHandlerOptions` | No       | `logger` and `metrics` (see Configuration). |
+| Parameter | Type                        | Required | Description                         |
+| --------- | --------------------------- | -------- | ----------------------------------- |
+| `store`   | `IdempotencyStore`          | Yes      | The persistent record store.        |
+| `cache`   | `IdempotencyCache`          | No       | Optional L1 cache for fast replays. |
+| `options` | `IdempotencyHandlerOptions` | No       | `logger` and `metrics`.             |
 
 ##### execute
 
@@ -586,83 +505,33 @@ execute(
   key: string,
   body: unknown,
   execute: () => Promise<unknown>,
-  options?: { isPermanentError?: (err: unknown) => boolean },
-): Promise<unknown>
+  options?: { isPermanentError?: (err: unknown) => boolean }
+): Promise<unknown>;
 ```
 
-Main entrypoint. Validates the key, hashes the body, checks the cache, acquires the atomic lock, runs `execute()`, and records the outcome. Returns the business-logic result (fresh or replayed).
+Main entrypoint. Validates the key, hashes the body, checks the cache, acquires the atomic lock, runs `execute()`, and records the outcome.
 
 ##### validateKey
 
 ```ts
-validateKey(key: unknown, options?: KeyValidationOptions): string
+validateKey(key: unknown, options?: KeyValidationOptions): string;
 ```
 
-Sanitizes and validates an idempotency key, returning the cleaned value. **Always use the returned value**, not the raw input. Throws `IdempotencyError` on invalid keys.
+Sanitizes and validates an idempotency key. **Always use the returned value**, not the raw input.
 
-##### serialize
+### IdempotencyStore
 
-```ts
-static serialize(value: unknown): string
-```
+| Method                  | Description                                       |
+| ----------------------- | ------------------------------------------------- |
+| `create(record)`        | Atomic insert; returns `CREATED` or `DUPLICATE`.  |
+| `find(key, op, user)`   | Fetch a record by its composite key.              |
+| `findAll(filters?)`     | Query records for background jobs.                |
+| `markSuccess(...)`      | Record a successful response.                     |
+| `markFailed(...)`       | Poison the record.                                |
+| `delete(...)`           | Release the lock (used after transient failures). |
+| `deleteExpired(params)` | Bulk-delete expired records by status.            |
 
-Deterministically stringifies a payload (recursively sorted keys, order-preserving arrays). Rejects `undefined`, `NaN`, `±Infinity`, `BigInt`, functions, symbols, cycles, and nesting beyond 100 levels.
-
-##### hashRequest
-
-```ts
-hashRequest(body: unknown): string
-```
-
-Returns a stable SHA-256 fingerprint (64-char lowercase hex) of a payload. Identical payloads hash identically regardless of key order.
-
-##### cleanupExpiredRecords
-
-```ts
-cleanupExpiredRecords(options?: { limit?: number }): Promise<{ deleted: number }>
-```
-
-Deletes expired `SUCCESS`/`FAILED` records. `PROCESSING` records are never touched here — run this from a cron job.
-
-##### recoverStuckRecords
-
-```ts
-recoverStuckRecords(options?: { timeoutInMs?: number; limit?: number }): Promise<RecoveryResult>
-```
-
-Marks `PROCESSING` records older than `timeoutInMs` (default 5 minutes) as `FAILED`. Returns `{ processed, succeeded, failed }`.
-
-##### retry
-
-```ts
-retry(userId: string, operation: string, key: string): Promise<IdempotencyRecord | null>
-```
-
-Re-opens a `FAILED` record to `PROCESSING` for a manual retry. Throws `REQUEST_IN_PROGRESS` if the record is already processing.
-
-#### IdempotencyStore
-
-```ts
-interface IdempotencyStore
-```
-
-The contract your database adapter implements. See [Manual File Setup](#blocksidempotencyinterfacesstorets) for the full interface.
-
-| Method                     | Description                                                                  |
-| -------------------------- | ---------------------------------------------------------------------------- |
-| `create(record)`           | Atomic insert; returns `{ status: "CREATED" }` or `{ status: "DUPLICATE" }`. |
-| `find(key, op, user)`      | Fetch a record by its composite key.                                         |
-| `findAll(filters?)`        | Query records for background jobs (by status, updated-before, limit).        |
-| `markSuccess(...)`         | Record a successful response.                                                |
-| `markProcessing(...)`      | Re-acquire the lock.                                                         |
-| `markFailed(...)`          | Poison the record.                                                           |
-| `incrementRetryCount(...)` | Increment a retry counter that **survives record deletion**.                 |
-| `delete(...)`              | Release the lock (used after transient failures).                            |
-| `deleteExpired(params)`    | Bulk-delete expired records by status.                                       |
-
-> **Retry counter contract:** after a transient failure the handler deletes the record so the client can retry, then creates a fresh one. If the retry counter lived on the row, it would reset on re-creation and `MAX_ALLOWED_RETRIES` would never be reached. Keep the count in a location that outlives the row (for example, a dedicated counter table or column upserted by key).
-
-#### IdempotencyCache
+### IdempotencyCache
 
 ```ts
 interface IdempotencyCache {
@@ -678,7 +547,7 @@ interface IdempotencyCache {
 
 Optional L1 cache. Failures are swallowed — the database remains the source of truth.
 
-#### IdempotencyError
+### IdempotencyError
 
 ```ts
 class IdempotencyError extends Error {
@@ -686,149 +555,74 @@ class IdempotencyError extends Error {
 }
 ```
 
-Typed error carrying a machine-readable code. The Express adapter maps codes to HTTP statuses; `IdempotencyError` also helps you distinguish idempotency failures from infrastructure errors when using the core directly.
+### IDEMPOTENCY_ERROR_CODES
 
-#### IDEMPOTENCY_ERROR_CODES
+| Code                                                                                                                   | HTTP | Meaning                                    |
+| ---------------------------------------------------------------------------------------------------------------------- | ---- | ------------------------------------------ |
+| `KEY_INVALID_TYPE`, `KEY_REQUIRED`, `KEY_TOO_SHORT`, `KEY_TOO_LONG`, `KEY_INVALID_FORMAT`, `UNSUPPORTED_REQUEST_VALUE` | 400  | Client input problems.                     |
+| `KEY_REUSED_WITH_DIFFERENT_REQUEST`                                                                                    | 409  | Same key, different payload.               |
+| `REQUEST_IN_PROGRESS`                                                                                                  | 409  | A concurrent request holds the lock.       |
+| `REQUEST_FAILED`                                                                                                       | 409  | The previous attempt with this key failed. |
+| `RECORD_NOT_FOUND`                                                                                                     | 404  | Lookup miss.                               |
+| `STORE_UNAVAILABLE`, `CACHE_UNAVAILABLE`                                                                               | 503  | Infrastructure failure.                    |
 
-| Code                                                                                                                   | HTTP (Express adapter) | Meaning                                    |
-| ---------------------------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------ |
-| `KEY_INVALID_TYPE`, `KEY_REQUIRED`, `KEY_TOO_SHORT`, `KEY_TOO_LONG`, `KEY_INVALID_FORMAT`, `UNSUPPORTED_REQUEST_VALUE` | 400                    | Client input problems.                     |
-| `KEY_REUSED_WITH_DIFFERENT_REQUEST`                                                                                    | 409                    | Same key, different payload.               |
-| `REQUEST_IN_PROGRESS`                                                                                                  | 409                    | A concurrent request holds the lock.       |
-| `REQUEST_FAILED`                                                                                                       | 409                    | The previous attempt with this key failed. |
-| `RECORD_NOT_FOUND`                                                                                                     | 404                    | Lookup miss.                               |
-| `STORE_UNAVAILABLE`, `CACHE_UNAVAILABLE`                                                                               | 503                    | Infrastructure failure.                    |
-| `INVALID_CACHED_RESPONSE`                                                                                              | 500                    | Corrupt cache entry (should not happen).   |
-
-Override the mapping per-route with `statusMap`.
-
-#### Express adapter functions
+### Express Adapter
 
 ##### idempotent
 
 ```ts
-idempotent(handler, route, options?): RequestHandler
+idempotent(handler, route, options?): RequestHandler;
 ```
 
-Wraps a route that **returns** its response payload. Executes it inside `handler.execute` and sends the result with `res.json`.
+Wraps a route that **returns** its response payload.
 
 ##### idempotencyMiddleware
 
 ```ts
-idempotencyMiddleware(handler, options?): RequestHandler
+idempotencyMiddleware(handler, options?): RequestHandler;
 ```
 
-Capture middleware for routes that send their own response. Stores the `res.json`/`res.send` payload as the idempotent response; a 4xx/5xx downstream response marks the record `FAILED`.
+Capture middleware for routes that send their own response.
 
 ##### getIdempotencyKey
 
 ```ts
-getIdempotencyKey(req, options?): string | undefined
+getIdempotencyKey(req, options?): string | undefined;
 ```
 
-Extracts the key with priority header → body field → query parameter. Returns `undefined` when no key is present.
+Extracts the key with priority header → body field → query parameter.
 
-##### idempotencyErrorStatus / sendIdempotencyError
-
-```ts
-idempotencyErrorStatus(error, statusMap?): number
-sendIdempotencyError(res, error, statusMap?): void
-```
-
-Map an `IdempotencyError` to its HTTP status, and respond with the `{ error: { code, message } }` envelope.
-
-#### Fastify adapter functions
+### Fastify Adapter
 
 ##### idempotent
 
 ```ts
-idempotent(handler, route, options?): RouteHandlerMethod
+idempotent(handler, route, options?): RouteHandlerMethod;
 ```
 
-Wraps a Fastify route handler. The route either returns the response payload (Fastify sends it) or calls `reply.send` (the payload is captured and stored). Missing key + `requireKey` → 400; `IdempotencyError`s map to their HTTP status; other errors re-throw to Fastify's error handler.
+Wraps a Fastify route handler. The route either returns the payload or calls `reply.send`.
 
-##### getIdempotencyKey
-
-```ts
-getIdempotencyKey(request, options?): string | undefined
-```
-
-Extracts the key with priority header → body field → query parameter (headers are matched case-insensitively).
-
-##### request.idempotency
-
-`IdempotencyContext` attached to every request (when `attachContext` is true, default). Read it in Fastify hooks or the route; the outcome flips from `"processing"` to `"completed"`/`"failed"` once execution settles.
-
-#### Hono adapter functions
+### Hono Adapter
 
 ##### idempotent
 
 ```ts
-idempotent(handler, route, options?): MiddlewareHandler
+idempotent(handler, route, options?): MiddlewareHandler;
 ```
 
-Wraps a Hono route handler. The route returns the response payload (sent with `c.json`) or an already built `Response`. Missing key + `requireKey` → 400; `IdempotencyError`s map to their HTTP status; other errors re-throw to Hono's error handler.
+Wraps a Hono route handler. The route returns the payload or an already built `Response`.
 
 ##### idempotencyMiddleware
 
 ```ts
-idempotencyMiddleware(handler, options?): MiddlewareHandler
+idempotencyMiddleware(handler, options?): MiddlewareHandler;
 ```
 
-Capture middleware for routes that send their own response. The downstream `c.json` payload is stored as the idempotent response; a 4xx/5xx downstream response (or a thrown route error) marks the record `FAILED`. Replays work from the cache or store even though the route never runs again.
-
-##### getIdempotencyKey
-
-```ts
-getIdempotencyKey(c, options?): Promise<string | undefined>
-```
-
-Extracts the key with priority header → query parameter → body field. Async because a body-field key requires reading the (cloned) request body.
-
-##### getIdempotencyContext
-
-```ts
-getIdempotencyContext(c): IdempotencyContext | undefined
-```
-
-Reads the `IdempotencyContext` attached to the Hono context (equivalent to `c.get("idempotency")`).
-
-#### createLoggerAdapter
-
-```ts
-createLoggerAdapter(handler: MinimalLogHandler): CoreLogger
-```
-
-Bridges any `(level, msg, meta?)` log function into the block's `CoreLogger` shape so you can pass `{ logger: ... }` without rewriting your logging calls.
-
-#### Metrics
-
-The block emits the following `MetricName` values via the `Metrics` hook: `idempotency_cache_hits_total`, `idempotency_cache_misses_total`, `idempotency_duplicates_total`, `idempotency_store_errors_total`, `idempotency_recovered_records_total`, `idempotency_cleaned_records_total`, and `idempotency_latency_seconds`.
+Capture middleware for routes that send their own response.
 
 ---
 
 ## Examples
-
-### Basic Express Setup
-
-```ts
-import express from "express";
-import { IdempotencyHandler } from "@/blocks/idempotency";
-import { idempotent } from "@/blocks/idempotency/adapters/express";
-
-const app = express();
-app.use(express.json());
-
-const handler = new IdempotencyHandler(myStore);
-
-app.post(
-  "/orders",
-  idempotent(handler, async (req) => {
-    const order = await createOrder(req.body);
-    return { id: order.id, status: "created" };
-  })
-);
-```
 
 ### Classifying Transient vs Permanent Failures
 
@@ -845,13 +639,11 @@ app.post(
 );
 ```
 
-### Background Jobs (cron)
+### Background Jobs
 
 Run both jobs on a schedule so keys become reusable and crashed workers never leave permanent locks:
 
 ```ts
-import { IdempotencyHandler } from "@/blocks/idempotency";
-
 const handler = new IdempotencyHandler(myStore);
 
 // Every hour: purge expired SUCCESS/FAILED records.
@@ -867,7 +659,6 @@ console.log(recovery); // { processed, succeeded, failed }
 ```ts
 import { IdempotencyHandler, type IdempotencyCache } from "@/blocks/idempotency";
 
-// Wrap your Redis client (ioredis, node-redis, ...) in the 3-method interface:
 const cache: IdempotencyCache = {
   async get(key) {
     const raw = await redis.get(key);
@@ -889,7 +680,6 @@ The cache is a fast path only: if Redis is down, requests fall back to the store
 ### Bridging Your Logger
 
 ```ts
-import { IdempotencyHandler } from "@/blocks/idempotency";
 import { createLoggerAdapter } from "@/blocks/idempotency/utils/create-logger";
 
 const logger = createLoggerAdapter((level, msg, meta) => {
@@ -903,42 +693,41 @@ const handler = new IdempotencyHandler(myStore, undefined, { logger });
 
 ## Related Blocks
 
-- **Logger** — pass any pino-style logger via `IdempotencyHandlerOptions.logger`, or use `createLoggerAdapter` to bridge your existing logger. Structured context (`key`, `userId`, `operation`) is included on every log line.
-- **Error Handler** — `IdempotencyError` carries a stable machine-readable `code`; the Express adapter maps it to HTTP statuses, and a global error handler can route non-idempotency errors consistently. Use `isPermanentError` to tell the block which failures are client errors (400) versus retryable infrastructure errors.
+- **Logger** — pass any pino-style logger via `IdempotencyHandlerOptions.logger`, or use `createLoggerAdapter` to bridge your existing logger.
+- **Error Handler** — `IdempotencyError` carries a stable machine-readable `code`; the Express adapter maps it to HTTP statuses.
 
 ---
 
 ## FAQ
 
-**What happens when a client retries with the same key and payload?**  
+**What happens when a client retries with the same key and payload?**
+
 The stored response is returned without re-running the business logic — whether from the L1 cache (fast path) or the store record.
 
-**What happens when the same key is reused with a different payload?**  
+**What happens when the same key is reused with a different payload?**
+
 The request is rejected with `KEY_REUSED_WITH_DIFFERENT_REQUEST` (409). Hashes are compared in constant time so the rejection leaks no prefix information.
 
-**What happens when two identical requests arrive concurrently?**  
+**What happens when two identical requests arrive concurrently?**
+
 The second one hits the `PROCESSING` lock and receives `REQUEST_IN_PROGRESS` (409). Once the first finishes, retries replay the stored response.
 
-**When is a key released after a failure?**  
+**When is a key released after a failure?**
+
 Permanent failures mark the record `FAILED` (the key is poisoned). Transient failures release the lock so the client can retry — up to `MAX_ALLOWED_RETRIES` (3), after which the key is poisoned with `REQUEST_FAILED`.
 
-**Are keys global across users?**  
+**Are keys global across users?**
+
 No — the scope is `(userId, operation, key)`. The same key used by two different users or for two different operations is treated as two independent requests. However, if `getUserId` resolves to the default `"anonymous"`, all keys become global. Always provide a real user id.
 
-**What if my store or cache is down?**  
+**What if my store or cache is down?**
+
 Store failures surface as `STORE_UNAVAILABLE` (503). Cache failures are swallowed and requests fall back to the store, which remains the source of truth.
 
-**How long do records live?**  
+**How long do records live?**
+
 Records and cache entries default to a 24-hour TTL. Run `cleanupExpiredRecords` on a schedule to purge expired `SUCCESS`/`FAILED` records so keys become reusable.
 
-**Why won't cleanup delete an expired `PROCESSING` record?**  
+**Why won't cleanup delete an expired `PROCESSING` record?**
+
 Purging an active lock would let a duplicate incoming request acquire a fresh lock and run concurrently. Stuck locks are handled by `recoverStuckRecords` instead.
-
-**What payload values are rejected by hashing?**  
-`undefined`, `NaN`, `±Infinity`, `BigInt`, functions, symbols, cyclic references, and nesting deeper than 100 levels are rejected with `UNSUPPORTED_REQUEST_VALUE` — they can't be hashed deterministically.
-
----
-
-## Changelog
-
-Initial documentation release.

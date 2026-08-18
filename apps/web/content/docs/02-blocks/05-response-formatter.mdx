@@ -4,7 +4,7 @@ description: Generate consistent API responses using a framework-agnostic format
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
-import { Steps } from "fumadocs-ui/components/steps";
+import { Steps, Step } from "fumadocs-ui/components/steps";
 import { SourceCode } from "../../../components/source-code";
 
 The **Response Formatter** block provides a consistent response format for your APIs.
@@ -44,63 +44,69 @@ response-formatter
 
 ## Installation
 
-```bash
-pnpm dlx blockend-cli add response-formatter
-```
+<Tabs items={["CLI", "Manual"]}>
+  <Tab value="CLI">
+    ```bash
+    pnpm dlx blockend-cli add response-formatter
+    ```
 
-<Steps>
+    <Steps>
+      <Step>
+        ### Detect Project
 
-### Detect Project
+        Blockend detects your backend framework and installs the appropriate adapter automatically.
+      </Step>
+      <Step>
+        ### Generate Files
 
-Blockend detects your backend framework and installs the appropriate adapter automatically.
+        The formatter block is generated inside your configured blocks directory.
+      </Step>
+    </Steps>
 
-### Generate Files
+  </Tab>
+  <Tab value="Manual">
+    Copy the files below into your project's blocks directory.
 
-The formatter block is generated inside your configured blocks directory.
+    ### Peer Dependencies
 
-</Steps>
+    | Package | Required for |
+    | ------- | ------------ |
+    | `express` | Express adapter |
+    | `fastify` | Fastify adapter |
+    | `hono` | Hono adapter |
 
-### Peer Dependencies
+    ### `blocks/response-formatter/contract.ts`
 
-| Adapter | Peer Dependency |
-| ------- | --------------- |
-| Express | `express`       |
-| Fastify | `fastify`       |
-| Hono    | `hono`          |
+    TypeScript interfaces for API response shapes.
 
----
+    <SourceCode file="response-formatter/contract.ts" />
 
-## Manual File Setup
+    ### `blocks/response-formatter/core.ts`
 
-### blocks/response-formatter/contract.ts
+    `ResponseFormatter` class with success, paginated, and error static methods.
 
-TypeScript interfaces for API response shapes.
+    <SourceCode file="response-formatter/core.ts" />
 
-<SourceCode file="response-formatter/contract.ts" />
+    ### `blocks/response-formatter/adapters/express.ts`
 
-### blocks/response-formatter/core.ts
+    Express adapter — `ExpressResponse` class.
 
-`ResponseFormatter` class with success, paginated, and error static methods.
+    <SourceCode file="response-formatter/adapters/express.ts" />
 
-<SourceCode file="response-formatter/core.ts" />
+    ### `blocks/response-formatter/adapters/fastify.ts`
 
-### blocks/response-formatter/adapters/express.ts
+    Fastify adapter — `FastifyResponse` class.
 
-Express adapter — `ExpressResponse` class.
+    <SourceCode file="response-formatter/adapters/fastify.ts" />
 
-<SourceCode file="response-formatter/adapters/express.ts" />
+    ### `blocks/response-formatter/adapters/hono.ts`
 
-### blocks/response-formatter/adapters/fastify.ts
+    Hono adapter — `HonoResponse` class.
 
-Fastify adapter — `FastifyResponse` class.
+    <SourceCode file="response-formatter/adapters/hono.ts" />
 
-<SourceCode file="response-formatter/adapters/fastify.ts" />
-
-### blocks/response-formatter/adapters/hono.ts
-
-Hono adapter — `HonoResponse` class.
-
-<SourceCode file="response-formatter/adapters/hono.ts" />
+  </Tab>
+</Tabs>
 
 ---
 
@@ -165,7 +171,6 @@ import { ExpressResponse } from "@/blocks/response-formatter/adapters/express";
 
 app.get("/users/:id", (req, res) => {
   const user = { id: 1, name: "Alice" };
-
   return ExpressResponse.success(res, user, "User fetched successfully");
 });
 ```
@@ -177,7 +182,6 @@ import { FastifyResponse } from "@/blocks/response-formatter/adapters/fastify";
 
 fastify.get("/users/:id", async (request, reply) => {
   const user = { id: 1, name: "Alice" };
-
   return FastifyResponse.success(reply, user, "User fetched successfully");
 });
 ```
@@ -189,7 +193,6 @@ import { HonoResponse } from "@/blocks/response-formatter/adapters/hono";
 
 app.get("/users/:id", (c) => {
   const user = { id: 1, name: "Alice" };
-
   return HonoResponse.success(c, user, "User fetched successfully");
 });
 ```
@@ -235,34 +238,25 @@ Response:
 
 ### Request IDs
 
+Include a request ID in the response for debugging:
+
 ```ts
 ExpressResponse.success(res, user, "Success", 200, req.id);
-```
-
-The request ID is included only when provided.
-
-```json
-{
-  "success": true,
-  "data": {},
-  "message": "Success",
-  "requestId": "9d8d..."
-}
 ```
 
 ---
 
 ## API Reference
 
-#### ResponseFormatter.success
+### ResponseFormatter.success
 
 ```ts
-static success<T>(data: T, message: string, requestId?: string): ApiResponse<T>
+static success<T>(data: T, message: string, requestId?: string): ApiResponse<T>;
 ```
 
 Creates a successful response object.
 
-#### ResponseFormatter.paginated
+### ResponseFormatter.paginated
 
 ```ts
 static paginated<T>(
@@ -270,53 +264,32 @@ static paginated<T>(
   message: string,
   pagination: PaginationParams,
   requestId?: string
-): ApiResponse<T>
+): ApiResponse<T>;
 ```
 
 Creates a paginated response. Automatically computes `totalPages`, `hasNext`, and `hasPrevious`.
 
-#### ResponseFormatter.error
+### ResponseFormatter.error
 
 ```ts
-static error(error: { message: string; details?: unknown }, requestId?: string): ErrorResponse
+static error(error: { message: string; details?: unknown }, requestId?: string): ErrorResponse;
 ```
 
 Creates an error response object.
 
-#### ExpressResponse.success
+### ExpressResponse
 
 ```ts
-static success<T>(
-  res: Response, data: T,
-  message?: string, statusCode?: number,
-  requestId?: string
-): void
+static success<T>(res: Response, data: T, message?: string, statusCode?: number, requestId?: string): void;
+static paginated<T>(res: Response, data: T, message: string, pagination: PaginationParams, statusCode?: number, requestId?: string): void;
+static error(res: Response, statusCode: number, message: string, details?: unknown, requestId?: string): void;
 ```
 
-#### ExpressResponse.paginated
-
-```ts
-static paginated<T>(
-  res: Response, data: T, message: string,
-  pagination: PaginationParams,
-  statusCode?: number, requestId?: string
-): void
-```
-
-#### ExpressResponse.error
-
-```ts
-static error(
-  res: Response, statusCode: number, message: string,
-  details?: unknown, requestId?: string
-): void
-```
-
-#### FastifyResponse / HonoResponse
+### FastifyResponse / HonoResponse
 
 Same interface as `ExpressResponse` but accepts `FastifyReply` or `HonoContext` as the first argument.
 
-#### PaginationParams
+### PaginationParams
 
 ```ts
 interface PaginationParams {
@@ -326,7 +299,7 @@ interface PaginationParams {
 }
 ```
 
-#### SuccessResponse
+### SuccessResponse
 
 ```ts
 interface SuccessResponse<T> {
@@ -338,7 +311,7 @@ interface SuccessResponse<T> {
 }
 ```
 
-#### ErrorResponse
+### ErrorResponse
 
 ```ts
 interface ErrorResponse {
@@ -356,43 +329,14 @@ interface ErrorResponse {
 
 ## Examples
 
-### Basic Usage
-
-```ts
-import { ExpressResponse } from "@/blocks/response-formatter/adapters/express";
-
-app.get("/", (req, res) => {
-  return ExpressResponse.success(res, { status: "ok" }, "API is running");
-});
-```
-
-### Production Usage with Error Handler
-
-```ts
-import { ExpressResponse } from "@/blocks/response-formatter/adapters/express";
-import { AppError } from "@/blocks/error-handler";
-
-app.get("/users/:id", async (req, res, next) => {
-  try {
-    const user = await db.user.findUnique({ where: { id: req.params.id } });
-    if (!user) {
-      return ExpressResponse.error(res, 404, "User not found");
-    }
-    return ExpressResponse.success(res, user, "User fetched");
-  } catch (err) {
-    next(err);
-  }
-});
-```
-
 ### Using the Core Formatter Directly
+
+Use the core formatter without adapters — it returns plain objects you can send however you want:
 
 ```ts
 import { ResponseFormatter } from "@/blocks/response-formatter/core";
 
 const response = ResponseFormatter.success(user, "User fetched successfully");
-
-// response is a plain object — send it however you want
 res.json(response);
 ```
 
@@ -401,7 +345,6 @@ res.json(response);
 ## Related Blocks
 
 - **Error Handler** — Combine with `ExpressResponse.error()` for consistent error shapes across your API.
-- **Request Validator** — Use validated request data with formatted responses.
 
 ---
 
@@ -418,9 +361,3 @@ Yes. `ResponseFormatter.success()`, `.paginated()`, and `.error()` return plain 
 **How do I add custom fields to the response?**
 
 Use the extension point by calling the core formatter and merging your custom fields before sending the response.
-
----
-
-## Changelog
-
-Initial documentation release.

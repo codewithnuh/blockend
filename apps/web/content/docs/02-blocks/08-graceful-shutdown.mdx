@@ -4,14 +4,18 @@ description: Coordinated, dependency-free shutdown with in-flight request draini
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
-import { Steps } from "fumadocs-ui/components/steps";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 import { SourceCode } from "../../../components/source-code";
 
 The **Graceful Shutdown** block coordinates application cleanup when your process is terminating. Instead of letting the runtime kill everything abruptly, it stops accepting new traffic, drains in-flight requests, and runs registered cleanup tasks in a controlled order.
 
 When a deploy or signal arrives, three things must happen in sequence: stop accepting new requests, finish every request already in flight, and close resources (database pools, caches, queues) only after they are no longer needed.
 
-> **Production tip:** Pair this block with the [Health Check](/docs/02-blocks/07-health-check) block. Use `isShuttingDownState` in your readiness endpoint so load balancers and Kubernetes stop routing traffic the moment shutdown begins. See [Related Blocks](#related-blocks).
+<Callout type="warn">
+  Pair this block with the Health Check block. Use `isShuttingDownState` in your readiness endpoint
+  so load balancers and Kubernetes stop routing traffic the moment shutdown begins.
+</Callout>
 
 ---
 
@@ -61,152 +65,115 @@ graceful-shutdown
 
 ## Installation
 
-```bash
-pnpm dlx blockend-cli add graceful-shutdown
-```
-
-<Steps>
-### Detect Project
-Blockend reads your project configuration and determines the output location.
-
-### Select Adapter
-
-Choose the framework adapter for your application: Express, Fastify, or Hono.
-
-### Install Dependencies
-
-The packages required by the selected adapter are installed automatically.
-
-### Generate Files
-
-The core files, the selected adapter, and the test files are copied into your configured blocks directory.
-
-</Steps>
-
-### Peer Dependencies
-
-| Adapter | Peer Dependency             |
-| ------- | --------------------------- |
-| Express | `express`                   |
-| Fastify | `fastify`                   |
-| Hono    | `hono`, `@hono/node-server` |
-
-The core itself has no peer dependencies.
-
-### Manual Installation
-
-Prefer to wire the block up yourself instead of using the CLI? The core block has **zero runtime dependencies** — you only install the packages for the framework adapter you use, plus the dev dependencies needed to run the block's tests.
-
-<Tabs items={["pnpm", "npm"]}>
-  <Tab value="pnpm">
+<Tabs items={["CLI", "Manual"]}>
+  <Tab value="CLI">
     ```bash
-    # Express adapter
-    pnpm add express
-    pnpm add -D @types/express
-
-    # Fastify adapter
-    pnpm add fastify
-
-    # Hono adapter
-    pnpm add hono @hono/node-server
-
-    # Dev dependencies (core tests)
-    pnpm add -D vitest @types/node
+    pnpm dlx blockend-cli add graceful-shutdown
     ```
+
+    <Steps>
+      <Step>
+        ### Detect Project
+
+        Blockend reads your project configuration and determines the output location.
+      </Step>
+      <Step>
+        ### Select Adapter
+
+        Choose the framework adapter for your application: Express, Fastify, or Hono.
+      </Step>
+      <Step>
+        ### Install Dependencies
+
+        The packages required by the selected adapter are installed automatically.
+      </Step>
+      <Step>
+        ### Generate Files
+
+        The core files, the selected adapter, and the test files are copied into your configured blocks directory.
+      </Step>
+    </Steps>
 
   </Tab>
-  <Tab value="npm">
-    ```bash
-    # Express adapter
-    npm install express
-    npm install --save-dev @types/express
+  <Tab value="Manual">
+    Copy the files below into your project's blocks directory. The core block has **zero runtime dependencies** — you only install the packages for the framework adapter you use.
 
-    # Fastify adapter
-    npm install fastify
+    ### Peer Dependencies
 
-    # Hono adapter
-    npm install hono @hono/node-server
+    | Package | Required for |
+    | ------- | ------------ |
+    | `express` | Express adapter |
+    | `fastify` | Fastify adapter |
+    | `hono` + `@hono/node-server` | Hono adapter |
 
-    # Dev dependencies (core tests)
-    npm install --save-dev vitest @types/node
-    ```
+    ### `blocks/graceful-shutdown/index.ts`
+
+    Framework-agnostic public barrel. Re-exports the manager, tracker, utils, constants, and types.
+
+    <SourceCode file="graceful-shutdown/index.ts" />
+
+    ### `blocks/graceful-shutdown/constants.ts`
+
+    Centralized defaults and the suggested `PRIORITY` levels used to order tasks.
+
+    <SourceCode file="graceful-shutdown/constants.ts" />
+
+    ### `blocks/graceful-shutdown/types.ts`
+
+    Shared contracts: `ShutdownTask`, `ShutdownResult`, `GracefulShutdownOptions`, tracker interfaces, and helpers.
+
+    <SourceCode file="graceful-shutdown/types.ts" />
+
+    ### `blocks/graceful-shutdown/core/shutdown.ts`
+
+    The `GracefulShutdown` manager: registers tasks, runs the drain + task sequence, and emits lifecycle events.
+
+    <SourceCode file="graceful-shutdown/core/shutdown.ts" />
+
+    ### `blocks/graceful-shutdown/core/connection-tracker.ts`
+
+    `NodeConnectionTracker` counts in-flight requests and exposes `waitForDrain` with a timeout.
+
+    <SourceCode file="graceful-shutdown/core/connection-tracker.ts" />
+
+    ### `blocks/graceful-shutdown/utils/http.ts`
+
+    `createHttpShutdownTask` builds the HTTP server close task and `handleNode503` writes the 503 response.
+
+    <SourceCode file="graceful-shutdown/utils/http.ts" />
+
+    ### `blocks/graceful-shutdown/utils/timeout.ts`
+
+    `withTimeout` races any promise against a deadline and rejects with a labeled error.
+
+    <SourceCode file="graceful-shutdown/utils/timeout.ts" />
+
+    ### `blocks/graceful-shutdown/utils/state.ts`
+
+    `shouldRejectRequest` decides whether a request should be rejected during shutdown.
+
+    <SourceCode file="graceful-shutdown/utils/state.ts" />
+
+    ### `blocks/graceful-shutdown/adapters/express.ts`
+
+    Express middleware, tracker factory, and shutdown task factory.
+
+    <SourceCode file="graceful-shutdown/adapters/express.ts" />
+
+    ### `blocks/graceful-shutdown/adapters/fastify.ts`
+
+    Fastify onRequest hook, tracker factory, and shutdown task factory.
+
+    <SourceCode file="graceful-shutdown/adapters/fastify.ts" />
+
+    ### `blocks/graceful-shutdown/adapters/hono.ts`
+
+    Hono middleware, tracker factory, and shutdown task factory.
+
+    <SourceCode file="graceful-shutdown/adapters/hono.ts" />
 
   </Tab>
 </Tabs>
-
-Then copy the block files into your project. The destination for every file — including the framework-agnostic core and your chosen adapter — is listed in [Manual File Setup](#manual-file-setup) below.
-
----
-
-## Manual File Setup
-
-The framework-agnostic files and unit tests are always copied. Adapter files (`adapters/*.ts` and integration tests) are copied only for the framework you selected.
-
-### blocks/graceful-shutdown/index.ts
-
-Framework-agnostic public barrel. Re-exports the manager, tracker, utils, constants, and types. Adapters are intentionally not re-exported here.
-
-<SourceCode file="graceful-shutdown/index.ts" />
-
-### blocks/graceful-shutdown/constants.ts
-
-Centralized defaults and the suggested `PRIORITY` levels used to order tasks.
-
-<SourceCode file="graceful-shutdown/constants.ts" />
-
-### blocks/graceful-shutdown/types.ts
-
-Shared contracts: `ShutdownTask`, `ShutdownResult`, `GracefulShutdownOptions`, tracker interfaces, and helpers.
-
-<SourceCode file="graceful-shutdown/types.ts" />
-
-### blocks/graceful-shutdown/core/shutdown.ts
-
-The `GracefulShutdown` manager: registers tasks, runs the drain + task sequence, and emits lifecycle events.
-
-<SourceCode file="graceful-shutdown/core/shutdown.ts" />
-
-### blocks/graceful-shutdown/core/connection-tracker.ts
-
-`NodeConnectionTracker` counts in-flight requests and exposes `waitForDrain` with a timeout.
-
-<SourceCode file="graceful-shutdown/core/connection-tracker.ts" />
-
-### blocks/graceful-shutdown/utils/http.ts
-
-`createHttpShutdownTask` builds the HTTP server close task (with a self-enforced deadline) and `handleNode503` writes the 503 response.
-
-<SourceCode file="graceful-shutdown/utils/http.ts" />
-
-### blocks/graceful-shutdown/utils/timeout.ts
-
-`withTimeout` races any promise against a deadline and rejects with a labeled error.
-
-<SourceCode file="graceful-shutdown/utils/timeout.ts" />
-
-### blocks/graceful-shutdown/utils/state.ts
-
-`shouldRejectRequest` decides whether a request should be rejected during shutdown.
-
-<SourceCode file="graceful-shutdown/utils/state.ts" />
-
-### blocks/graceful-shutdown/adapters/express.ts
-
-Express middleware (`createShutdownMiddleware`), tracker factory (`createExpressTracker`), and shutdown task factory (`createExpressShutdownTask`).
-
-<SourceCode file="graceful-shutdown/adapters/express.ts" />
-
-### blocks/graceful-shutdown/adapters/fastify.ts
-
-Fastify `onRequest` hook for 503s (`registerFastifyShutdownHooks`), tracker factory (`createFastifyTracker`), and shutdown task factory (`createFastifyShutdownTask`).
-
-<SourceCode file="graceful-shutdown/adapters/fastify.ts" />
-
-### blocks/graceful-shutdown/adapters/hono.ts
-
-Hono middleware (`createHonoShutdownMiddleware`), tracker factory (`createHonoTracker`), and shutdown task factory (`createHonoShutdownTask`).
-
-<SourceCode file="graceful-shutdown/adapters/hono.ts" />
 
 ---
 
@@ -214,15 +181,15 @@ Hono middleware (`createHonoShutdownMiddleware`), tracker factory (`createHonoTr
 
 ### GracefulShutdownOptions
 
-| Option                  | Type                                 | Default | Required | Description                                                                  |
-| ----------------------- | ------------------------------------ | ------- | -------- | ---------------------------------------------------------------------------- |
-| `hardTimeoutMs`         | `number`                             | `30000` | No       | Hard kill timeout. `process.exit(1)` fires regardless once this elapses.     |
-| `defaultTaskTimeoutMs`  | `number`                             | `10000` | No       | Fallback per-task timeout when a task does not set `timeout`.                |
-| `stopOnError`           | `boolean`                            | `false` | No       | When `true`, abort remaining tasks after the first failure.                  |
-| `installSignalHandlers` | `boolean`                            | `true`  | No       | Register SIGTERM / SIGINT / SIGQUIT handlers. Set `false` for manual wiring. |
-| `onTaskComplete`        | `(name, durationMs, error?) => void` | —       | No       | Called after each task completes or fails. Use for metrics.                  |
-| `connectionTracker`     | `ConnectionTracker`                  | —       | No       | Tracker awaited before tasks run, so in-flight requests finish first.        |
-| `drainTimeoutMs`        | `number`                             | `10000` | No       | How long to wait for active connections to drain.                            |
+| Option                  | Type                                 | Default | Description                                                                  |
+| ----------------------- | ------------------------------------ | ------- | ---------------------------------------------------------------------------- |
+| `hardTimeoutMs`         | `number`                             | `30000` | Hard kill timeout. `process.exit(1)` fires regardless once this elapses.     |
+| `defaultTaskTimeoutMs`  | `number`                             | `10000` | Fallback per-task timeout when a task does not set `timeout`.                |
+| `stopOnError`           | `boolean`                            | `false` | When `true`, abort remaining tasks after the first failure.                  |
+| `installSignalHandlers` | `boolean`                            | `true`  | Register SIGTERM / SIGINT / SIGQUIT handlers. Set `false` for manual wiring. |
+| `onTaskComplete`        | `(name, durationMs, error?) => void` | —       | Called after each task completes or fails. Use for metrics.                  |
+| `connectionTracker`     | `ConnectionTracker`                  | —       | Tracker awaited before tasks run, so in-flight requests finish first.        |
+| `drainTimeoutMs`        | `number`                             | `10000` | How long to wait for active connections to drain.                            |
 
 ### ShutdownTask
 
@@ -265,13 +232,6 @@ Hard timeout (hardTimeoutMs) → process.exit(1) as a last resort
 
 The manager keeps the whole sequence behind a single reserved promise. `shutdown()` is idempotent: the first call starts the run, and every subsequent call returns the exact same promise object. A hard timeout runs independently and calls `process.exit(1)` if the run never finishes.
 
-### Lifecycle
-
-1. **`beforeShutdown`** — emitted before draining so listeners can stop starting new work (for example, stop a cron scheduler).
-2. **Drain** — if a tracker is configured, `waitForDrain` blocks until every in-flight request finishes or `drainTimeoutMs` elapses.
-3. **Tasks** — registered tasks run in descending priority order, each with a timeout.
-4. **`afterShutdown`** — emitted with the final result (`success`, `completed`, `failed`).
-
 ---
 
 ## When to Use
@@ -306,33 +266,20 @@ import {
 const app = express();
 const server = createServer(app);
 
-// Attach the tracker BEFORE the server starts listening.
 const tracker = createExpressTracker(server);
 const shutdown = new GracefulShutdown({ connectionTracker: tracker });
 
-// First middleware — rejects new requests with 503 during shutdown.
+// First middleware — rejects new requests with 503 during shutdown
 app.use(createShutdownMiddleware(shutdown));
 
-// Register tasks (highest priority first).
+// Register tasks (highest priority first)
 shutdown.addTask(createExpressShutdownTask(server)); // closes the HTTP server
-shutdown.addTask({
-  name: "db",
-  priority: PRIORITY.DB_POOL,
-  handler: () => pool.end()
-});
-shutdown.addTask({
-  name: "redis",
-  priority: PRIORITY.CACHE,
-  handler: () => redis.quit()
-});
-shutdown.addTask({
-  name: "logger",
-  priority: PRIORITY.LOGGERS,
-  handler: () => logger.flush()
-});
+shutdown.addTask({ name: "db", priority: PRIORITY.DB_POOL, handler: () => pool.end() });
+shutdown.addTask({ name: "redis", priority: PRIORITY.CACHE, handler: () => redis.quit() });
+shutdown.addTask({ name: "logger", priority: PRIORITY.LOGGERS, handler: () => logger.flush() });
 
 server.listen(3000, "0.0.0.0");
-// SIGTERM / SIGINT are handled automatically when installSignalHandlers is true (default).
+// SIGTERM / SIGINT are handled automatically
 ```
 
 ### Fastify
@@ -350,15 +297,10 @@ const app = Fastify();
 const tracker = createFastifyTracker(app);
 const shutdown = new GracefulShutdown({ connectionTracker: tracker });
 
-// Returns 503 for new requests once shutdown starts.
-registerFastifyShutdownHooks(app, shutdown);
+registerFastifyShutdownHooks(app, shutdown); // returns 503 for new requests
 
 shutdown.addTask(createFastifyShutdownTask(app));
-shutdown.addTask({
-  name: "db",
-  priority: PRIORITY.DB_POOL,
-  handler: () => pool.end()
-});
+shutdown.addTask({ name: "db", priority: PRIORITY.DB_POOL, handler: () => pool.end() });
 
 await app.listen({ port: 3000, host: "0.0.0.0" });
 ```
@@ -385,134 +327,102 @@ const shutdown = new GracefulShutdown({ connectionTracker: tracker });
 app.use("*", createHonoShutdownMiddleware(shutdown));
 
 shutdown.addTask(createHonoShutdownTask(server));
-shutdown.addTask({
-  name: "db",
-  priority: PRIORITY.DB_POOL,
-  handler: () => pool.end()
-});
+shutdown.addTask({ name: "db", priority: PRIORITY.DB_POOL, handler: () => pool.end() });
 
 server.listen(3000, "0.0.0.0");
+```
+
+### Readiness Probe During Shutdown
+
+Wire `isShuttingDownState` into your readiness endpoint so traffic stops before you drain:
+
+```ts
+app.get("/health/ready", async (_req, res) => {
+  if (shutdown.isShuttingDownState) {
+    return res.status(503).json({
+      status: "shutting_down",
+      message: "Instance is draining and will not accept new work"
+    });
+  }
+  res.status(200).json({ status: "ready" });
+});
 ```
 
 ---
 
 ## API Reference
 
-#### GracefulShutdown
+### GracefulShutdown
 
 ```ts
-class GracefulShutdown extends EventEmitter
+class GracefulShutdown extends EventEmitter {}
 ```
 
 Coordinates and executes cleanup tasks on shutdown. Emits `beforeShutdown`, `draining`, `drained`, `drainTimeout`, and `afterShutdown`.
 
-##### new GracefulShutdown(options?)
+#### new GracefulShutdown(options?)
 
 | Parameter | Type                      | Required | Description                |
 | --------- | ------------------------- | -------- | -------------------------- |
 | `options` | `GracefulShutdownOptions` | No       | Configuration (see above). |
 
-##### shutdown
+#### shutdown
 
 ```ts
 shutdown(reason?: ShutdownReason): Promise<ShutdownResult>;
 ```
 
-Starts a graceful shutdown. Idempotent — every caller receives the same in-flight result promise, and the run happens exactly once.
+Starts a graceful shutdown. Idempotent — every caller receives the same in-flight result promise.
 
-Failures are collected in the result. The reserved promise rejects only on an unexpected internal error.
-
-##### addTask
+#### addTask
 
 ```ts
 addTask(task: ShutdownTask): this;
 ```
 
-Registers a task. Tasks with the same name replace existing ones. If shutdown has already started, the task handler runs immediately instead.
+Registers a task. Tasks with the same name replace existing ones.
 
-##### removeTask
-
-```ts
-removeTask(name: string): boolean;
-```
-
-Removes a previously registered task by name. Returns `true` if it existed.
-
-##### getTaskNames
-
-```ts
-getTaskNames(): string[];
-```
-
-Returns registered task names, ordered highest priority first.
-
-##### isShuttingDownState
+#### isShuttingDownState
 
 ```ts
 readonly isShuttingDownState: boolean;
 ```
 
-`true` while the application is shutting down. **Use this in your readiness probe** so load balancers and Kubernetes stop sending traffic immediately.
+`true` while the application is shutting down. **Use this in your readiness probe.**
 
-#### gracefulShutdown
-
-Pre-built singleton instance of `GracefulShutdown`. Prefer creating a fresh instance per process so tests and workers stay isolated — a singleton carries global state.
-
-#### NodeConnectionTracker
+### NodeConnectionTracker
 
 ```ts
-class NodeConnectionTracker implements AttachableConnectionTracker
+class NodeConnectionTracker implements AttachableConnectionTracker {}
 ```
 
 Counts in-flight requests on a Node.js HTTP server and drains to zero.
 
-##### attach
+#### attach
 
 ```ts
 attach(server: Server): this;
 ```
 
-Attaches the tracker to an `http.Server`. Must be called **before** the server accepts requests so no request is missed. Returns `this`.
+Attaches the tracker to an `http.Server`. Must be called **before** the server accepts requests.
 
-##### activeCount
-
-```ts
-readonly activeCount: number;
-```
-
-Current number of requests that have started but not finished.
-
-##### waitForDrain
+#### waitForDrain
 
 ```ts
 waitForDrain(timeoutMs: number): Promise<void>;
 ```
 
-Resolves when `activeCount` reaches zero, or rejects if that has not happened within `timeoutMs`. Resolves immediately if already drained.
+Resolves when `activeCount` reaches zero, or rejects if that has not happened within `timeoutMs`.
 
-#### isAttachable
-
-```ts
-function isAttachable(tracker: ConnectionTracker): tracker is AttachableConnectionTracker;
-```
-
-Runtime type guard that checks whether a tracker supports `attach()`.
-
-#### createHttpShutdownTask
+### createHttpShutdownTask
 
 ```ts
 function createHttpShutdownTask(server: Server, options?: { timeout?: number }): ShutdownTask;
 ```
 
-Creates the `http-server` shutdown task. Closes the server, closes idle keep-alive connections, and waits for active requests up to the task timeout.
+Creates the HTTP server shutdown task. Closes the server, closes idle keep-alive connections, and waits for active requests.
 
-| Option    | Type     | Default | Description                               |
-| --------- | -------- | ------- | ----------------------------------------- |
-| `timeout` | `number` | `15000` | How long to wait for the server to close. |
-
-The handler enforces its own deadline, so it is safe to call directly or run through the shutdown manager.
-
-#### handleNode503
+### handleNode503
 
 ```ts
 function handleNode503(
@@ -523,40 +433,20 @@ function handleNode503(
 ): boolean;
 ```
 
-Rejects an incoming Node.js HTTP request while shutting down. Sets status 503, `Connection: close`, `Retry-After: 30`, and a JSON body. Returns `true` if the request was handled, `false` otherwise.
+Rejects an incoming Node.js HTTP request while shutting down. Sets status 503, `Connection: close`, `Retry-After: 30`.
 
-#### shouldRejectRequest
-
-```ts
-function shouldRejectRequest(provider: ShutdownStateProvider): boolean;
-```
-
-Returns `true` when the request should be rejected because the application is shutting down.
-
-#### withTimeout
-
-```ts
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T>;
-```
-
-Races a promise against a deadline and rejects with `Shutdown task "<label>" timed out after <ms>ms` if it does not settle in time.
-
-#### ShutdownResult
+### ShutdownResult
 
 ```ts
 interface ShutdownResult {
-  success: boolean; // true when no task failed
-  completed: string[]; // names of tasks that completed
-  failed: TaskFailure[]; // tasks that threw or timed out
-  durationMs: number; // total time taken to run the tasks
+  success: boolean;
+  completed: string[];
+  failed: TaskFailure[];
+  durationMs: number;
 }
 ```
 
-#### ShutdownReason
-
-`"SIGTERM" | "SIGINT" | "SIGQUIT" | "uncaughtException" | "unhandledRejection" | "manual"` (plus any custom string). Defaults to `"manual"`.
-
-#### PRIORITY
+### PRIORITY
 
 | Constant                  | Value | Typical use                 |
 | ------------------------- | ----- | --------------------------- |
@@ -571,28 +461,11 @@ interface ShutdownResult {
 
 ## Examples
 
-### Basic Usage
-
-```ts
-import { GracefulShutdown, PRIORITY } from "@/blocks/graceful-shutdown";
-
-const shutdown = new GracefulShutdown();
-
-shutdown.addTask({ name: "db", priority: PRIORITY.DB_POOL, handler: () => pool.end() });
-shutdown.addTask({ name: "cache", priority: PRIORITY.CACHE, handler: () => redis.quit() });
-shutdown.addTask({ name: "logs", priority: PRIORITY.LOGGERS, handler: () => logger.flush() });
-
-await shutdown.shutdown("SIGTERM");
-// → beforeShutdown → drain → tasks (db → cache → logs) → afterShutdown
-```
-
 ### Manual Signal Wiring
 
-When you control your own signal handling, disable the built-in handlers:
+When you control your own signal handling:
 
 ```ts
-import { GracefulShutdown } from "@/blocks/graceful-shutdown";
-
 const shutdown = new GracefulShutdown({ installSignalHandlers: false });
 
 process.on("SIGTERM", () => {
@@ -600,52 +473,6 @@ process.on("SIGTERM", () => {
     .shutdown("SIGTERM")
     .then((result) => process.exit(result.success ? 0 : 1))
     .catch(() => process.exit(1));
-});
-```
-
-### Per-Task Timeouts and stopOnError
-
-```ts
-import { GracefulShutdown } from "@/blocks/graceful-shutdown";
-
-const shutdown = new GracefulShutdown({ stopOnError: true });
-
-shutdown.addTask({
-  name: "flush",
-  timeout: 2_000, // this task gets 2s even if the default is different
-  handler: async () => {
-    await writeBuffer();
-  }
-});
-```
-
-### Readiness Probe During Shutdown
-
-**Required for production.** Wire `isShuttingDownState` into your readiness endpoint so traffic stops before you drain:
-
-```ts
-import { GracefulShutdown } from "@/blocks/graceful-shutdown";
-
-const shutdown = new GracefulShutdown({ connectionTracker: tracker });
-
-app.get("/health/ready", async (_req, res) => {
-  if (shutdown.isShuttingDownState) {
-    return res.status(503).json({
-      status: "shutting_down",
-      message: "Instance is draining and will not accept new work"
-    });
-  }
-
-  // Optionally also run dependency checks (see Health Check block)
-  res.status(200).json({ status: "ready" });
-});
-```
-
-Keep liveness separate and simple — it should only confirm the process is alive, never check external dependencies:
-
-```ts
-app.get("/health/live", (_req, res) => {
-  res.status(200).json({ status: "alive" });
 });
 ```
 
@@ -672,41 +499,29 @@ shutdown.addTask(createHttpShutdownTask(server));
 
 ## Related Blocks
 
-- **[Health Check](/docs/02-blocks/07-health-check)** — Combine with a readiness endpoint that returns **503** when `isShuttingDownState` is `true` (and when critical dependencies fail). This is what makes load balancers and Kubernetes stop sending traffic while the process drains.
-- **Logger** — Register a `PRIORITY.LOGGERS` (10) task to flush telemetry last, after every other resource has closed, so no log line is lost.
-
-> For a full end-to-end production recipe (health endpoints + shutdown + Kubernetes probes), see the upcoming **Production Health Checks & Graceful Shutdown** guide.
+- **Health Check** — Combine with a readiness endpoint that returns 503 when `isShuttingDownState` is `true`.
+- **Logger** — Register a `PRIORITY.LOGGERS` (10) task to flush telemetry last.
 
 ---
 
 ## FAQ
 
-**What happens if a task exceeds its timeout?**  
+**What happens if a task exceeds its timeout?**
+
 It is recorded in `result.failed` with a timeout error and the remaining tasks continue, unless `stopOnError` is enabled.
 
-**What happens when the hard timeout is exceeded?**  
+**What happens when the hard timeout is exceeded?**
+
 `process.exit(1)` fires regardless of task state. It cannot be disabled.
 
-**How is `shutdown()` idempotent?**  
+**How is `shutdown()` idempotent?**
+
 The first call creates the run and stores its promise. Every later call returns the exact same promise object, so the run executes once no matter how many callers trigger it.
 
-**Can I call `shutdown()` from inside a `beforeShutdown` listener?**  
-Yes. The shared promise is reserved before `beforeShutdown` is emitted, so a re-entrant call receives the same in-flight run instead of recursing.
+**What does the second OS signal do?**
 
-**What does the second OS signal do?**  
 With `installSignalHandlers: true`, the first signal starts a graceful drain and any subsequent signal forces an immediate `process.exit(1)`.
 
-**How do new requests behave during shutdown?**  
+**How do new requests behave during shutdown?**
+
 The framework adapters return `503` with `Connection: close` and `Retry-After: 30` while the application is shutting down. The server stops accepting new connections once the HTTP-server task runs.
-
-**Why do I see “0 succeeded, 0 failed”?**  
-That means the shutdown ran with an empty task list. Ensure you call `addTask` on the same `GracefulShutdown` instance that handles signals, and register tasks **before** the process can receive a signal.
-
-**How should I test on Windows?**  
-Windows signal delivery (especially `kill -TERM` from Git Bash) is unreliable. Prefer calling `shutdown.shutdown("manual")` from a temporary test route, or test under WSL / Linux / Kubernetes where real SIGTERM is delivered.
-
----
-
-## Changelog
-
-Initial documentation release.

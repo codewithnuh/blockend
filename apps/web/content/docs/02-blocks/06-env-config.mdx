@@ -4,7 +4,8 @@ description: Type-safe environment variable validation with Zod. Fail fast at st
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
-import { Steps } from "fumadocs-ui/components/steps";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 import { SourceCode } from "../../../components/source-code";
 
 The **Environment Configuration** block provides a centralized, type-safe way to validate your application's environment variables using Zod.
@@ -39,42 +40,49 @@ env-config
 
 ## Installation
 
-```bash
-pnpm dlx blockend-cli add env-config
-```
+<Tabs items={["CLI", "Manual"]}>
+  <Tab value="CLI">
+    ```bash
+    pnpm dlx blockend-cli add env-config
+    ```
 
-<Steps>
+    <Steps>
+      <Step>
+        ### Detect Project
 
-### Detect Project
+        Blockend detects your project configuration and determines the correct output location.
+      </Step>
+      <Step>
+        ### Install Dependencies
 
-Blockend detects your project configuration and determines the correct output location.
+        `zod` and `dotenv` are installed automatically.
+      </Step>
+      <Step>
+        ### Generate Files
 
-### Install Dependencies
+        The environment configuration block is generated inside your configured blocks directory.
+      </Step>
+    </Steps>
 
-`zod` and `dotenv` are installed automatically.
+  </Tab>
+  <Tab value="Manual">
+    Copy the file below into your project's blocks directory.
 
-### Generate Files
+    ### Peer Dependencies
 
-The environment configuration block is generated inside your configured blocks directory.
+    | Package | Required |
+    | ------- | -------- |
+    | `zod` | Yes |
+    | `dotenv` | Yes |
 
-</Steps>
+    ### `blocks/env-config/index.ts`
 
-### Peer Dependencies
+    `parseEnv()` function and `EnvValidationError` class.
 
-| Dependency | Required |
-| ---------- | -------- |
-| `zod`      | Yes      |
-| `dotenv`   | Yes      |
+    <SourceCode file="env-config/index.ts" />
 
----
-
-## Manual File Setup
-
-### blocks/env-config/index.ts
-
-`parseEnv()` function and `EnvValidationError` class.
-
-<SourceCode file="env-config/index.ts" />
+  </Tab>
+</Tabs>
 
 ---
 
@@ -129,26 +137,27 @@ The environment is validated exactly once during startup. If validation fails, t
 
 ## Usage
 
-### Creating Your Environment Schema
+### Define Your Schema
 
 ```ts
 import { config } from "dotenv";
 import { z } from "zod";
 import { parseEnv } from "@/blocks/env-config";
 
-config();
+config(); // load .env
 
 const envSchema = z.object({
-  PORT: z.coerce.number().default(5000),
+  PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  DATABASE_URL: z.string(),
-  JWT_SECRET: z.string().min(32)
+  DATABASE_URL: z.string().url(),
+  JWT_SECRET: z.string().min(32),
+  REDIS_URL: z.string().url().optional()
 });
 
 export const env = parseEnv(envSchema);
 ```
 
-### Using the Environment
+### Use Anywhere in Your App
 
 ```ts
 import { env } from "@/config/env";
@@ -174,7 +183,7 @@ expect(env.PORT).toBe(3000);
 
 ## API Reference
 
-#### parseEnv
+### parseEnv
 
 ```ts
 function parseEnv<T>(
@@ -194,7 +203,7 @@ Validates an environment object against a Zod schema. Defaults to `process.env`.
 
 **Throws** — `EnvValidationError` when validation fails.
 
-#### EnvValidationError
+### EnvValidationError
 
 ```ts
 class EnvValidationError extends Error {
@@ -224,69 +233,20 @@ Please verify your environment variables before restarting.
 
 ## Examples
 
-### Basic Usage
+### Required Secrets
+
+Enforce minimum lengths for sensitive values:
 
 ```ts
-import { config } from "dotenv";
-import { z } from "zod";
-import { parseEnv } from "@/blocks/env-config";
-
-config();
-
-const envSchema = z.object({
-  PORT: z.coerce.number().default(3000),
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string().url().optional()
-});
-
-export const env = parseEnv(envSchema);
-```
-
-### Production Usage with Required Secrets
-
-```ts
-import { z } from "zod";
-import { parseEnv } from "@/blocks/env-config";
-
 const envSchema = z.object({
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
   ENCRYPTION_KEY: z.string().length(64, "ENCRYPTION_KEY must be exactly 64 characters"),
   DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string().url(),
-  PORT: z.coerce.number().default(3000),
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info")
+  PORT: z.coerce.number().default(3000)
 });
 
 export const env = parseEnv(envSchema);
 ```
-
-### Testing with Different Configurations
-
-```ts
-describe("Configuration", () => {
-  it("accepts valid environment variables", () => {
-    const env = parseEnv(schema, {
-      PORT: "4000",
-      NODE_ENV: "test",
-      DATABASE_URL: "postgres://localhost/test"
-    });
-
-    expect(env.PORT).toBe(4000);
-  });
-
-  it("throws on missing required variables", () => {
-    expect(() => parseEnv(schema, { PORT: "3000" })).toThrow(EnvValidationError);
-  });
-});
-```
-
----
-
-## Related Blocks
-
-None required.
 
 ---
 
@@ -307,9 +267,3 @@ The function itself is framework-agnostic. You may need to adapt the `source` pa
 **Is the `EnvValidationError` object frozen?**
 
 Yes. `Object.freeze(this)` is called in the constructor to prevent mutation of the error's issues.
-
----
-
-## Changelog
-
-Initial documentation release.
