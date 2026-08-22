@@ -4,3 +4,5 @@ dist/
 *.tsbuildinfo
 blockend.json
 .env
+AGENTS.md
+changes.md

@@ -34,7 +34,12 @@ vi.mock("@clack/prompts", () => ({
     start: vi.fn(),
     stop: vi.fn(),
     succeed: vi.fn()
-  }))
+  })),
+  log: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
+  }
 }));
 
 const mockDetectProject = vi.fn(() =>
@@ -46,7 +51,7 @@ const mockDetectProject = vi.fn(() =>
   })
 );
 
-vi.mock("@blockend/detector", () => ({
+vi.mock("../detectors/index.js", () => ({
   get detectProject() {
     return mockDetectProject;
   }
@@ -133,7 +138,7 @@ describe("initCommand - Path Layout & Alias Edge Cases", () => {
 
     expect(fs.writeFile).toHaveBeenCalledWith(
       join(cwd, "blockend.json"),
-      expect.stringContaining('"blocks": "#blocks"'),
+      expect.stringContaining('"blocks": "#/blocks"'),
       "utf-8"
     );
     expect(fs.writeFile).toHaveBeenCalledWith(
@@ -144,8 +149,18 @@ describe("initCommand - Path Layout & Alias Edge Cases", () => {
   });
 
   it("should correctly handle paths containing backslashes and normalize them on Windows environments", async () => {
-    vi.mocked(existsSync).mockReturnValue(false);
-    vi.mocked(fs.readFile).mockRejectedValue(new Error());
+    vi.mocked(existsSync).mockImplementation((p) => {
+      const pathStr = String(p);
+      if (pathStr.endsWith("package.json") || pathStr.endsWith("pnpm-lock.yaml")) return true;
+      return false;
+    });
+
+    vi.mocked(fs.readFile).mockImplementation(async (p) => {
+      const pathStr = String(p);
+      if (pathStr.endsWith("package.json"))
+        return JSON.stringify({ name: "test", dependencies: {} });
+      throw new Error();
+    });
 
     mockDetectProject.mockResolvedValue({
       framework: "express",
@@ -158,9 +173,10 @@ describe("initCommand - Path Layout & Alias Edge Cases", () => {
 
     await initCommand();
 
+    // When no tsconfig.json exists, no alias is derived — aliases should be empty
     expect(fs.writeFile).toHaveBeenCalledWith(
       join(cwd, "blockend.json"),
-      expect.stringContaining('"blocks": "@/blocks"'),
+      expect.not.stringContaining('"blocks": "@/blocks"'),
       "utf-8"
     );
     expect(fs.writeFile).toHaveBeenCalledWith(

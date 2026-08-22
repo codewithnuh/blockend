@@ -21,6 +21,10 @@
           "description": {
             "type": "string"
           },
+          "version": {
+            "type": "string",
+            "description": "Semantic version of this block (e.g. \"1.0.0\"). Used for update tracking."
+          },
           "frameworks": {
             "type": "array",
             "description": "Explicit framework support list.",
@@ -32,14 +36,18 @@
           },
           "dependencies": {
             "type": "array",
+            "description": "Production dependencies. Each entry can be a bare name (\"vitest\") or include a version range (\"vitest@^4.0.0\").",
             "items": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^[a-z@][a-z0-9._/-]*(@[~^>=<]*[0-9]+(\\.[0-9]+)*)?$"
             }
           },
           "devDependencies": {
             "type": "array",
+            "description": "Dev dependencies. Each entry can be a bare name or include a version range.",
             "items": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^[a-z@][a-z0-9._/-]*(@[~^>=<]*[0-9]+(\\.[0-9]+)*)?$"
             }
           },
           "baseFiles": {
@@ -99,12 +107,14 @@
         },
         "dependencies": {
           "type": "array",
+          "description": "Dependencies for this adapter. Supports version ranges (e.g. \"express@^4.18.0\").",
           "items": {
             "type": "string"
           }
         },
         "devDependencies": {
           "type": "array",
+          "description": "Dev dependencies for this adapter. Supports version ranges.",
           "items": {
             "type": "string"
           }
@@ -118,12 +128,14 @@
             "properties": {
               "dependencies": {
                 "type": "array",
+                "description": "Variant-specific dependencies. Supports version ranges.",
                 "items": {
                   "type": "string"
                 }
               },
               "devDependencies": {
                 "type": "array",
+                "description": "Variant-specific dev dependencies. Supports version ranges.",
                 "items": {
                   "type": "string"
                 }

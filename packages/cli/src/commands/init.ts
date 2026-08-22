@@ -309,12 +309,20 @@ export async function initCommand(
   }
 }
 
+export interface InstalledBlockRecord {
+  name: string;
+  version: string;
+  installedAt: string;
+  files: string[];
+  contentHash: string;
+}
+
 export type configPayloadType = {
   $schema: string;
   environment: "express" | "fastify" | "hono" | "next" | "none";
   language: "typescript" | "javascript";
   packageManager: string;
-  importRewriteStrategy: "rewrite" | "remove"; // Explicit type definition updates
+  importRewriteStrategy: "rewrite" | "remove";
   includeRedis: boolean;
   aliases: {
     blocks?: string;
@@ -322,4 +330,5 @@ export type configPayloadType = {
   paths: {
     blocks: string;
   };
+  installed?: InstalledBlockRecord[];
 };

@@ -57,9 +57,12 @@ Creates `blockend.json` in the project root:
   },
   "paths": {
     "blocks": "./src/blocks"
-  }
+  },
+  "installed": []
 }
 ```
+
+The `installed` array is populated automatically when you add blocks and tracks which blocks are installed, their versions, and content hashes for update detection.
 
 ---
 
@@ -80,6 +83,22 @@ If no block name is provided, an interactive selector shows all blocks compatibl
 | `[block]` |       |         | Block key name (e.g. `rate-limiter`, `logger`) |
 | `--yes`   | `-y`  | `false` | Skip confirmations, auto-select first variant  |
 | `--json`  |       | `false` | Output machine-readable JSON progress          |
+| `--multi` | `-m`  | `false` | Select multiple blocks at once via multiselect |
+
+### Multi-Select Mode
+
+Use `--multi` to select and add multiple blocks in one session:
+
+```bash
+npx blockend-cli add --multi
+```
+
+This presents a multiselect prompt where you can:
+
+- Press **Space** to toggle block selection
+- Press **Enter** to confirm and install all selected blocks
+
+Each block is processed sequentially with its own dependency install, conflict check, and file download.
 
 ### How It Works
 
@@ -170,6 +189,131 @@ npx blockend-cli detect [options]
 
 ---
 
+## `blockend-cli diff <block>`
+
+Preview what files a block would generate without writing to disk.
+
+```
+npx blockend-cli diff <block> [options]
+```
+
+### Options
+
+| Option    | Default | Description                      |
+| --------- | ------- | -------------------------------- |
+| `[block]` |         | Block name to preview (required) |
+| `--json`  | `false` | Output diff results as JSON      |
+
+### Output
+
+Shows each file's status (new, modified, unchanged) with line-level diffs for modified files:
+
+```text
+  pino-logger — default variant
+
+  + core.ts (new)
+  ~ express.ts (modified)
+    - import { pino } from 'pino';
+    + import { pino } from 'pino';
+    + export const logger = pino();
+
+  1 new | 1 modified | 0 unchanged
+```
+
+---
+
+## `blockend-cli doctor`
+
+Detect configuration and project issues that could affect Blockend.
+
+```
+npx blockend-cli doctor [options]
+```
+
+### Options
+
+| Option   | Default | Description                         |
+| -------- | ------- | ----------------------------------- |
+| `--json` | `false` | Output health check results as JSON |
+
+### Checks Performed
+
+- `package.json` exists
+- `blockend.json` exists and is valid
+- `tsconfig.json` exists (warning if missing)
+- Lockfile detection (npm, pnpm, yarn, bun)
+- Framework detection
+- `blockend.json` structure validation (environment, paths, blocks directory)
+
+Exits with code `1` if any errors are found.
+
+---
+
+## `blockend-cli update`
+
+Compare installed blocks with registry versions and optionally apply updates.
+
+```
+npx blockend-cli update [options]
+```
+
+### Options
+
+| Option    | Default | Description                                                      |
+| --------- | ------- | ---------------------------------------------------------------- |
+| `--json`  | `false` | Output update status as JSON                                     |
+| `--diff`  | `true`  | Show git-diff style file comparison for blocks with updates      |
+| `--apply` | `false` | Select blocks to update via multiselect and apply with rewriting |
+
+### Version Tracking
+
+The update command reads the `installed` array from `blockend.json` to know which blocks are installed and their versions. When you run `blockend add`, each block is recorded with:
+
+- `name` — block identifier
+- `version` — registry version at install time
+- `installedAt` — ISO timestamp
+- `files` — list of installed files
+- `contentHash` — hash of the rewritten file contents
+
+### Read-Only Mode (default)
+
+Without `--apply`, the command compares versions and shows diffs:
+
+```text
+  Updates available:
+
+    ~ pino-logger 1.0.0 → 1.1.0
+
+  Change details:
+
+  ▸ pino-logger
+
+  ~ core.ts (modified)
+    3   import { pino } from 'pino';
+    4 - export const logger = pino({ level: 'info' });
+    4 + export const logger = pino({ level: 'debug' });
+
+  ✖ 1 block(s) have updates. Run with --apply to update files.
+```
+
+### Apply Mode
+
+With `--apply`, a multiselect prompt lets you choose which blocks to update:
+
+```bash
+npx blockend-cli update --apply
+```
+
+This will:
+
+1. Show a multiselect prompt (Space to select, Enter to confirm)
+2. Confirm before overwriting files
+3. Download new versions
+4. Rewrite imports according to your project's settings (alias + strategy)
+5. Update `blockend.json` tracking with new version and content hash
+
+---
+
 ## `blockend-cli mcp`
 
 Start the MCP server or initialize MCP client configuration.
@@ -184,11 +328,16 @@ Start the MCP server using the Stdio transport. This allows AI coding assistants
 
 When the MCP server is running, AI clients can call these tools:
 
-| Tool             | Description                                    |
-| ---------------- | ---------------------------------------------- |
-| `list_blocks`    | List all available blocks with descriptions    |
-| `add_block`      | Install a block into a specified project       |
-| `detect_project` | Analyze a project and return its configuration |
+| Tool             | Description                                                       |
+| ---------------- | ----------------------------------------------------------------- |
+| `list_blocks`    | List all available blocks with descriptions                       |
+| `add_block`      | Install a single block into a specified project                   |
+| `add_blocks`     | Install multiple blocks at once via interactive selection         |
+| `detect_project` | Analyze a project and return its configuration                    |
+| `diff_block`     | Preview what files a block would generate without writing to disk |
+| `doctor`         | Check project health and validate configuration                   |
+| `update_check`   | Check for available updates to installed blocks                   |
+| `update_apply`   | Apply updates to all installed blocks with import rewriting       |
 
 ### `blockend-cli mcp init`
 
@@ -228,6 +377,9 @@ import { addCommand } from "blockend-cli";
 import { initCommand } from "blockend-cli";
 import { listCommand } from "blockend-cli";
 import { detectCommand } from "blockend-cli";
+import { diffCommand } from "blockend-cli";
+import { doctorCommand } from "blockend-cli";
+import { updateCommand } from "blockend-cli";
 ```
 
 Each command accepts options in the same format as the CLI flags.

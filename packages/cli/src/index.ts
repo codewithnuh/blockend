@@ -6,6 +6,9 @@ import { initCommand } from "./commands/init.js";
 import { detectCommand } from "./commands/detect.js";
 import { listCommand } from "./commands/list.js";
 import { mcpInitCommand, mcpStartCommand } from "./commands/mcp.js";
+import { diffCommand } from "./commands/diff.js";
+import { doctorCommand } from "./commands/doctor.js";
+import { updateCommand } from "./commands/update.js";
 const mcpInit = defineCommand({
   meta: {
     name: "init",
@@ -114,10 +117,16 @@ const add = defineCommand({
       type: "boolean",
       default: false,
       description: "Output streaming machine-readable JSON payloads for automation systems"
+    },
+    multi: {
+      type: "boolean",
+      alias: "m",
+      default: false,
+      description: "Select and add multiple blocks at once via interactive multiselect"
     }
   },
   async run({ args }) {
-    await addCommand(args.block, { yes: args.yes, json: args.json });
+    await addCommand(args.block, { yes: args.yes, json: args.json, multi: args.multi });
   }
 });
 
@@ -138,6 +147,72 @@ const detect = defineCommand({
   }
 });
 
+const diff = defineCommand({
+  meta: {
+    name: "diff",
+    description: "Preview generated files for a block without writing to disk"
+  },
+  args: {
+    block: {
+      type: "positional",
+      required: true,
+      description: "Block name to preview"
+    },
+    json: {
+      type: "boolean",
+      default: false,
+      description: "Output diff results as JSON"
+    }
+  },
+  async run({ args }) {
+    await diffCommand(args.block, { json: args.json });
+  }
+});
+
+const doctor = defineCommand({
+  meta: {
+    name: "doctor",
+    description: "Detect configuration and project issues affecting Blockend"
+  },
+  args: {
+    json: {
+      type: "boolean",
+      default: false,
+      description: "Output health check results as JSON"
+    }
+  },
+  async run({ args }) {
+    await doctorCommand({ json: args.json });
+  }
+});
+
+const update = defineCommand({
+  meta: {
+    name: "update",
+    description: "Compare installed blocks with newer available versions and show diffs"
+  },
+  args: {
+    json: {
+      type: "boolean",
+      default: false,
+      description: "Output update status as JSON"
+    },
+    diff: {
+      type: "boolean",
+      default: true,
+      description: "Show git-diff style file comparison for blocks with updates"
+    },
+    apply: {
+      type: "boolean",
+      default: false,
+      description: "Select blocks to update (multiselect) and apply updates with import rewriting"
+    }
+  },
+  async run({ args }) {
+    await updateCommand({ json: args.json, diff: args.diff, apply: args.apply });
+  }
+});
+
 const main = defineCommand({
   meta: {
     name: "blockend",
@@ -145,7 +220,7 @@ const main = defineCommand({
     description:
       "Blockend CLI - Core architectural blocks straight into your repository layout primitives"
   },
-  subCommands: { init, add, detect, list, mcp }
+  subCommands: { init, add, detect, list, diff, doctor, update, mcp }
 });
 
 runMain(main);

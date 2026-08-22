@@ -142,7 +142,7 @@ export async function mcpStartCommand(): Promise<void> {
 
   server.tool(
     "detect_project",
-    "Analyzes a project context.",
+    "Analyzes a project context: framework, language, package manager, etc.",
     {
       projectPath: z.string().describe("Absolute path to the project root")
     },
@@ -150,6 +150,83 @@ export async function mcpStartCommand(): Promise<void> {
       const result = await safeExec("npx", ["--no-install", "blockend", "detect", "--json"], {
         cwd: projectPath
       });
+      return { content: [{ type: "text", text: result.text }], isError: result.isError };
+    }
+  );
+
+  server.tool(
+    "diff_block",
+    "Preview what files a block would generate without writing to disk. Shows new/modified/unchanged files.",
+    {
+      blockName: z.string().describe("Block name to preview, e.g. rate-limiter, pino-logger"),
+      projectPath: z.string().describe("Absolute path to the project root")
+    },
+    async ({ blockName, projectPath }) => {
+      const result = await safeExec(
+        "npx",
+        ["--no-install", "blockend", "diff", blockName, "--json"],
+        { cwd: projectPath }
+      );
+      return { content: [{ type: "text", text: result.text }], isError: result.isError };
+    }
+  );
+
+  server.tool(
+    "doctor",
+    "Check project health: validates blockend.json, detects framework, checks for issues.",
+    {
+      projectPath: z.string().describe("Absolute path to the project root")
+    },
+    async ({ projectPath }) => {
+      const result = await safeExec("npx", ["--no-install", "blockend", "doctor", "--json"], {
+        cwd: projectPath
+      });
+      return { content: [{ type: "text", text: result.text }], isError: result.isError };
+    }
+  );
+
+  server.tool(
+    "update_check",
+    "Check for available updates to installed blocks. Shows version comparison and diffs.",
+    {
+      projectPath: z.string().describe("Absolute path to the project root")
+    },
+    async ({ projectPath }) => {
+      const result = await safeExec("npx", ["--no-install", "blockend", "update", "--json"], {
+        cwd: projectPath
+      });
+      return { content: [{ type: "text", text: result.text }], isError: result.isError };
+    }
+  );
+
+  server.tool(
+    "update_apply",
+    "Apply updates to all installed blocks. Downloads new versions, rewrites imports, and updates blockend.json.",
+    {
+      projectPath: z.string().describe("Absolute path to the project root")
+    },
+    async ({ projectPath }) => {
+      const result = await safeExec(
+        "npx",
+        ["--no-install", "blockend", "update", "--apply", "--yes", "--json"],
+        { cwd: projectPath }
+      );
+      return { content: [{ type: "text", text: result.text }], isError: result.isError };
+    }
+  );
+
+  server.tool(
+    "add_blocks",
+    "Install multiple blocks at once via interactive selection.",
+    {
+      projectPath: z.string().describe("Absolute path to the project root")
+    },
+    async ({ projectPath }) => {
+      const result = await safeExec(
+        "npx",
+        ["--no-install", "blockend", "add", "--multi", "--yes", "--json"],
+        { cwd: projectPath }
+      );
       return { content: [{ type: "text", text: result.text }], isError: result.isError };
     }
   );
