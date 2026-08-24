@@ -248,6 +248,12 @@ When a user runs `npx blockend-cli add <block-name>`, the CLI:
 2. Copies the relevant source files from `blocks/` into the user's project
 3. Installs any required dependencies
 
+## Open Source Security
+
+Blockend is committed to maintaining a secure and trustworthy open-source codebase. We use [Snyk](https://snyk.io/) to help identify and address security vulnerabilities in our dependencies and source code as part of our development and CI workflow.
+
+[Learn more about Snyk Open Source Security](https://snyk.io/open-source/).
+
 ## Support
 
 If Blockend helps you, a star on the repository helps others discover it.
