@@ -4,6 +4,8 @@ export const NAV_LINKS = [
   { url: "#features", text: "Features" },
   { url: "#mcp", text: "MCP" },
   { url: "#roadmap", text: "Roadmap" },
+  { url: "#philosophy", text: "Philosophy" },
+  { url: "#security", text: "Security" },
   { url: "#faq", text: "FAQ" },
   { url: "/docs", text: "Documentation", active: "nested-url" }
 ];
