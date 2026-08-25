@@ -13,6 +13,7 @@ import { FAQSection } from "@/components/sections/FAQSection";
 import { FinalCTASection } from "@/components/sections/FinalCTASection";
 import { Footer } from "@/components/globals/Footer";
 import { RevealProvider } from "@/components/sections/RevealProvider";
+import { SecuritySection } from "@/components/sections/Security";
 
 export default function HomePage() {
   return (
@@ -29,6 +30,7 @@ export default function HomePage() {
         <MCPSection />
         <RoadmapSection />
         <PhilosophySection />
+        <SecuritySection />
         <FAQSection />
         <FinalCTASection />
       </main>

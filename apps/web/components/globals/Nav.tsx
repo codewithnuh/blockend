@@ -52,7 +52,7 @@ export function Navbar({
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden xl:flex items-center gap-6">
           {NAV_LINKS.map((item) => (
             <Link
               key={item.url}
@@ -110,7 +110,7 @@ export function Navbar({
           <Button
             size="icon"
             variant="outline"
-            className="md:hidden"
+            className="xl:hidden"
             onClick={() => setMobileMenuOpen((v) => !v)}
             aria-label="Toggle menu"
           >
@@ -121,7 +121,7 @@ export function Navbar({
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="border-t bg-background p-4 md:hidden">
+        <div className="border-t bg-background p-4 xl:hidden">
           <nav className="flex flex-col gap-3">
             {NAV_LINKS.map((item) => (
               <Link
