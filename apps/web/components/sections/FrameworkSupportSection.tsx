@@ -35,13 +35,7 @@ function FrameworkIcon({ icon }: FrameworkIconProps) {
           className="w-4 h-4 text-red-600 dark:text-coral-red shrink-0 transition-colors"
         />
       );
-    case "n":
-      return (
-        <Layers
-          {...iconProps}
-          className="w-4 h-4 text-fg dark:text-paper shrink-0 transition-colors"
-        />
-      );
+
     default:
       return (
         <Terminal
@@ -61,7 +55,7 @@ export function FrameworkSupportSection() {
     >
       <Card className="p-8 md:p-14 rounded-card bg-surface border-border dark:bg-carbon dark:border-graphite text-center space-y-10 shadow-sm transition-colors border">
         {/* Section Header */}
-        <CardHeader className="p-0 flex flex-col items-center justify-center space-y-3">
+        <CardHeader className="p-0 flex  flex-col items-center justify-center space-y-3">
           <div>
             <Badge
               variant="outline"
@@ -89,10 +83,15 @@ export function FrameworkSupportSection() {
         <ul
           role="list"
           aria-label="Supported frameworks and runtimes"
-          className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 max-w-2xl mx-auto font-mono text-[13px] list-none p-0 m-0"
+          className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 max-w-2xl mx-auto font-mono text-[13px] list-none p-0 m-0"
         >
-          {FRAMEWORKS.items.map((fw) => (
-            <li key={fw.name} className="flex">
+          {FRAMEWORKS.items.map((fw, index) => (
+            <li
+              key={fw.name}
+              className={`flex items-center ${
+                index === 2 ? "col-span-2 sm:col-span-1 justify-center" : ""
+              }`}
+            >
               <div className="w-full py-3 px-4 rounded-btn bg-surface-2 border-border dark:bg-obsidian dark:border-graphite flex items-center justify-center gap-2.5 text-muted-foreground dark:text-mist hover:text-fg dark:hover:text-paper hover:border-border/80 dark:hover:border-smoke transition-colors">
                 <FrameworkIcon icon={fw.icon} />
                 <span className="whitespace-nowrap">{fw.name}</span>
