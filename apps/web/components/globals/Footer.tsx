@@ -13,7 +13,7 @@ export function Footer() {
             rel="noopener noreferrer"
             className="text-foreground hover:text-primary transition-colors font-medium"
           >
-            codewithnuh
+            Noor ul hassan
           </Link>
         </p>
 

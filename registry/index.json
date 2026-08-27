@@ -758,6 +758,31 @@
           }
         }
       }
+    },
+    "password-hash": {
+      "name": "Password Hashing",
+      "description": "Argon2id password hashing with HMAC-SHA256 peppering, automatic salting, and rehash detection.",
+      "version": "1.0.0",
+      "frameworks": ["*"],
+      "dependencies": ["@node-rs/argon2@^2.1.0"],
+      "devDependencies": ["vitest@^4.1.10", "@types/node@^26.2.0"],
+      "adapters": {
+        "*": {
+          "variants": {
+            "default": {
+              "files": [
+                { "source": "blocks/password-hash/types.ts", "target": "types.ts" },
+                { "source": "blocks/password-hash/errors.ts", "target": "errors.ts" },
+                { "source": "blocks/password-hash/errors.test.ts", "target": "errors.test.ts" },
+                { "source": "blocks/password-hash/config.ts", "target": "config.ts" },
+                { "source": "blocks/password-hash/config.test.ts", "target": "config.test.ts" },
+                { "source": "blocks/password-hash/core.ts", "target": "core.ts" },
+                { "source": "blocks/password-hash/core.test.ts", "target": "core.test.ts" }
+              ]
+            }
+          }
+        }
+      }
     }
   }
 }

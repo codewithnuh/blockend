@@ -255,6 +255,13 @@ export const BLOCKS_CATALOG = {
       tag: "Config",
       description: "Type-safe environment variable parser and validator with Zod schemas.",
       command: "blockend-cli add env-config"
+    },
+    {
+      name: "System Health Check Monitoring",
+      tag: "DevOps",
+      description:
+        "Framework-agnostic health assessment suite for monitoring application and dependency health.",
+      command: "blockend-cli add health-check"
     }
   ] as CatalogBlock[]
 } as const;
@@ -267,8 +274,7 @@ export const FRAMEWORKS = {
   items: [
     { name: "Express", icon: "node-js", color: "text-pulse-green" },
     { name: "Fastify", icon: "bolt", color: "text-acid-lime" },
-    { name: "Hono", icon: "fire", color: "text-coral-red" },
-    { name: "Next.js API", icon: "n", color: "text-paper" }
+    { name: "Hono/node-server", icon: "fire", color: "text-coral-red" }
   ] as Framework[]
 } as const;
 
@@ -347,7 +353,7 @@ export const FAQ_SECTION = {
     {
       question: "Which HTTP backend frameworks are supported?",
       answer:
-        "Blockend natively supports Express, Fastify, Hono, and Next.js API route handlers with tailored type definitions for each."
+        "Blockend natively supports Express, Fastify, and Hono with tailored type definitions for each."
     },
     {
       question: "Can I use Blockend in existing production codebases?",
