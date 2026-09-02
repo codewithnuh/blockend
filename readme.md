@@ -13,7 +13,7 @@ _production backend blocks. generated into your project. owned by you._
 
 [![npm](https://img.shields.io/npm/v/blockend-cli?color=0ea5e9&label=blockend-cli)](https://npmjs.com/package/blockend-cli)
 [![license](https://img.shields.io/github/license/codewithnuh/blockend?color=0ea5e9)](./LICENSE)
-[![blocks](https://img.shields.io/badge/blocks-5-0ea5e9)](#available-blocks)
+[![blocks](https://img.shields.io/badge/blocks-10-0ea5e9)](#available-blocks)
 [![docs](https://img.shields.io/badge/docs-blockend.noorulhassan.com/docs-0ea5e9)](https://blockend.noorulhassan.com)
 
 </div>
@@ -144,8 +144,8 @@ Blockend is being built incrementally with a focus on producing clean, source-fi
 | Status       | Focus                  | Description                                                                                               |
 | ------------ | ---------------------- | --------------------------------------------------------------------------------------------------------- |
 | ✅ **Now**   | **Core Blocks**        | Validation, error handling, logging, health checks, graceful shutdown, and response formatting.           |
-| 🚧 **Next**  | **Framework Coverage** | Refine and expand adapters for Express, Fastify, and Hono.                                                |
-| 🚧 **Next**  | **Security Blocks**    | JWT authentication, password hashing, CORS, security headers, idempotency, and environment configuration. |
+| ✅ **Now**   | **Framework Coverage** | Refine and expand adapters for Express, Fastify, and Hono.                                                |
+| ✅ **Now**   | **Security Blocks**    | JWT authentication, password hashing, CORS, security headers, idempotency, and environment configuration. |
 | 🔮 **Later** | **Starter Kits**       | Opinionated SaaS and API starter templates built entirely from Blockend blocks.                           |
 
 > **Vision**
@@ -194,17 +194,22 @@ pnpm build
 pnpm dev
 ```
 
-**Useful commands**
+# Command Reference
 
-| Command          | Description                     |
-| ---------------- | ------------------------------- |
-| `pnpm build`     | Build all packages and blocks   |
-| `pnpm dev`       | Watch mode for development      |
-| `pnpm test`      | Run all tests (vitest)          |
-| `pnpm lint`      | Lint all packages               |
-| `pnpm format`    | Format code with Prettier       |
-| `pnpm typecheck` | Run TypeScript type checking    |
-| `pnpm validate`  | Format check + lint + typecheck |
+| Command                   | Description                                      |
+| ------------------------- | ------------------------------------------------ |
+| `blockend init`           | Detect your framework and create `blockend.json` |
+| `blockend add <block>`    | Generate a specific block                        |
+| `blockend add`            | Browse and select blocks interactively           |
+| `blockend add --multi`    | Select and generate multiple blocks              |
+| `blockend list`           | List available blocks                            |
+| `blockend detect`         | Detect framework and project environment         |
+| `blockend diff <block>`   | Preview generated files                          |
+| `blockend doctor`         | Diagnose configuration and project issues        |
+| `blockend update`         | Check installed blocks for updates               |
+| `blockend update --apply` | Select and apply block updates                   |
+| `blockend mcp`            | Start the MCP server                             |
+| `blockend mcp init`       | Configure MCP for an AI assistant                |
 
 ## Architecture
 
