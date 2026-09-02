@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import posthog from "posthog-js";
 import { FRAMEWORK_OPTIONS } from "@/lib/data";
 
 type Phase = "idle" | "scanning" | "framework" | "alias" | "redis" | "writing" | "done";
@@ -20,6 +21,7 @@ export function InitCLISimulator() {
   const [configPreview, setConfigPreview] = useState("");
 
   const runScanPhase = async () => {
+    posthog.capture("cli_simulator_started");
     setPhase("scanning");
     setScanLogs([]);
 
@@ -49,6 +51,9 @@ export function InitCLISimulator() {
   };
 
   const confirmFramework = () => {
+    posthog.capture("cli_simulator_framework_selected", {
+      framework: selectedFramework
+    });
     setPhase("alias");
   };
 
@@ -57,6 +62,9 @@ export function InitCLISimulator() {
   };
 
   const confirmRedis = async (val: boolean) => {
+    posthog.capture("cli_simulator_redis_selected", {
+      redis_enabled: val
+    });
     setPhase("writing");
     await sleep(800);
 
@@ -70,6 +78,10 @@ export function InitCLISimulator() {
     };
 
     setConfigPreview(JSON.stringify(payload, null, 2));
+    posthog.capture("cli_simulator_completed", {
+      framework: selectedFramework,
+      redis_enabled: val
+    });
     setPhase("done");
   };
 

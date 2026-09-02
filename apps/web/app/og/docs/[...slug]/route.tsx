@@ -8,8 +8,18 @@ export const revalidate = false;
 
 export async function GET(_req: Request, { params }: RouteContext<"/og/docs/[...slug]">) {
   const { slug } = await params;
+
+  // The last segment must be image.png
+  if (slug.at(-1) !== "image.png") {
+    notFound();
+  }
+
+  // Remove image.png to get the actual page slug
   const page = source.getPage(slug.slice(0, -1));
-  if (!page) notFound();
+
+  if (!page) {
+    notFound();
+  }
 
   return new ImageResponse(
     <DefaultImage title={page.data.title} description={page.data.description} site={appName} />,

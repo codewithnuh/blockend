@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import posthog from "posthog-js";
 import { cn } from "@/lib/utils";
 
 interface CommandBlockProps {
@@ -14,6 +15,7 @@ export function CommandBlock({ command, className }: CommandBlockProps) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(command);
+      posthog.capture("cli_command_copied");
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {

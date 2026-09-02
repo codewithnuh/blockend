@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
+import posthog from "posthog-js";
 
 export function BlocksCatalogSection() {
   return (
@@ -65,6 +66,10 @@ function BlockCard({ block }: { block: (typeof BLOCKS_CATALOG.blocks)[number] })
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(`npx ${block.command}`);
+      posthog.capture("catalog_block_command_copied", {
+        block_name: block.name,
+        block_tag: block.tag
+      });
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
