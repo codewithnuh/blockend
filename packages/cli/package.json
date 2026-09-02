@@ -1,6 +1,6 @@
 {
   "name": "blockend-cli",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Blockend CLI — shadcn/ui-style backend blocks for TypeScript. Generate production-ready rate limiting, validation, logging, and error handling as source code into Express, Fastify, Hono, or Next.js projects. You own the code. Ships an MCP server for AI coding assistants.",
   "type": "module",
   "main": "./dist/index.js",
