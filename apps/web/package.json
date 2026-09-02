@@ -11,6 +11,7 @@
     "lint": "oxlint --type-aware",
     "typecheck": "tsc --noEmit"
   },
+  "packageManager": "pnpm@11.20.0",
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "^0.7.1",
