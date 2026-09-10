@@ -130,9 +130,6 @@ jobs:
           echo "=== Dry-run npm pack ==="
           npm pack --dry-run
 
-      - name: Verify npm authentication
-        run: npm whoami
-
       - name: Publish to npm with provenance
         run: |
           cd ${{ env.PACKAGE_DIR }}
