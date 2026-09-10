@@ -80,14 +80,32 @@ jobs:
         run: |
           cd ${{ env.PACKAGE_DIR }}
 
+          echo "=== Current directory: $(pwd) ==="
+          echo "=== Directory contents ==="
+          ls -la
+
+          echo ""
           echo "=== Verifying dist/index.js exists ==="
-          test -f dist/index.js
+          if [ ! -f dist/index.js ]; then
+            echo "ERROR: dist/index.js not found"
+            echo "=== dist/ directory contents ==="
+            ls -la dist/ || echo "dist/ directory does not exist"
+            exit 1
+          fi
 
           echo "=== Verifying dist/index.d.ts exists ==="
-          test -f dist/index.d.ts
+          if [ ! -f dist/index.d.ts ]; then
+            echo "ERROR: dist/index.d.ts not found"
+            echo "=== dist/ directory contents ==="
+            ls -la dist/ || echo "dist/ directory does not exist"
+            exit 1
+          fi
 
           echo "=== Verifying README.md exists ==="
-          test -f README.md
+          if [ ! -f README.md ]; then
+            echo "ERROR: README.md not found"
+            exit 1
+          fi
 
           echo "=== Verifying package.json ==="
           node -e "
@@ -99,6 +117,7 @@ jobs:
           console.log('Provenance:', p.publishConfig?.provenance);
           "
 
+          echo ""
           echo "=== Dry-run npm pack ==="
           npm pack --dry-run
 
