@@ -1,0 +1,92 @@
+name: Release CLI
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+  PACKAGE_DIR: packages/cli
+
+jobs:
+  release:
+    name: Release CLI to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.x
+
+      - name: Setup Node.js with npm provenance
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: "https://registry.npmjs.org"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run CLI unit tests
+        run: pnpm --filter blockend-cli test
+
+      - name: Build CLI
+        run: pnpm --filter blockend-cli build
+
+      - name: CLI smoke tests
+        run: |
+          node packages/cli/dist/index.js --help > /dev/null
+          node packages/cli/dist/index.js init --help > /dev/null
+          node packages/cli/dist/index.js add --help > /dev/null
+          node packages/cli/dist/index.js list --help > /dev/null
+          node packages/cli/dist/index.js detect --help > /dev/null
+          node packages/cli/dist/index.js diff --help > /dev/null
+          node packages/cli/dist/index.js doctor --help > /dev/null
+          node packages/cli/dist/index.js update --help > /dev/null
+          node packages/cli/dist/index.js mcp --help > /dev/null
+
+      - name: Validate package contents
+        run: |
+          cd ${{ env.PACKAGE_DIR }}
+          echo "=== Verifying dist/index.js exists ==="
+          test -f dist/index.js
+          echo "=== Verifying dist/index.d.ts exists ==="
+          test -f dist/index.d.ts
+          echo "=== Verifying README.md exists ==="
+          test -f README.md
+          echo "=== Verifying package.json ==="
+          node -e "const p=require('./package.json'); console.log('Package:', p.name, p.version); console.log('Bin:', p.bin); console.log('Files:', p.files.join(', ')); console.log('Provenance:', p.publishConfig?.provenance)"
+          echo "=== Dry-run npm pack ==="
+          npm pack --dry-run
+
+      - name: Publish to npm with provenance
+        run: |
+          cd ${{ env.PACKAGE_DIR }}
+          npm publish --access public --provenance
+          echo "Package published to npm with provenance"
+
+      - name: Verify published package
+        run: |
+          echo "=== Published package tarball ==="
+          npm view blockend-cli dist.tarball
+          echo "=== Package maintainers ==="
+          npm view blockend-cli maintainers
+          echo "=== Published version ==="
+          npm view blockend-cli version
+          echo "=== Provenance check ==="
+          npm view blockend-cli provenance || echo "(provenance field not directly queryable via npm view; check npmjs.com package page)"
