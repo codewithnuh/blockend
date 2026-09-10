@@ -49,6 +49,15 @@ jobs:
       - name: Build CLI
         run: pnpm --filter blockend-cli build
 
+      - name: Verify build output
+        run: |
+          echo "=== CLI package contents ==="
+          ls -la packages/cli
+
+          echo ""
+          echo "=== dist contents ==="
+          ls -la packages/cli/dist
+
       - name: CLI smoke tests
         run: |
           node packages/cli/dist/index.js --help > /dev/null
@@ -120,6 +129,9 @@ jobs:
           echo ""
           echo "=== Dry-run npm pack ==="
           npm pack --dry-run
+
+      - name: Verify npm authentication
+        run: npm whoami
 
       - name: Publish to npm with provenance
         run: |
