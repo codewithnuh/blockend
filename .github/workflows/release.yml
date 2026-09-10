@@ -40,6 +40,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Typecheck CLI
+        run: pnpm --filter blockend-cli typecheck
+
       - name: Run CLI unit tests
         run: pnpm --filter blockend-cli test
 
@@ -58,17 +61,44 @@ jobs:
           node packages/cli/dist/index.js update --help > /dev/null
           node packages/cli/dist/index.js mcp --help > /dev/null
 
+      - name: Validate release version
+        run: |
+          cd ${{ env.PACKAGE_DIR }}
+
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+
+          echo "Package version: $PACKAGE_VERSION"
+          echo "Release tag: $TAG_VERSION"
+
+          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "Version mismatch between package.json and release tag"
+            exit 1
+          fi
+
       - name: Validate package contents
         run: |
           cd ${{ env.PACKAGE_DIR }}
+
           echo "=== Verifying dist/index.js exists ==="
           test -f dist/index.js
+
           echo "=== Verifying dist/index.d.ts exists ==="
           test -f dist/index.d.ts
+
           echo "=== Verifying README.md exists ==="
           test -f README.md
+
           echo "=== Verifying package.json ==="
-          node -e "const p=require('./package.json'); console.log('Package:', p.name, p.version); console.log('Bin:', p.bin); console.log('Files:', p.files.join(', ')); console.log('Provenance:', p.publishConfig?.provenance)"
+          node -e "
+          const p=require('./package.json');
+          console.log('Package:', p.name);
+          console.log('Version:', p.version);
+          console.log('Bin:', p.bin);
+          console.log('Files:', p.files.join(', '));
+          console.log('Provenance:', p.publishConfig?.provenance);
+          "
+
           echo "=== Dry-run npm pack ==="
           npm pack --dry-run
 
@@ -80,11 +110,11 @@ jobs:
 
       - name: Verify published package
         run: |
-          echo "=== Published package tarball ==="
-          npm view blockend-cli dist.tarball
-          echo "=== Package maintainers ==="
-          npm view blockend-cli maintainers
           echo "=== Published version ==="
           npm view blockend-cli version
-          echo "=== Provenance check ==="
-          npm view blockend-cli provenance || echo "(provenance field not directly queryable via npm view; check npmjs.com package page)"
+
+          echo "=== Published tarball ==="
+          npm view blockend-cli dist.tarball
+
+          echo "=== Package metadata ==="
+          npm view blockend-cli name version description
