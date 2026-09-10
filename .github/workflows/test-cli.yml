@@ -1,0 +1,98 @@
+name: Test CLI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "packages/cli/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "tsconfig.base.json"
+      - "package.json"
+      - ".github/workflows/test-cli.yml"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "packages/cli/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "tsconfig.base.json"
+      - "package.json"
+      - ".github/workflows/test-cli.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+
+jobs:
+  test:
+    name: CLI tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CLI
+        run: pnpm --filter blockend-cli build
+
+      - name: Run CLI unit tests
+        run: pnpm --filter blockend-cli test
+
+      - name: Validate CLI binary starts
+        run: |
+          node packages/cli/dist/index.js --help > /dev/null
+          echo "CLI binary started successfully"
+
+      - name: Validate CLI subcommands
+        run: |
+          node packages/cli/dist/index.js init --help
+          node packages/cli/dist/index.js add --help
+          node packages/cli/dist/index.js list --help
+          node packages/cli/dist/index.js detect --help
+          node packages/cli/dist/index.js diff --help
+          node packages/cli/dist/index.js doctor --help
+          node packages/cli/dist/index.js update --help
+          node packages/cli/dist/index.js mcp --help
+
+      - name: Validate CLI detect (project context)
+        run: |
+          node packages/cli/dist/index.js detect --json | node -e "JSON.parse(require('fs').readFileSync(0,'utf8'))"
+          echo "detect command produced valid JSON"
+
+      - name: Validate CLI list (graceful error handling)
+        run: |
+          node packages/cli/dist/index.js list --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); if(d.success) process.exit(1); console.log('list handled missing config gracefully')"
+          echo "list command exited cleanly"
+
+      - name: Validate CLI doctor (health check)
+        run: |
+          node packages/cli/dist/index.js doctor --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log('doctor produced', d.checks.length, 'checks')"
+          echo "doctor command exited cleanly"
+
+      - name: Validate CLI bin is executable
+        run: |
+          test -x packages/cli/dist/index.js
+          echo "CLI binary is executable"

@@ -12,6 +12,9 @@
 _production backend blocks. generated into your project. owned by you._
 
 [![npm](https://img.shields.io/npm/v/blockend-cli?color=0ea5e9&label=blockend-cli)](https://npmjs.com/package/blockend-cli)
+[![CI](https://img.shields.io/github/actions/workflow/status/codewithnuh/blockend/.github/workflows/ci.yml?label=CI&color=0ea5e9&branch=master)](https://github.com/codewithnuh/blockend/actions/workflows/ci.yml)
+[![Test CLI](https://img.shields.io/github/actions/workflow/status/codewithnuh/blockend/.github/workflows/test-cli.yml?label=Test%20CLI&color=0ea5e9&branch=master)](https://github.com/codewithnuh/blockend/actions/workflows/test-cli.yml)
+[![Publish CLI](https://img.shields.io/github/actions/workflow/status/codewithnuh/blockend/.github/workflows/release.yml?label=Release&color=0ea5e9&event=release)](https://github.com/codewithnuh/blockend/actions/workflows/release.yml)
 [![license](https://img.shields.io/github/license/codewithnuh/blockend?color=0ea5e9)](./LICENSE)
 [![blocks](https://img.shields.io/badge/blocks-10-0ea5e9)](#available-blocks)
 [![docs](https://img.shields.io/badge/docs-blockend.noorulhassan.com/docs-0ea5e9)](https://blockend.noorulhassan.com)
@@ -136,6 +139,8 @@ Once connected, your AI assistant can:
 - [Documentation](https://blockend.noorulhassan.com/docs)
 - [CLI reference](https://blockend.noorulhassan.com/docs/cli-reference)
 - [Block reference](https://blockend.noorulhassan.com/docs/blocks-reference)
+- [Changelog](packages/cli/CHANGELOG.md)
+- [Security Policy](SECURITY.md)
 
 ## 🗺️ Roadmap & Vision
 
@@ -253,6 +258,10 @@ When a user runs `npx blockend-cli add <block-name>`, the CLI:
 2. Copies the relevant source files from `blocks/` into the user's project
 3. Installs any required dependencies
 
+## Releases
+
+CLI releases are published only after automated verification through GitHub Actions. Every release runs the full CLI test suite, builds the package, verifies its contents, and publishes to npm with provenance metadata via GitHub Actions OIDC trusted publishing. See the [changelog](packages/cli/CHANGELOG.md) for version history.
+
 ## Open Source Security
 
 Blockend is committed to maintaining a secure and trustworthy open-source codebase. We use [Snyk](https://snyk.io/) to help identify and address security vulnerabilities in our dependencies and source code as part of our development and CI workflow.
@@ -263,4 +272,4 @@ Blockend is committed to maintaining a secure and trustworthy open-source codeba
 
 If Blockend helps you, a star on the repository helps others discover it.
 
-[GitHub](https://github.com/codewithnuh/blockend) · [npm](https://npmjs.com/package/blockend-cli) · [X](https://x.com/codewithnuh)
+[GitHub](https://github.com/codewithnuh/blockend) · [npm](https://npmjs.com/package/blockend-cli) · [X](https://x.com/codewithnuh) · [Roadmap](https://github.com/codewithnuh/blockend#-%F0%9F%97%90-%C3%A2-roadmap--vision)
