@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write
+  id-token: write # Required for npm OIDC trusted publishing & Sigstore provenance
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -36,6 +36,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: "https://registry.npmjs.org"
           cache: pnpm
+
+      - name: Upgrade npm CLI
+        run: npm install --global npm@latest
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -71,24 +74,23 @@ jobs:
           node packages/cli/dist/index.js mcp --help > /dev/null
 
       - name: Validate release version
+        working-directory: ${{ env.PACKAGE_DIR }}
         run: |
-          cd ${{ env.PACKAGE_DIR }}
-
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          TAG_VERSION=${GITHUB_REF_NAME#v}
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          TAG_VERSION="${TAG_NAME#v}"
 
           echo "Package version: $PACKAGE_VERSION"
           echo "Release tag: $TAG_VERSION"
 
           if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
-            echo "Version mismatch between package.json and release tag"
+            echo "ERROR: Version mismatch between package.json ($PACKAGE_VERSION) and release tag ($TAG_VERSION)"
             exit 1
           fi
 
       - name: Validate package contents
+        working-directory: ${{ env.PACKAGE_DIR }}
         run: |
-          cd ${{ env.PACKAGE_DIR }}
-
           echo "=== Current directory: $(pwd) ==="
           echo "=== Directory contents ==="
           ls -la
@@ -97,7 +99,6 @@ jobs:
           echo "=== Verifying dist/index.js exists ==="
           if [ ! -f dist/index.js ]; then
             echo "ERROR: dist/index.js not found"
-            echo "=== dist/ directory contents ==="
             ls -la dist/ || echo "dist/ directory does not exist"
             exit 1
           fi
@@ -105,7 +106,6 @@ jobs:
           echo "=== Verifying dist/index.d.ts exists ==="
           if [ ! -f dist/index.d.ts ]; then
             echo "ERROR: dist/index.d.ts not found"
-            echo "=== dist/ directory contents ==="
             ls -la dist/ || echo "dist/ directory does not exist"
             exit 1
           fi
@@ -131,8 +131,8 @@ jobs:
           npm pack --dry-run
 
       - name: Publish to npm with provenance
+        working-directory: ${{ env.PACKAGE_DIR }}
         run: |
-          cd ${{ env.PACKAGE_DIR }}
           npm publish --access public --provenance
           echo "Package published to npm with provenance"
 
