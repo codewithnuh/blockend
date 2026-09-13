@@ -6,7 +6,7 @@
       "name": "Rate Limiter",
       "description": "IP-based rate limiting middleware with pluggable storage strategies",
       "version": "1.0.0",
-      "devDependencies": ["vitest@^4.1.10"],
+      "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
         { "source": "blocks/rate-limiter/core/core.ts", "target": "core/core.ts" },
         { "source": "blocks/rate-limiter/utils/ip.ts", "target": "utils/ip.ts" },
@@ -22,7 +22,7 @@
           ],
           "variants": {
             "memory": {
-              "devDependencies": ["vitest@^4.1.10"],
+              "devDependencies": ["vitest@^4.1.11"],
               "files": [
                 {
                   "source": "blocks/rate-limiter/adapters/express.ts",
@@ -44,7 +44,7 @@
             },
             "redis": {
               "dependencies": ["ioredis@^5.11.1"],
-              "devDependencies": ["vitest@^4.1.10"],
+              "devDependencies": ["vitest@^4.1.11"],
               "files": [
                 {
                   "source": "blocks/rate-limiter/adapters/express.ts",
@@ -67,10 +67,10 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.0"],
+          "dependencies": ["fastify@^5.12.1"],
           "variants": {
             "default": {
-              "devDependencies": ["vitest@^4.1.10"],
+              "devDependencies": ["vitest@^4.1.11"],
               "files": [
                 {
                   "source": "blocks/rate-limiter/adapters/fastify.ts",
@@ -85,10 +85,10 @@
           }
         },
         "hono": {
-          "dependencies": ["hono@^4.13.2"],
+          "dependencies": ["hono@^4.13.5"],
           "variants": {
             "default": {
-              "devDependencies": ["vitest@^4.1.10"],
+              "devDependencies": ["vitest@^4.1.11"],
               "files": [
                 { "source": "blocks/rate-limiter/adapters/hono.ts", "target": "adapters/hono.ts" },
                 {
@@ -113,7 +113,7 @@
             },
             "redis": {
               "dependencies": ["ioredis@^5.11.1"],
-              "devDependencies": ["vitest@^4.1.10"],
+              "devDependencies": ["vitest@^4.1.11"],
               "files": [
                 {
                   "source": "blocks/rate-limiter/variants/redis-store.ts",
@@ -134,7 +134,7 @@
       "description": "Centralized Express error handling suite.",
       "version": "1.0.0",
       "dependencies": ["zod@^4.4.3"],
-      "devDependencies": ["vitest@^4.1.10"],
+      "devDependencies": ["vitest@^4.1.11"],
       "adapters": {
         "express": {
           "dependencies": ["express@^5.2.1"],
@@ -198,7 +198,7 @@
       "description": "Framework-agnostic context logging engine.",
       "version": "1.0.0",
       "dependencies": ["pino@^10.3.1"],
-      "devDependencies": ["vitest@^4.1.10"],
+      "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
         { "source": "blocks/logger/core.ts", "target": "core.ts" },
         { "source": "blocks/logger/core.test.ts", "target": "core.test.ts" }
@@ -224,7 +224,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.0", "fastify-plugin@^6.0.0"],
+          "dependencies": ["fastify@^5.12.1", "fastify-plugin@^6.0.0"],
           "variants": {
             "default": {
               "files": [
@@ -238,7 +238,7 @@
           }
         },
         "hono": {
-          "dependencies": ["hono@^4.13.2"],
+          "dependencies": ["hono@^4.13.5"],
           "variants": {
             "default": {
               "files": [
@@ -258,7 +258,7 @@
       "description": "Framework-agnostic request validation powered by Zod.",
       "version": "1.0.0",
       "dependencies": ["zod@^4.4.3"],
-      "devDependencies": ["vitest@^4.1.10"],
+      "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
         { "source": "blocks/request-validator/core.ts", "target": "core.ts" },
         { "source": "blocks/request-validator/contract.ts", "target": "contract.ts" },
@@ -288,8 +288,8 @@
           }
         },
         "hono": {
-          "dependencies": ["hono@^4.13.2"],
-          "devDependencies": ["vitest@^4.1.10"],
+          "dependencies": ["hono@^4.13.5"],
+          "devDependencies": ["vitest@^4.1.11"],
           "variants": {
             "default": {
               "files": [
@@ -306,8 +306,8 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.0"],
-          "devDependencies": ["vitest@^4.1.10"],
+          "dependencies": ["fastify@^5.12.1"],
+          "devDependencies": ["vitest@^4.1.11"],
           "variants": {
             "default": {
               "files": [
@@ -329,7 +329,7 @@
       "name": "Response Formatter",
       "description": "Framework-agnostic API response formatting.",
       "version": "1.0.0",
-      "devDependencies": ["vitest@^4.1.10"],
+      "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
         { "source": "blocks/response-formatter/core.ts", "target": "core.ts" },
         { "source": "blocks/response-formatter/contract.ts", "target": "contract.ts" },
@@ -359,8 +359,8 @@
           }
         },
         "hono": {
-          "dependencies": ["hono@^4.13.2"],
-          "devDependencies": ["vitest@^4.1.10"],
+          "dependencies": ["hono@^4.13.5"],
+          "devDependencies": ["vitest@^4.1.11"],
           "variants": {
             "default": {
               "files": [
@@ -377,8 +377,8 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.0"],
-          "devDependencies": ["vitest@^4.1.10"],
+          "dependencies": ["fastify@^5.12.1"],
+          "devDependencies": ["vitest@^4.1.11"],
           "variants": {
             "default": {
               "files": [
@@ -402,7 +402,7 @@
       "version": "1.0.0",
       "frameworks": ["*"],
       "dependencies": ["zod@^4.4.3"],
-      "devDependencies": ["vitest@^4.1.10"],
+      "devDependencies": ["vitest@^4.1.11"],
       "adapters": {
         "*": {
           "variants": {
@@ -420,7 +420,7 @@
       "name": "System Health Check Monitoring",
       "description": "Framework-agnostic health assessment suite.",
       "version": "1.0.0",
-      "devDependencies": ["vitest@^4.1.10"],
+      "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
         { "source": "blocks/health-check/core/build-report.ts", "target": "core/build-report.ts" },
         {
@@ -479,7 +479,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.0"],
+          "dependencies": ["fastify@^5.12.1"],
           "variants": {
             "default": {
               "files": [
@@ -496,7 +496,7 @@
           }
         },
         "hono": {
-          "dependencies": ["hono@^4.13.2"],
+          "dependencies": ["hono@^4.13.5"],
           "variants": {
             "default": {
               "files": [
@@ -515,7 +515,7 @@
       "name": "Graceful Shutdown",
       "description": "Dependency-free graceful shutdown with in-flight request draining and per-framework adapters",
       "version": "1.0.0",
-      "devDependencies": ["vitest@^4.1.10", "@types/node@^26.2.0"],
+      "devDependencies": ["vitest@^4.1.11", "@types/node@^26.2.0"],
       "baseFiles": [
         { "source": "blocks/graceful-shutdown/index.ts", "target": "index.ts" },
         { "source": "blocks/graceful-shutdown/constants.ts", "target": "constants.ts" },
@@ -570,7 +570,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.0"],
+          "dependencies": ["fastify@^5.12.1"],
           "variants": {
             "default": {
               "files": [
@@ -587,7 +587,7 @@
           }
         },
         "hono": {
-          "dependencies": ["hono@^4.13.2", "@hono/node-server@^2.1.1"],
+          "dependencies": ["hono@^4.13.5", "@hono/node-server@^2.1.1"],
           "variants": {
             "default": {
               "files": [
@@ -609,7 +609,7 @@
       "name": "Idempotency",
       "description": "Exactly-once request execution with pluggable stores and cache, plus an Express adapter",
       "version": "1.0.0",
-      "devDependencies": ["vitest@^4.1.10", "@types/node@^26.2.0"],
+      "devDependencies": ["vitest@^4.1.11", "@types/node@^26.2.0"],
       "baseFiles": [
         { "source": "blocks/idempotency/index.ts", "target": "index.ts" },
         {
@@ -717,8 +717,8 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.0"],
-          "devDependencies": ["vitest@^4.1.10"],
+          "dependencies": ["fastify@^5.12.1"],
+          "devDependencies": ["vitest@^4.1.11"],
           "variants": {
             "default": {
               "files": [
@@ -739,8 +739,8 @@
           }
         },
         "hono": {
-          "dependencies": ["hono@^4.13.2"],
-          "devDependencies": ["vitest@^4.1.10"],
+          "dependencies": ["hono@^4.13.5"],
+          "devDependencies": ["vitest@^4.1.11"],
           "variants": {
             "default": {
               "files": [
@@ -765,7 +765,7 @@
       "version": "1.0.0",
       "frameworks": ["*"],
       "dependencies": ["@node-rs/argon2@^2.1.0"],
-      "devDependencies": ["vitest@^4.1.10", "@types/node@^26.2.0"],
+      "devDependencies": ["vitest@^4.1.11", "@types/node@^26.2.0"],
       "adapters": {
         "*": {
           "variants": {
