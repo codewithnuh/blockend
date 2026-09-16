@@ -1,4 +1,6 @@
-export { AppError } from "./app-error.js";
+/** @deprecated Import framework-neutral APIs from the error-handler root. */
+export * from "../index.js";
+export { createExpressErrorHandler } from "../adapters/express.js";
 export { ERRORS } from "./errors.js";
 export type { ErrorKey } from "./errors.js";
 export { HTTP_STATUS } from "./http-status.js";
