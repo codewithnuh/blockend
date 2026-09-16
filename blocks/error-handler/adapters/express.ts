@@ -10,6 +10,7 @@ export interface ExpressErrorHandlerOptions {
   getContext?: (request: Request) => ErrorContextInput;
 }
 
+/** Extracts the standard error context available on an Express request. */
 function defaultContext(request: RequestWithId): ErrorContextInput {
   const header = request.headers["x-request-id"];
   const headerId = Array.isArray(header) ? header[0] : header;

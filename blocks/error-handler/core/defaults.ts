@@ -31,7 +31,6 @@ export function resolveStatusCode(statusCode?: number, category?: ErrorCategory)
   return 500;
 }
 
-/** Derive an {@link ErrorCategory} from an HTTP status code. */
 export function inferCategory(statusCode: number): ErrorCategory {
   if (statusCode === 400 || statusCode === 422) return "VALIDATION";
   if (statusCode === 401) return "AUTHENTICATION";
@@ -44,7 +43,6 @@ export function inferCategory(statusCode: number): ErrorCategory {
   return "BAD_REQUEST";
 }
 
-/** Map a status code to a severity level: 5xx = error, 4xx = warning. */
 export function inferSeverity(statusCode: number): ErrorSeverity {
   return statusCode >= 500 ? "error" : "warning";
 }

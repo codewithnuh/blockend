@@ -11,6 +11,7 @@ import { normalizeError } from "./normalize";
 import { sanitizeErrorData } from "./sanitize";
 import { serializeErrorResponse } from "./serialize";
 
+/** Builds the sanitized event shape shared by logging and reporting hooks. */
 function createEvent(error: ClassifiedError, context: ErrorContext): ErrorEvent {
   return {
     error: {

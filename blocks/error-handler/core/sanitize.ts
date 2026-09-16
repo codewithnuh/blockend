@@ -13,6 +13,7 @@ const REDACTED = "[REDACTED]";
 const CIRCULAR = "[Circular]";
 const TRUNCATED = "[Truncated]";
 
+/** Normalizes object keys for case- and punctuation-insensitive sensitivity checks. */
 function normalizeKey(key: string): string {
   return key.toLowerCase().replace(/[^a-z0-9]/g, "");
 }

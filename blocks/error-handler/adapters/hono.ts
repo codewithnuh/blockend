@@ -7,6 +7,7 @@ export interface HonoErrorHandlerOptions<E extends Env = Env> {
   getContext?: (context: Context<E>) => ErrorContextInput;
 }
 
+/** Reads a request ID from Hono variables or the incoming request header. */
 function requestIdFromContext<E extends Env>(context: Context<E>): string | undefined {
   const contextId = (context.var as Record<string, unknown>).requestId;
   if (typeof contextId === "string") return contextId;
