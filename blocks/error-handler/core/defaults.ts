@@ -14,6 +14,7 @@ const STATUS_BY_CATEGORY: Readonly<Record<string, number>> = {
   SERVICE_UNAVAILABLE: 503
 };
 
+/** Returns a valid HTTP error status, falling back to category defaults or 500. */
 export function resolveStatusCode(statusCode?: number, category?: ErrorCategory): number {
   if (
     statusCode !== undefined &&
@@ -26,6 +27,7 @@ export function resolveStatusCode(statusCode?: number, category?: ErrorCategory)
   return (category && STATUS_BY_CATEGORY[category]) || 500;
 }
 
+/** Infers the closest error category for an HTTP status code. */
 export function inferCategory(statusCode: number): ErrorCategory {
   if (statusCode === 400 || statusCode === 422) return "VALIDATION";
   if (statusCode === 401) return "AUTHENTICATION";
@@ -38,6 +40,7 @@ export function inferCategory(statusCode: number): ErrorCategory {
   return "BAD_REQUEST";
 }
 
+/** Infers whether an HTTP error should be observed as a warning or an error. */
 export function inferSeverity(statusCode: number): ErrorSeverity {
   return statusCode >= 500 ? "error" : "warning";
 }

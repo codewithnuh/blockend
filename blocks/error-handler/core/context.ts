@@ -1,5 +1,6 @@
 import type { ErrorContext, ErrorContextInput } from "../types/index";
 
+/** Adds a timestamp and preserves supplied request metadata in an error context. */
 export function enrichErrorContext(input: ErrorContextInput = {}): ErrorContext {
   return {
     timestamp: input.timestamp ?? new Date().toISOString(),

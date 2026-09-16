@@ -3,6 +3,7 @@ import { AppError } from "./app-error";
 import { inferCategory, inferSeverity, resolveStatusCode } from "./defaults";
 import type { NormalizedInput } from "./normalize";
 
+/** Converts an application error into the boundary's framework-neutral representation. */
 function toClassifiedError(error: AppError): ClassifiedError {
   return {
     name: error.name,
@@ -19,6 +20,7 @@ function toClassifiedError(error: AppError): ClassifiedError {
   };
 }
 
+/** Classifies an unrecognized thrown value as a non-operational internal error. */
 function unknownError(input: NormalizedInput): ClassifiedError {
   return {
     name: input.error.name,
@@ -33,6 +35,7 @@ function unknownError(input: NormalizedInput): ClassifiedError {
   };
 }
 
+/** Applies safe status, category, and severity defaults to a custom classification. */
 function normalizeClassifierResult(options: AppErrorOptions): AppError {
   const statusCode = resolveStatusCode(options.statusCode, options.category);
   return new AppError({
@@ -43,6 +46,7 @@ function normalizeClassifierResult(options: AppErrorOptions): AppError {
   });
 }
 
+/** Classifies normalized input using built-in rules and an optional custom classifier. */
 export function classifyError(
   input: NormalizedInput,
   classifier?: ErrorClassifier

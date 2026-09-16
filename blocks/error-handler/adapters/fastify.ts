@@ -5,6 +5,7 @@ export interface FastifyErrorHandlerOptions {
   getContext?: (request: FastifyRequest) => ErrorContextInput;
 }
 
+/** Registers a Fastify error handler backed by the provided error boundary. */
 export function registerFastifyErrorHandler(
   app: FastifyInstance,
   boundary: ErrorBoundary,

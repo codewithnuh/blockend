@@ -12,10 +12,12 @@ const REDACTED = "[REDACTED]";
 const CIRCULAR = "[Circular]";
 const TRUNCATED = "[Truncated]";
 
+/** Normalizes object keys for case- and punctuation-insensitive sensitivity checks. */
 function normalizeKey(key: string): string {
   return key.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+/** Recursively redacts sensitive fields and converts unsafe values for error output. */
 export function sanitizeErrorData<T>(value: T, additionalKeys: readonly string[] = []): T {
   const sensitiveKeys = [...DEFAULT_SENSITIVE_KEYS, ...additionalKeys].map(normalizeKey);
   const seen = new WeakSet<object>();

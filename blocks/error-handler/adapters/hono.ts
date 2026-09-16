@@ -6,12 +6,14 @@ export interface HonoErrorHandlerOptions<E extends Env = Env> {
   getContext?: (context: Context<E>) => ErrorContextInput;
 }
 
+/** Reads a request ID from Hono variables or the incoming request header. */
 function requestIdFromContext<E extends Env>(context: Context<E>): string | undefined {
   const contextId = (context.var as Record<string, unknown>).requestId;
   if (typeof contextId === "string") return contextId;
   return context.req.header("x-request-id");
 }
 
+/** Creates a Hono error handler that delegates serialization to a boundary. */
 export function createHonoErrorHandler<E extends Env = Env>(
   boundary: ErrorBoundary,
   options: HonoErrorHandlerOptions<E> = {}
@@ -29,6 +31,7 @@ export function createHonoErrorHandler<E extends Env = Env>(
   };
 }
 
+/** Registers a boundary-backed error handler on a Hono application. */
 export function registerHonoErrorHandler<E extends Env>(
   app: Hono<E>,
   boundary: ErrorBoundary,

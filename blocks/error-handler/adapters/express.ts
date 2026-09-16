@@ -9,6 +9,7 @@ export interface ExpressErrorHandlerOptions {
   getContext?: (request: Request) => ErrorContextInput;
 }
 
+/** Extracts the standard error context available on an Express request. */
 function defaultContext(request: RequestWithId): ErrorContextInput {
   const header = request.headers["x-request-id"];
   const headerId = Array.isArray(header) ? header[0] : header;
@@ -19,6 +20,7 @@ function defaultContext(request: RequestWithId): ErrorContextInput {
   };
 }
 
+/** Creates Express error middleware that delegates response handling to a boundary. */
 export function createExpressErrorHandler(
   boundary: ErrorBoundary,
   options: ExpressErrorHandlerOptions = {}
