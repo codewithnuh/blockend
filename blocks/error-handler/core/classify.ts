@@ -25,7 +25,12 @@ function unknownError(input: NormalizedInput): ClassifiedError {
   const raw = input.raw as Record<string, unknown> | undefined;
   const rawStatus = raw && typeof raw === "object" ? (raw.status ?? raw.statusCode) : undefined;
   const statusCode =
-    typeof rawStatus === "number" && rawStatus >= 400 && rawStatus <= 599 ? rawStatus : 500;
+    typeof rawStatus === "number" &&
+    Number.isInteger(rawStatus) &&
+    rawStatus >= 400 &&
+    rawStatus <= 599
+      ? rawStatus
+      : 500;
 
   return {
     name: input.error.name,
