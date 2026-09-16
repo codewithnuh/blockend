@@ -1,5 +1,6 @@
 import type { ErrorCategory, ErrorSeverity } from "../types/index";
 
+/** Sentinel message used for non-operational errors in client responses. */
 export const INTERNAL_ERROR_MESSAGE = "Internal server error";
 
 const STATUS_BY_CATEGORY: Readonly<Record<string, number>> = {
@@ -14,6 +15,7 @@ const STATUS_BY_CATEGORY: Readonly<Record<string, number>> = {
   SERVICE_UNAVAILABLE: 503
 };
 
+/** Return a valid 4xx/5xx status from an explicit code, category mapping, or 500 fallback. */
 export function resolveStatusCode(statusCode?: number, category?: ErrorCategory): number {
   if (
     statusCode !== undefined &&
@@ -23,9 +25,13 @@ export function resolveStatusCode(statusCode?: number, category?: ErrorCategory)
   ) {
     return statusCode;
   }
-  return (category && STATUS_BY_CATEGORY[category]) || 500;
+  if (category !== undefined && Object.hasOwn(STATUS_BY_CATEGORY, category)) {
+    return STATUS_BY_CATEGORY[category] ?? 500;
+  }
+  return 500;
 }
 
+/** Derive an {@link ErrorCategory} from an HTTP status code. */
 export function inferCategory(statusCode: number): ErrorCategory {
   if (statusCode === 400 || statusCode === 422) return "VALIDATION";
   if (statusCode === 401) return "AUTHENTICATION";
@@ -38,6 +44,7 @@ export function inferCategory(statusCode: number): ErrorCategory {
   return "BAD_REQUEST";
 }
 
+/** Map a status code to a severity level: 5xx = error, 4xx = warning. */
 export function inferSeverity(statusCode: number): ErrorSeverity {
   return statusCode >= 500 ? "error" : "warning";
 }

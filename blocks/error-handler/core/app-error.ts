@@ -1,6 +1,7 @@
 import type { AppErrorOptions, ErrorCategory, ErrorSeverity } from "../types/index";
 import { inferCategory, inferSeverity, resolveStatusCode } from "./defaults";
 
+/** Typed error carrying status, category, and operational metadata. */
 export class AppError extends Error {
   readonly code: string;
   readonly statusCode: number;

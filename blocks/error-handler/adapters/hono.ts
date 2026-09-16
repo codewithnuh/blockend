@@ -2,6 +2,7 @@ import type { Context, Env, ErrorHandler, Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ErrorBoundary, ErrorContextInput } from "../types/index";
 
+/** Options for the Hono error handler adapter. */
 export interface HonoErrorHandlerOptions<E extends Env = Env> {
   getContext?: (context: Context<E>) => ErrorContextInput;
 }
@@ -12,6 +13,7 @@ function requestIdFromContext<E extends Env>(context: Context<E>): string | unde
   return context.req.header("x-request-id");
 }
 
+/** Create a Hono ErrorHandler function backed by an {@link ErrorBoundary}. */
 export function createHonoErrorHandler<E extends Env = Env>(
   boundary: ErrorBoundary,
   options: HonoErrorHandlerOptions<E> = {}
@@ -29,6 +31,7 @@ export function createHonoErrorHandler<E extends Env = Env>(
   };
 }
 
+/** Convenience helper that registers the error handler on a Hono instance. */
 export function registerHonoErrorHandler<E extends Env>(
   app: Hono<E>,
   boundary: ErrorBoundary,

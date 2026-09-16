@@ -1,5 +1,6 @@
 import type { ErrorContext, ErrorContextInput } from "../types/index";
 
+/** Fill in default timestamp and drop undefined fields from the context input. */
 export function enrichErrorContext(input: ErrorContextInput = {}): ErrorContext {
   return {
     timestamp: input.timestamp ?? new Date().toISOString(),

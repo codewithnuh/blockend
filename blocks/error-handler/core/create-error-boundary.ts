@@ -29,6 +29,7 @@ function createEvent(error: ClassifiedError, context: ErrorContext): ErrorEvent 
   };
 }
 
+/** Create a framework-agnostic error boundary with optional logger, reporter, and classifier. */
 export function createErrorBoundary(options: CreateErrorBoundaryOptions = {}): ErrorBoundary {
   const serializer = options.serializer ?? serializeErrorResponse;
   const sensitiveKeys = options.sensitiveKeys ?? [];

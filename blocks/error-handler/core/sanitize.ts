@@ -1,3 +1,4 @@
+/** Built-in case-insensitive key fragments redacted by the sanitizer. */
 export const DEFAULT_SENSITIVE_KEYS = [
   "password",
   "passphrase",
@@ -16,6 +17,7 @@ function normalizeKey(key: string): string {
   return key.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+/** Deep-clone and redact sensitive keys, circular references, and unserializable values. */
 export function sanitizeErrorData<T>(value: T, additionalKeys: readonly string[] = []): T {
   const sensitiveKeys = [...DEFAULT_SENSITIVE_KEYS, ...additionalKeys].map(normalizeKey);
   const seen = new WeakSet<object>();
@@ -30,9 +32,19 @@ export function sanitizeErrorData<T>(value: T, additionalKeys: readonly string[]
     if (seen.has(current)) return CIRCULAR;
 
     seen.add(current);
-    if (current instanceof Date) return current.toISOString();
+
+    if (current instanceof Date) {
+      let result: unknown;
+      try {
+        result = current.toISOString();
+      } catch {
+        result = "[Unserializable]";
+      }
+      seen.delete(current);
+      return result;
+    }
     if (current instanceof Error) {
-      return visit(
+      const result = visit(
         {
           name: current.name,
           message: current.message,
@@ -41,14 +53,21 @@ export function sanitizeErrorData<T>(value: T, additionalKeys: readonly string[]
         },
         depth + 1
       );
+      seen.delete(current);
+      return result;
     }
-    if (Array.isArray(current)) return current.map((entry) => visit(entry, depth + 1));
+    if (Array.isArray(current)) {
+      const result = current.map((entry) => visit(entry, depth + 1));
+      seen.delete(current);
+      return result;
+    }
 
     const sanitized: Record<string, unknown> = {};
     let entries: [string, unknown][];
     try {
       entries = Object.entries(current);
     } catch {
+      seen.delete(current);
       return "[Unserializable]";
     }
 
@@ -58,6 +77,7 @@ export function sanitizeErrorData<T>(value: T, additionalKeys: readonly string[]
         ? REDACTED
         : visit(entry, depth + 1);
     }
+    seen.delete(current);
     return sanitized;
   };
 

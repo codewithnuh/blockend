@@ -5,6 +5,7 @@ interface RequestWithId extends Request {
   id?: string;
 }
 
+/** Options for the Express error handler adapter. */
 export interface ExpressErrorHandlerOptions {
   getContext?: (request: Request) => ErrorContextInput;
 }
@@ -19,6 +20,7 @@ function defaultContext(request: RequestWithId): ErrorContextInput {
   };
 }
 
+/** Create an Express error-handler middleware backed by an {@link ErrorBoundary}. */
 export function createExpressErrorHandler(
   boundary: ErrorBoundary,
   options: ExpressErrorHandlerOptions = {}
@@ -27,9 +29,12 @@ export function createExpressErrorHandler(
     error: unknown,
     request: Request,
     response: Response,
-    // oxlint-disable-next-line @typescript-eslint/no-unused-vars
     next: NextFunction
   ): Promise<void> => {
+    if (response.headersSent) {
+      next(error);
+      return;
+    }
     const context = { ...defaultContext(request), ...options.getContext?.(request) };
     const result = await boundary.handle(error, context);
     response.status(result.statusCode).json(result.body);

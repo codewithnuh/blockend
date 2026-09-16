@@ -20,13 +20,18 @@ function toClassifiedError(error: AppError): ClassifiedError {
 }
 
 function unknownError(input: NormalizedInput): ClassifiedError {
+  const raw = input.raw as Record<string, unknown> | undefined;
+  const rawStatus = raw && typeof raw === "object" ? (raw.status ?? raw.statusCode) : undefined;
+  const statusCode =
+    typeof rawStatus === "number" && rawStatus >= 400 && rawStatus <= 599 ? rawStatus : 500;
+
   return {
     name: input.error.name,
     code: "INTERNAL_SERVER_ERROR",
     message: input.error.message,
-    statusCode: 500,
-    category: "INTERNAL",
-    severity: "error",
+    statusCode,
+    category: statusCode === 500 ? "INTERNAL" : inferCategory(statusCode),
+    severity: inferSeverity(statusCode),
     isOperational: false,
     ...(input.error.stack === undefined ? {} : { stack: input.error.stack }),
     ...(input.error.cause === undefined ? {} : { cause: input.error.cause })
@@ -43,6 +48,7 @@ function normalizeClassifierResult(options: AppErrorOptions): AppError {
   });
 }
 
+/** Classify a normalized error using an optional custom classifier, falling back to unknownError. */
 export function classifyError(
   input: NormalizedInput,
   classifier?: ErrorClassifier

@@ -568,7 +568,15 @@ Returns the default formatter-compatible envelope. Non-operational errors receiv
 #### `DEFAULT_SENSITIVE_KEYS`
 
 ```ts
-readonly[("password", "passphrase", "token", "authorization", "secret", "apikey", "cookie")];
+const DEFAULT_SENSITIVE_KEYS: readonly [
+  "password",
+  "passphrase",
+  "token",
+  "authorization",
+  "secret",
+  "apikey",
+  "cookie"
+];
 ```
 
 Built-in case-insensitive key fragments used by the sanitizer.
