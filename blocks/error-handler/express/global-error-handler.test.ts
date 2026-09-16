@@ -1,8 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import express from "express";
 import type { Request, Response } from "express";
 import request from "supertest";
-import { z } from "zod";
 import { AppError } from "./app-error";
 import { globalErrorHandler } from "./global-error-handler";
 
@@ -21,31 +20,11 @@ describe("globalErrorHandler", () => {
     expect(response.body).toEqual({
       success: false,
       data: null,
-      message: "Email already registered"
+      error: { message: "Email already registered" }
     });
   });
 
-  it("maps ZodError failures to a structured 400 response", async () => {
-    const app = express();
-
-    app.get("/validate", () => {
-      z.object({ id: z.string().uuid() }).parse({ id: "invalid" });
-    });
-    app.use(globalErrorHandler);
-
-    const response = await request(app).get("/validate");
-
-    expect(response.status).toBe(400);
-    expect(response.body).toMatchObject({
-      success: false,
-      data: null,
-      message: "Validation failed"
-    });
-    expect(response.body.errors).toHaveProperty("properties.id");
-  });
-
-  it("logs unknown errors and returns a generic 500 response", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  it("returns a generic 500 response for unknown errors", async () => {
     const app = express();
 
     app.get("/crash", (_req: Request, _res: Response) => {
@@ -59,18 +38,8 @@ describe("globalErrorHandler", () => {
     expect(response.body).toEqual({
       success: false,
       data: null,
-      message: "Internal server error"
+      error: { message: "Internal server error" }
     });
     expect(JSON.stringify(response.body)).not.toContain("secret connection string");
-    expect(consoleError).toHaveBeenCalledWith(
-      "[UNHANDLED ERROR]",
-      expect.objectContaining({
-        method: "GET",
-        path: "/crash",
-        error: expect.any(Error)
-      })
-    );
-
-    consoleError.mockRestore();
   });
 });

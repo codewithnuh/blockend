@@ -1,6 +1,6 @@
 ---
-title: Error Handler
-description: Centralized, type-safe error handling pipeline for Express applications with a typed AppError class and error catalog.
+title: Error Boundary
+description: Normalize application errors, protect client responses, and connect optional logging or reporting across Express, Fastify, and Hono.
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
@@ -8,46 +8,53 @@ import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 import { SourceCode } from "../../../components/source-code";
 
-The **Error Handler** block gives your Express application a single, predictable place to handle every error — expected or not.
+# Error Boundary
 
-It separates errors you anticipate (bad input, missing resources, failed auth) from bugs you don't, returning a clean JSON response for the former and a safe, logged fallback for the latter.
+## Overview
 
----
+The **Error Boundary** block turns thrown values into consistent HTTP errors without tying error rules to a web framework.
+
+Its dependency-free core classifies errors, adds request context, redacts sensitive fields, calls optional observability hooks, and produces the same error envelope as the Response Formatter block.
 
 ## Features
 
-- Centralized Express error-handling middleware
-- Typed `AppError` class with status code and operational flag
-- Shared error catalog for consistent messages across your app
-- Built-in Zod validation error formatting
-- Async route wrapper so rejected promises never get swallowed
-- Zero database assumptions
-- TypeScript support
+- Framework-neutral error normalization and classification
+- Typed `AppError` with codes, categories, severity, causes, metadata, and client-safe details
+- Generic 500 responses for unknown and non-operational errors
+- Recursive redaction for common credential and authorization fields
+- Optional structured logger, async reporter, classifier, and serializer interfaces
+- Request context for request ID, user ID, method, path, timestamp, and metadata
+- Native Express, Fastify, and Hono lifecycle adapters
+- Deprecated Express v1 exports for an in-place migration
 
----
-
-## File Structure
+## File structure
 
 ```text
 error-handler
-├── app-error.ts
-├── errors.ts
-├── http-status.ts
-├── throw-error.ts
-├── async-handler.ts
-├── global-error-handler.ts
+├── adapters
+│   ├── express.ts
+│   ├── fastify.ts
+│   └── hono.ts
+├── core
+│   ├── app-error.ts
+│   ├── classify.ts
+│   ├── context.ts
+│   ├── create-error-boundary.ts
+│   ├── defaults.ts
+│   ├── normalize.ts
+│   ├── sanitize.ts
+│   └── serialize.ts
+├── express
+│   └── deprecated v1 compatibility exports
+├── types
+│   └── index.ts
 └── index.ts
 ```
 
-- **app-error.ts** — Base `AppError` class that all expected application errors extend.
-- **errors.ts** — Shared error catalog (`ERRORS`) with consistent message and HTTP status mappings.
-- **http-status.ts** — Named HTTP status code constants.
-- **throw-error.ts** — Utility to throw an `AppError` from a catalog entry.
-- **async-handler.ts** — Wraps async route handlers so rejected promises reach the error handler.
-- **global-error-handler.ts** — Express 4-argument error-handling middleware.
-- **index.ts** — Public exports.
-
----
+- **core/** contains the framework-neutral lifecycle.
+- **adapters/** extracts framework context and writes the core result.
+- **types/** defines configuration, event, response, and extension contracts.
+- **express/** keeps v1 imports working while applications move to the v2 API.
 
 ## Installation
 
@@ -59,352 +66,820 @@ error-handler
 
     <Steps>
       <Step>
-        ### Detect Configuration
+        ### Detect project
 
-        Blockend reads your project's language, framework, and alias setup.
+        Blockend reads the configured framework and block output path.
       </Step>
       <Step>
-        ### Install Dependencies
+        ### Install the adapter peer
 
-        `zod` is required for validation error formatting. Blockend installs it automatically if it isn't already present.
+        The core has no runtime dependency. Blockend installs only the selected framework package.
       </Step>
       <Step>
-        ### Generate Files
+        ### Copy source
 
-        The block is generated inside your configured blocks directory.
+        Blockend copies the shared core, tests, and the selected adapter into your blocks directory.
       </Step>
     </Steps>
 
   </Tab>
   <Tab value="Manual">
-    Copy the files below into your project's blocks directory.
+    Copy the shared files and one framework adapter into your blocks directory.
 
-    ### Peer Dependencies
+    ### Peer dependencies
 
-    | Dependency | Required for |
-    | ---------- | ------------ |
-    | `express` | Express middleware |
-    | `zod` | Validation error formatting |
-    | `@types/express` | TypeScript types (dev) |
+    | Package | Required for |
+    | ------- | ------------ |
+    | None | Core |
+    | `express` and `@types/express` | Express adapter |
+    | `fastify` | Fastify adapter |
+    | `hono` | Hono adapter |
 
-    ### `blocks/error-handler/app-error.ts`
+    ### `blocks/error-handler/types/index.ts`
 
-    Base class for all expected, handled application errors.
+    Public types for errors, context, hooks, serialization, and boundary results.
 
-    <SourceCode file="error-handler/express/app-error.ts" />
+    <SourceCode file="error-handler/types/index.ts" />
 
-    ### `blocks/error-handler/http-status.ts`
+    ### `blocks/error-handler/core/app-error.ts`
 
-    Named HTTP status code constants.
+    Defines `AppError` and its deprecated positional constructor overload.
 
-    <SourceCode file="error-handler/express/http-status.ts" />
+    <SourceCode file="error-handler/core/app-error.ts" />
 
-    ### `blocks/error-handler/errors.ts`
+    ### `blocks/error-handler/core/app-error.test.ts`
 
-    Common error catalog. Use with `throwError(ERRORS.NOT_FOUND)` or reference `.message` / `.status` directly.
+    Covers constructor defaults, mappings, metadata, and legacy compatibility.
 
-    <SourceCode file="error-handler/express/errors.ts" />
+    <SourceCode file="error-handler/core/app-error.test.ts" />
 
-    ### `blocks/error-handler/throw-error.ts`
+    ### `blocks/error-handler/core/classify.ts`
 
-    Throws an `AppError` from a catalog entry.
+    Classifies `AppError`, classifier results, and unknown failures.
 
-    <SourceCode file="error-handler/express/throw-error.ts" />
+    <SourceCode file="error-handler/core/classify.ts" />
 
-    ### `blocks/error-handler/async-handler.ts`
+    ### `blocks/error-handler/core/context.ts`
 
-    Wraps an async Express route handler so rejected promises are passed to `next()`.
+    Adds a timestamp and preserves optional request context.
 
-    <SourceCode file="error-handler/express/async-handler.ts" />
+    <SourceCode file="error-handler/core/context.ts" />
 
-    ### `blocks/error-handler/global-error-handler.ts`
+    ### `blocks/error-handler/core/create-error-boundary.ts`
 
-    Express error-handling middleware. Register this last, after all routes.
+    Runs the error lifecycle and contains failures from optional hooks.
 
-    <SourceCode file="error-handler/express/global-error-handler.ts" />
+    <SourceCode file="error-handler/core/create-error-boundary.ts" />
+
+    ### `blocks/error-handler/core/create-error-boundary.test.ts`
+
+    Covers classification, safe serialization, redaction, and observability behavior.
+
+    <SourceCode file="error-handler/core/create-error-boundary.test.ts" />
+
+    ### `blocks/error-handler/core/defaults.ts`
+
+    Contains category-to-status defaults and category or severity inference.
+
+    <SourceCode file="error-handler/core/defaults.ts" />
+
+    ### `blocks/error-handler/core/normalize.ts`
+
+    Converts any thrown value into an `Error` without exposing it to clients.
+
+    <SourceCode file="error-handler/core/normalize.ts" />
+
+    ### `blocks/error-handler/core/sanitize.ts`
+
+    Recursively redacts sensitive keys and handles circular or deep values.
+
+    <SourceCode file="error-handler/core/sanitize.ts" />
+
+    ### `blocks/error-handler/core/serialize.ts`
+
+    Builds the default Response Formatter-compatible error envelope.
+
+    <SourceCode file="error-handler/core/serialize.ts" />
+
+    ### `blocks/error-handler/adapters/express.ts`
+
+    Creates Express error middleware and extracts request context.
+
+    <SourceCode file="error-handler/adapters/express.ts" />
+
+    ### `blocks/error-handler/adapters/express.test.ts`
+
+    Verifies Express status codes, context extraction, and response safety.
+
+    <SourceCode file="error-handler/adapters/express.test.ts" />
+
+    ### `blocks/error-handler/adapters/fastify.ts`
+
+    Registers the boundary through Fastify's `setErrorHandler` lifecycle.
+
+    <SourceCode file="error-handler/adapters/fastify.ts" />
+
+    ### `blocks/error-handler/adapters/fastify.test.ts`
+
+    Verifies Fastify error handling with `inject`.
+
+    <SourceCode file="error-handler/adapters/fastify.test.ts" />
+
+    ### `blocks/error-handler/adapters/hono.ts`
+
+    Creates and registers a Hono `onError` handler.
+
+    <SourceCode file="error-handler/adapters/hono.ts" />
+
+    ### `blocks/error-handler/adapters/hono.test.ts`
+
+    Verifies Hono status codes, context, and safe unknown-error responses.
+
+    <SourceCode file="error-handler/adapters/hono.test.ts" />
 
     ### `blocks/error-handler/index.ts`
 
-    Public exports — re-exports all public APIs.
+    Exports the framework-neutral public API.
+
+    <SourceCode file="error-handler/index.ts" />
+
+    ### `blocks/error-handler/express/app-error.ts`
+
+    Re-exports `AppError` from the v2 core for old imports.
+
+    <SourceCode file="error-handler/express/app-error.ts" />
+
+    ### `blocks/error-handler/express/app-error.test.ts`
+
+    Verifies the deprecated positional constructor through the old path.
+
+    <SourceCode file="error-handler/express/app-error.test.ts" />
+
+    ### `blocks/error-handler/express/async-handler.ts`
+
+    Keeps the v1 async Express route wrapper available during migration.
+
+    <SourceCode file="error-handler/express/async-handler.ts" />
+
+    ### `blocks/error-handler/express/async-handler.test.ts`
+
+    Verifies rejected promises still reach Express error middleware.
+
+    <SourceCode file="error-handler/express/async-handler.test.ts" />
+
+    ### `blocks/error-handler/express/errors.ts`
+
+    Keeps the v1 error catalog for existing call sites.
+
+    <SourceCode file="error-handler/express/errors.ts" />
+
+    ### `blocks/error-handler/express/global-error-handler.ts`
+
+    Delegates the deprecated singleton middleware to a default v2 boundary.
+
+    <SourceCode file="error-handler/express/global-error-handler.ts" />
+
+    ### `blocks/error-handler/express/global-error-handler.test.ts`
+
+    Verifies the deprecated handler uses the safe v2 response envelope.
+
+    <SourceCode file="error-handler/express/global-error-handler.test.ts" />
+
+    ### `blocks/error-handler/express/http-status.ts`
+
+    Preserves the named v1 HTTP status constants.
+
+    <SourceCode file="error-handler/express/http-status.ts" />
+
+    ### `blocks/error-handler/express/index.ts`
+
+    Re-exports v2 APIs and deprecated Express helpers from the old entry point.
 
     <SourceCode file="error-handler/express/index.ts" />
+
+    ### `blocks/error-handler/express/throw-error.ts`
+
+    Preserves catalog-based `AppError` throwing for migration.
+
+    <SourceCode file="error-handler/express/throw-error.ts" />
+
+    ### `blocks/error-handler/express/throw-error.test.ts`
+
+    Verifies catalog entries still create operational errors.
+
+    <SourceCode file="error-handler/express/throw-error.test.ts" />
 
   </Tab>
 </Tabs>
 
----
-
 ## Configuration
 
-| Export               | Type                                                  | Description                                                            |
-| -------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------- |
-| `AppError`           | `class`                                               | Base error class — `new AppError(statusCode, message, isOperational?)` |
-| `ERRORS`             | `Record<string, { message: string; status: number }>` | Shared catalog of common errors                                        |
-| `HTTP_STATUS`        | `Record<string, number>`                              | Named HTTP status code constants                                       |
-| `throwError`         | `(error: { message, status }) => never`               | Throws an `AppError` from a catalog entry                              |
-| `globalErrorHandler` | `Express ErrorRequestHandler`                         | The 4-argument middleware — register last                              |
-| `asyncHandler`       | `(fn) => RequestHandler`                              | Wraps async route handlers to forward rejections to `next()`           |
+### `CreateErrorBoundaryOptions`
 
----
+| Option          | Type                | Default                  | Description                                             |
+| --------------- | ------------------- | ------------------------ | ------------------------------------------------------- |
+| `logger`        | `ErrorLogger`       | None                     | Receives a sanitized structured event through `error()` |
+| `reporter`      | `ErrorReporter`     | None                     | Receives the sanitized event and may return a promise   |
+| `classifier`    | `ErrorClassifier`   | None                     | Maps a third-party error to `AppErrorOptions`           |
+| `serializer`    | `ErrorSerializer`   | `serializeErrorResponse` | Builds the client response body                         |
+| `sensitiveKeys` | `readonly string[]` | `[]`                     | Adds key fragments to the built-in redaction list       |
+
+The built-in sensitive key fragments are `password`, `passphrase`, `token`, `authorization`, `secret`, `apikey`, and `cookie`. Matching ignores case and punctuation.
+
+### `AppErrorOptions`
+
+| Option          | Type                      | Default                                | Description                                                       |
+| --------------- | ------------------------- | -------------------------------------- | ----------------------------------------------------------------- |
+| `code`          | `string`                  | Required                               | Stable server-side error code                                     |
+| `message`       | `string`                  | Required                               | Client message when the error is operational                      |
+| `statusCode`    | `number`                  | Category mapping or `500`              | HTTP status from 400 through 599                                  |
+| `category`      | `ErrorCategory`           | Inferred from status                   | Error classification                                              |
+| `severity`      | `ErrorSeverity`           | `warning` below 500, otherwise `error` | Observability severity                                            |
+| `isOperational` | `boolean`                 | `true` below 500, otherwise `false`    | Whether the default serializer may expose the message and details |
+| `cause`         | `unknown`                 | None                                   | Original cause for server-side reporting                          |
+| `metadata`      | `Record<string, unknown>` | None                                   | Server-side diagnostic data                                       |
+| `details`       | `unknown`                 | None                                   | Client-safe structured details for operational errors             |
+
+### Default category mapping
+
+| Category                    | Status |
+| --------------------------- | ------ |
+| `BAD_REQUEST`, `VALIDATION` | 400    |
+| `AUTHENTICATION`            | 401    |
+| `AUTHORIZATION`             | 403    |
+| `NOT_FOUND`                 | 404    |
+| `CONFLICT`                  | 409    |
+| `RATE_LIMIT`                | 429    |
+| `INTERNAL`                  | 500    |
+| `SERVICE_UNAVAILABLE`       | 503    |
+
+Custom categories use 500 unless `statusCode` supplies a valid error status.
+
+### Request context
+
+| Field       | Type                      | Required | Description                                      |
+| ----------- | ------------------------- | -------- | ------------------------------------------------ |
+| `requestId` | `string`                  | No       | Correlation ID included in the default response  |
+| `userId`    | `string`                  | No       | Authenticated user identifier for hooks          |
+| `path`      | `string`                  | No       | Request path                                     |
+| `method`    | `string`                  | No       | HTTP method                                      |
+| `timestamp` | `string`                  | No       | Timestamp; defaults to the current ISO timestamp |
+| `metadata`  | `Record<string, unknown>` | No       | Additional sanitized request data                |
+
+Each framework adapter also accepts `getContext(requestOrContext)`. Returned values override the adapter defaults.
 
 ## Architecture
 
 ```text
-Request
-   │
-   ▼
-Route Handler (optionally wrapped with asyncHandler)
-   │
-   ▼
-Error thrown (AppError / ZodError / unknown)
-   │
-   ▼
-globalErrorHandler
-   ├── AppError     → 4xx JSON response
-   ├── ZodError     → 400 JSON with field errors
-   └── Unknown      → 500 JSON + server-side log
+Framework error
+      |
+      v
+Adapter extracts method, path, requestId, and custom context
+      |
+      v
+normalizeError -> classifyError -> enrichErrorContext -> sanitizeErrorData
+      |
+      v
+logger.error? -> await reporter.report? -> serializer
+      |
+      v
+{ statusCode, body } -> framework response
 ```
 
-The `globalErrorHandler` is registered last in your Express middleware stack. It checks the error type and returns the appropriate response. `AppError` instances return clean JSON with the configured status code. `ZodError` instances are formatted using `z.treeifyError`. All other errors are logged server-side and returned as a generic 500 response.
+`createErrorBoundary().handle()` owns the error rules. Adapters only collect framework context and write the result. A classifier can map Zod or database errors without adding those packages to the core. Logger, reporter, classifier, and serializer failures never replace the original response.
 
----
+The reporter runs before serialization and is awaited. Give network reporters their own timeout so an unavailable reporting service cannot hold an HTTP response indefinitely.
 
-## When to Use
+## When to use
 
-- You want a centralized place to handle every error in your Express application.
-- You need consistent JSON error responses across your API.
-- You use Zod for validation and want automatic error formatting.
+- JSON APIs that need one safe error policy across Express, Fastify, or Hono
+- Applications that want structured error events without requiring an observability vendor
+- Services that need explicit operational and programmer-error behavior
 
-## When Not to Use
+## When not to use
 
-- You don't use Express.
-- You prefer handling errors ad-hoc in each route handler.
-- You don't need structured error responses.
-
----
+- HTML applications where the framework already owns error-page rendering
+- Code that needs process-level `uncaughtException` or shutdown coordination
+- Domain code that only needs result types and never crosses an HTTP boundary
 
 ## Usage
 
-### Setup
+### Core
 
-Register the handler last, after all your routes and middleware:
+```ts
+import { AppError, createErrorBoundary } from "@/blocks/error-handler";
+
+const boundary = createErrorBoundary();
+
+const result = await boundary.handle(
+  new AppError({
+    code: "USER_NOT_FOUND",
+    message: "User not found",
+    category: "NOT_FOUND"
+  }),
+  { requestId: "req-42", userId: "user-7" }
+);
+
+// result.statusCode === 404
+// result.body.error.message === "User not found"
+```
+
+### Express
 
 ```ts
 import express from "express";
-import { globalErrorHandler, asyncHandler, throwError, ERRORS } from "@/blocks/error-handler";
+import { AppError, createErrorBoundary } from "@/blocks/error-handler";
+import { createExpressErrorHandler } from "@/blocks/error-handler/adapters/express";
 
 const app = express();
+const boundary = createErrorBoundary();
 
-app.get(
-  "/users/:id",
-  asyncHandler(async (req, res) => {
-    if (!req.params.id) throwError(ERRORS.BAD_REQUEST);
-    const user = await db.user.findUnique({ where: { id: req.params.id } });
-    if (!user) throwError(ERRORS.NOT_FOUND);
-    res.json(user);
-  })
-);
-
-app.use(globalErrorHandler); // Must be last
-app.listen(3000);
-```
-
-### Throwing Errors
-
-Use the catalog for common cases, `AppError` for one-off errors:
-
-```ts
-import { throwError, ERRORS, AppError } from "@/blocks/error-handler";
-
-// From the catalog — consistent messages across your API
-throwError(ERRORS.NOT_FOUND);
-
-// One-off error with a custom message
-throw new AppError(400, `Unsupported plan: ${plan}`);
-```
-
-### Validation Errors
-
-Zod errors are automatically formatted when they reach `globalErrorHandler`:
-
-```ts
-import { z } from "zod";
-import { asyncHandler } from "@/blocks/error-handler";
-
-const createUserSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8)
+app.get("/users/:id", async (req, res) => {
+  const user = await db.user.findUnique({ where: { id: req.params.id } });
+  if (!user) {
+    throw new AppError({
+      code: "USER_NOT_FOUND",
+      message: "User not found",
+      category: "NOT_FOUND"
+    });
+  }
+  res.json(user);
 });
 
-router.post(
-  "/users",
-  asyncHandler(async (req, res) => {
-    const data = createUserSchema.parse(req.body); // throws ZodError on failure
-    const user = await db.user.create({ data });
-    res.status(201).json(user);
-  })
-);
+// Express identifies error handlers by this four-argument middleware.
+app.use(createExpressErrorHandler(boundary));
 ```
 
-Response on failure:
-
-```json
-{
-  "success": false,
-  "data": null,
-  "message": "Validation failed",
-  "errors": {
-    "properties": {
-      "email": { "errors": ["Invalid email"] }
-    }
-  }
-}
-```
-
-### Mapping Database Errors
-
-Map database-specific errors to `AppError` in your data layer:
+### Fastify
 
 ```ts
-router.post(
-  "/users",
-  asyncHandler(async (req, res, next) => {
-    try {
-      const user = await db.user.create({ data: req.body });
-      res.status(201).json(user);
-    } catch (err) {
-      if (isUniqueConstraintError(err)) {
-        return next(new AppError(409, "A user with this email already exists"));
-      }
-      next(err);
-    }
-  })
-);
+import Fastify from "fastify";
+import { AppError, createErrorBoundary } from "@/blocks/error-handler";
+import { registerFastifyErrorHandler } from "@/blocks/error-handler/adapters/fastify";
+
+const app = Fastify();
+const boundary = createErrorBoundary();
+
+registerFastifyErrorHandler(app, boundary);
+
+app.get("/account", async () => {
+  throw new AppError({
+    code: "AUTH_REQUIRED",
+    message: "Authentication required",
+    category: "AUTHENTICATION"
+  });
+});
 ```
 
----
+### Hono
 
-## API Reference
+```ts
+import { Hono } from "hono";
+import { AppError, createErrorBoundary } from "@/blocks/error-handler";
+import { registerHonoErrorHandler } from "@/blocks/error-handler/adapters/hono";
 
-### AppError
+const app = new Hono();
+const boundary = createErrorBoundary();
+
+// Hono routes thrown errors through app.onError, not upstream middleware.
+registerHonoErrorHandler(app, boundary);
+
+app.get("/admin", () => {
+  throw new AppError({
+    code: "FORBIDDEN",
+    message: "Forbidden",
+    category: "AUTHORIZATION"
+  });
+});
+```
+
+### Structured logger
+
+The Blockend logger already implements `ErrorLogger`, so it can be passed directly.
+
+```ts
+import { logger } from "@/blocks/logger/core";
+import { createErrorBoundary } from "@/blocks/error-handler";
+
+const boundary = createErrorBoundary({ logger });
+```
+
+### Async reporter
+
+```ts
+import { createErrorBoundary } from "@/blocks/error-handler";
+
+const boundary = createErrorBoundary({
+  reporter: {
+    async report(event) {
+      await errorQueue.publish(event); // The queue client should enforce its own timeout.
+    }
+  }
+});
+```
+
+### Zod classifier
+
+Zod is no longer a required dependency. Add it only when the application uses it.
+
+```ts
+import { z, ZodError } from "zod";
+import { createErrorBoundary } from "@/blocks/error-handler";
+
+const boundary = createErrorBoundary({
+  classifier(error) {
+    if (!(error instanceof ZodError)) return undefined;
+    return {
+      code: "VALIDATION_FAILED",
+      message: "Validation failed",
+      category: "VALIDATION",
+      details: z.treeifyError(error)
+    };
+  }
+});
+```
+
+### Response Formatter
+
+The default body already matches `ResponseFormatter.error`. Supply a serializer only when the application needs to call the formatter itself or change the envelope.
+
+```ts
+import { ResponseFormatter } from "@/blocks/response-formatter/core";
+import { createErrorBoundary } from "@/blocks/error-handler";
+
+const boundary = createErrorBoundary({
+  serializer(error, context) {
+    return ResponseFormatter.error(
+      {
+        message: error.isOperational ? error.message : "Internal server error",
+        ...(error.isOperational && error.details !== undefined ? { details: error.details } : {})
+      },
+      context.requestId
+    );
+  }
+});
+```
+
+## API reference
+
+#### `AppError`
 
 ```ts
 class AppError extends Error {
-  constructor(
-    public readonly statusCode: number,
-    message: string,
-    public readonly isOperational: boolean = true
-  );
+  constructor(options: AppErrorOptions);
+  constructor(statusCode: number, message: string, isOperational?: boolean); // deprecated
 }
 ```
 
-| Parameter       | Type      | Required | Default | Description                                       |
-| --------------- | --------- | -------- | ------- | ------------------------------------------------- |
-| `statusCode`    | `number`  | Yes      | —       | HTTP status code                                  |
-| `message`       | `string`  | Yes      | —       | Error message                                     |
-| `isOperational` | `boolean` | No       | `true`  | Whether the error is safe to expose to the client |
+Creates a classified application error. The positional overload remains for v1 source compatibility.
 
-### ERRORS
-
-| Key                     | Status | Message                                           |
-| ----------------------- | ------ | ------------------------------------------------- |
-| `VALIDATION_FAILED`     | 400    | Validation failed                                 |
-| `BAD_REQUEST`           | 400    | Bad request                                       |
-| `INVALID_CREDENTIALS`   | 401    | Invalid credentials                               |
-| `UNAUTHORIZED`          | 401    | Unauthorized access                               |
-| `FORBIDDEN`             | 403    | You do not have permission to perform this action |
-| `TOKEN_EXPIRED`         | 401    | Session expired. Please log in again.             |
-| `INVALID_TOKEN`         | 401    | Invalid token                                     |
-| `TOKEN_TYPE_MISMATCH`   | 401    | Token type mismatch                               |
-| `TOKEN_REVOKED`         | 401    | Token has been revoked                            |
-| `NOT_FOUND`             | 404    | Not found                                         |
-| `USER_ALREADY_EXISTS`   | 409    | User already exists                               |
-| `DUPLICATE_RESOURCE`    | 409    | Resource already exists                           |
-| `UNPROCESSABLE`         | 422    | Unable to process the request                     |
-| `INTERNAL_SERVER_ERROR` | 500    | Internal server error                             |
-| `SERVICE_UNAVAILABLE`   | 503    | Service temporarily unavailable                   |
-
-### throwError
+#### `createErrorBoundary`
 
 ```ts
-function throwError(error: { message: string; status: number }): never;
+function createErrorBoundary(options?: CreateErrorBoundaryOptions): ErrorBoundary;
 ```
 
-Throws an `AppError` from a catalog entry. Use for catalog errors; use `new AppError(status, message)` directly for one-off errors.
+Creates an isolated boundary with optional classifier, logger, reporter, serializer, and redaction configuration.
 
-### globalErrorHandler
+#### `ErrorBoundary.handle`
 
 ```ts
-const globalErrorHandler: (err: unknown, req: Request, res: Response, next: NextFunction) => void;
+handle(error: unknown, context?: ErrorContextInput): Promise<ErrorBoundaryResult>;
 ```
 
-Express 4-argument error-handling middleware. Register last.
+Runs the complete lifecycle. It resolves after the reporter settles and does not reject because an extension hook failed.
 
-### asyncHandler
+#### `sanitizeErrorData`
 
 ```ts
-const asyncHandler: (
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
-) => (req: Request, res: Response, next: NextFunction) => void;
+function sanitizeErrorData<T>(value: T, additionalKeys?: readonly string[]): T;
 ```
 
-Wraps async route handlers so rejected promises are forwarded to `next()`.
+Returns a JSON-safe copy, redacts matching keys, marks circular references, and truncates values after eight object levels.
 
-### HTTP_STATUS
+#### `serializeErrorResponse`
 
 ```ts
-const HTTP_STATUS: {
-  OK: 200;
-  CREATED: 201;
-  BAD_REQUEST: 400;
-  UNAUTHORIZED: 401;
-  FORBIDDEN: 403;
-  NOT_FOUND: 404;
-  CONFLICT: 409;
-  UNPROCESSABLE_ENTITY: 422;
-  INTERNAL_SERVER_ERROR: 500;
-  SERVICE_UNAVAILABLE: 503;
-};
+const serializeErrorResponse: ErrorSerializer;
 ```
 
----
+Returns the default formatter-compatible envelope. Non-operational errors receive the message `Internal server error`.
+
+#### `DEFAULT_SENSITIVE_KEYS`
+
+```ts
+const DEFAULT_SENSITIVE_KEYS: readonly [
+  "password",
+  "passphrase",
+  "token",
+  "authorization",
+  "secret",
+  "apikey",
+  "cookie"
+];
+```
+
+Built-in case-insensitive key fragments used by the sanitizer.
+
+#### `createExpressErrorHandler`
+
+```ts
+function createExpressErrorHandler(
+  boundary: ErrorBoundary,
+  options?: ExpressErrorHandlerOptions
+): ExpressErrorRequestHandler;
+```
+
+Returns four-argument Express error middleware. Register it after routes.
+
+#### `registerFastifyErrorHandler`
+
+```ts
+function registerFastifyErrorHandler(
+  app: FastifyInstance,
+  boundary: ErrorBoundary,
+  options?: FastifyErrorHandlerOptions
+): void;
+```
+
+Registers a handler with `app.setErrorHandler`.
+
+#### `createHonoErrorHandler`
+
+```ts
+function createHonoErrorHandler(
+  boundary: ErrorBoundary,
+  options?: HonoErrorHandlerOptions
+): ErrorHandler;
+```
+
+Creates a Hono error handler for `app.onError`.
+
+#### `registerHonoErrorHandler`
+
+```ts
+function registerHonoErrorHandler(
+  app: Hono,
+  boundary: ErrorBoundary,
+  options?: HonoErrorHandlerOptions
+): void;
+```
+
+Registers the created handler with `app.onError`.
+
+#### `AppErrorOptions`
+
+The constructor options documented in [Configuration](#apperroroptions).
+
+#### `CreateErrorBoundaryOptions`
+
+The boundary options documented in [Configuration](#createerrorboundaryoptions).
+
+#### `ErrorCategory`
+
+```ts
+type ErrorCategory =
+  | "BAD_REQUEST"
+  | "VALIDATION"
+  | "AUTHENTICATION"
+  | "AUTHORIZATION"
+  | "NOT_FOUND"
+  | "CONFLICT"
+  | "RATE_LIMIT"
+  | "INTERNAL"
+  | "SERVICE_UNAVAILABLE"
+  | (string & {});
+```
+
+#### `ErrorSeverity`
+
+```ts
+type ErrorSeverity = "info" | "warning" | "error" | "critical";
+```
+
+#### `ErrorContextInput` and `ErrorContext`
+
+```ts
+interface ErrorContextInput {
+  requestId?: string;
+  userId?: string;
+  path?: string;
+  method?: string;
+  timestamp?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface ErrorContext extends ErrorContextInput {
+  timestamp: string;
+}
+```
+
+#### `ClassifiedError`
+
+```ts
+interface ClassifiedError {
+  name: string;
+  code: string;
+  message: string;
+  statusCode: number;
+  category: ErrorCategory;
+  severity: ErrorSeverity;
+  isOperational: boolean;
+  stack?: string;
+  cause?: unknown;
+  metadata?: Record<string, unknown>;
+  details?: unknown;
+}
+```
+
+#### `ErrorEvent`
+
+Contains a sanitized classified error and an enriched `ErrorContext`. Logger and reporter hooks receive this shape.
+
+#### `ErrorResponse`
+
+```ts
+interface ErrorResponse {
+  success: false;
+  data: null;
+  error: { message: string; details?: unknown };
+  requestId?: string;
+}
+```
+
+#### `ErrorBoundaryResult`
+
+```ts
+interface ErrorBoundaryResult {
+  statusCode: number;
+  body: ErrorResponse;
+}
+```
+
+#### `ErrorLogger`
+
+```ts
+interface ErrorLogger {
+  error(context: Record<string, unknown>, message?: string): void;
+}
+```
+
+#### `ErrorReporter`
+
+```ts
+interface ErrorReporter {
+  report(event: ErrorEvent): void | Promise<void>;
+}
+```
+
+#### `ErrorClassifier`
+
+```ts
+type ErrorClassifier = (error: unknown) => AppErrorOptions | null | undefined;
+```
+
+#### `ErrorSerializer`
+
+```ts
+type ErrorSerializer = (error: ClassifiedError, context: ErrorContext) => ErrorResponse;
+```
+
+#### Adapter options
+
+`ExpressErrorHandlerOptions`, `FastifyErrorHandlerOptions`, and `HonoErrorHandlerOptions` each contain one optional `getContext` function. The function receives the native request or Hono context and returns `ErrorContextInput`.
 
 ## Examples
 
-### Extending the Error Catalog
-
-Add domain-specific errors to the shared catalog:
+### Production configuration
 
 ```ts
-// blocks/error-handler/errors.ts
-export const ERRORS = {
-  ...existingEntries,
-  SUBSCRIPTION_EXPIRED: {
-    message: "Your subscription has expired",
-    status: HTTP_STATUS.FORBIDDEN
+import { z, ZodError } from "zod";
+import { logger } from "@/blocks/logger/core";
+import { createErrorBoundary } from "@/blocks/error-handler";
+
+export const errorBoundary = createErrorBoundary({
+  logger,
+  sensitiveKeys: ["privateKey"],
+  classifier(error) {
+    if (!(error instanceof ZodError)) return undefined;
+    return {
+      code: "VALIDATION_FAILED",
+      message: "Validation failed",
+      category: "VALIDATION",
+      details: z.treeifyError(error)
+    };
+  },
+  reporter: {
+    async report(event) {
+      await errorQueue.publish(event);
+    }
   }
-} as const;
+});
 ```
 
----
+Use adapter `getContext` to add authenticated user IDs. Do not put raw request bodies or full headers in context. Pass only the fields an operator needs.
 
-## Related Blocks
+### Testing application errors
 
-- **Logger** — Replace the internal `console.error` call with a structured logger for production error tracking.
-- **Response Formatter** — Format error responses consistently across your API.
+```ts
+import { expect, it } from "vitest";
+import { AppError, createErrorBoundary } from "@/blocks/error-handler";
 
----
+it("returns a safe not-found response", async () => {
+  const boundary = createErrorBoundary();
+  const result = await boundary.handle(
+    new AppError({
+      code: "INVOICE_NOT_FOUND",
+      message: "Invoice not found",
+      category: "NOT_FOUND"
+    })
+  );
+
+  expect(result.statusCode).toBe(404);
+  expect(result.body.error.message).toBe("Invoice not found");
+});
+```
+
+### Migration from v1
+
+The registry key and output folder remain `error-handler`. Update imports and initialization in place.
+
+```ts
+// v1
+import { AppError, globalErrorHandler } from "@/blocks/error-handler/express";
+
+throw new AppError(404, "User not found");
+app.use(globalErrorHandler);
+
+// v2
+import { AppError, createErrorBoundary } from "@/blocks/error-handler";
+import { createExpressErrorHandler } from "@/blocks/error-handler/adapters/express";
+
+throw new AppError({
+  code: "USER_NOT_FOUND",
+  message: "User not found",
+  category: "NOT_FOUND"
+});
+app.use(createExpressErrorHandler(createErrorBoundary()));
+```
+
+<Callout type="warn">
+  The default response changed from a top-level `message` to `error.message`. Automatic Zod
+  detection was removed. Add the classifier shown above when the application needs Zod details.
+</Callout>
+
+`AppError(status, message, isOperational?)`, `globalErrorHandler`, `throwError`, `ERRORS`, `HTTP_STATUS`, and `asyncHandler` remain under `error-handler/express` for migration. New code should use the root core and an adapter.
+
+### Production checklist
+
+- Add a logger or reporter if errors must be retained. With neither configured, the boundary only returns a response.
+- Put timeouts in remote reporters because the boundary awaits `report()`.
+- Mark a 5xx `AppError` operational only when its message and details are safe for clients.
+- Keep secrets under descriptive keys so the sanitizer can redact them. It does not inspect arbitrary prose for embedded credentials.
+- Handle process crashes with Graceful Shutdown. This block handles request failures, not process lifecycle.
+
+## Related blocks
+
+- **Logger** provides a structured `error(context, message)` method accepted directly by `createErrorBoundary`.
+- **Response Formatter** uses the same default error envelope and can be supplied through `serializer`.
 
 ## FAQ
 
-**What happens when an unhandled error reaches `globalErrorHandler`?**
+**Does the core require a framework or logger?**
 
-It logs the error server-side with `console.error` including the method, path, and error details. The client receives a generic 500 response — no stack traces or internal details are leaked.
+No. `createErrorBoundary()` has no required option or runtime dependency.
 
-**How do I add my own error types?**
+**Are unknown error messages or stack traces returned to clients?**
 
-Create entries in the `ERRORS` catalog or throw `new AppError(status, message)` directly for one-off errors.
+No. Unknown and non-operational errors return status 500 with `Internal server error`. Stack, cause, metadata, and the original message remain server-side.
 
-**Does this block work with databases?**
+**Why does Hono use `onError` instead of middleware?**
 
-No. It makes no database assumptions. Map database-specific errors to `AppError` in your own data layer.
+Hono routes thrown handler errors through its error lifecycle before upstream middleware can replace the response. `registerHonoErrorHandler` installs the boundary at that supported lifecycle point.
+
+**What happens if logging, reporting, classification, or serialization fails?**
+
+The boundary catches the extension failure. It continues with the original error and falls back to the default serializer when needed.
+
+**Can an operational 500 expose its message?**
+
+Yes, but only when `isOperational: true` is explicit. Errors at 500 or above default to non-operational.
+
+**Does redaction find a token embedded in a free-form string?**
+
+No. Redaction matches object keys. Unknown error strings never enter the default client response, but integrations should still avoid attaching secrets to exception messages.
+
+## Changelog
+
+### 2.0.0 - 2026-09-16
+
+- Rebuilt the Express-only handler as a framework-neutral error boundary.
+- Added native Express, Fastify, and Hono adapters.
+- Added error codes, categories, severity, causes, metadata, request context, redaction, and optional logger or reporter hooks.
+- Changed the default response to the Response Formatter-compatible envelope.
+- Removed the required Zod dependency and replaced automatic Zod handling with a classifier example.
+- Kept the `error-handler` registry identity and deprecated v1 Express exports for migration.
+
+### 1.0.0
+
+- Initial Express global error handler with `AppError`, a shared catalog, and Zod handling.

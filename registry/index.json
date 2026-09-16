@@ -130,11 +130,54 @@
       }
     },
     "error-handler": {
-      "name": "Global Error Handler",
-      "description": "Centralized Express error handling suite.",
-      "version": "1.0.0",
-      "dependencies": ["zod@^4.4.3"],
+      "name": "Error Boundary",
+      "description": "Framework-agnostic error normalization, safe serialization, and optional reporting with HTTP adapters.",
+      "version": "2.0.0",
       "devDependencies": ["vitest@^4.1.11"],
+      "baseFiles": [
+        { "source": "blocks/error-handler/index.ts", "target": "index.ts" },
+        { "source": "blocks/error-handler/types/index.ts", "target": "types/index.ts" },
+        {
+          "source": "blocks/error-handler/core/app-error.ts",
+          "target": "core/app-error.ts"
+        },
+        {
+          "source": "blocks/error-handler/core/app-error.test.ts",
+          "target": "core/app-error.test.ts"
+        },
+        {
+          "source": "blocks/error-handler/core/classify.ts",
+          "target": "core/classify.ts"
+        },
+        {
+          "source": "blocks/error-handler/core/context.ts",
+          "target": "core/context.ts"
+        },
+        {
+          "source": "blocks/error-handler/core/create-error-boundary.ts",
+          "target": "core/create-error-boundary.ts"
+        },
+        {
+          "source": "blocks/error-handler/core/create-error-boundary.test.ts",
+          "target": "core/create-error-boundary.test.ts"
+        },
+        {
+          "source": "blocks/error-handler/core/defaults.ts",
+          "target": "core/defaults.ts"
+        },
+        {
+          "source": "blocks/error-handler/core/normalize.ts",
+          "target": "core/normalize.ts"
+        },
+        {
+          "source": "blocks/error-handler/core/sanitize.ts",
+          "target": "core/sanitize.ts"
+        },
+        {
+          "source": "blocks/error-handler/core/serialize.ts",
+          "target": "core/serialize.ts"
+        }
+      ],
       "adapters": {
         "express": {
           "dependencies": ["express@^5.2.1"],
@@ -146,6 +189,14 @@
           "variants": {
             "default": {
               "files": [
+                {
+                  "source": "blocks/error-handler/adapters/express.ts",
+                  "target": "adapters/express.ts"
+                },
+                {
+                  "source": "blocks/error-handler/adapters/express.test.ts",
+                  "target": "adapters/express.test.ts"
+                },
                 {
                   "source": "blocks/error-handler/express/app-error.ts",
                   "target": "express/app-error.ts"
@@ -186,6 +237,40 @@
                 {
                   "source": "blocks/error-handler/express/throw-error.test.ts",
                   "target": "express/throw-error.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "fastify": {
+          "dependencies": ["fastify@^5.12.1"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/error-handler/adapters/fastify.ts",
+                  "target": "adapters/fastify.ts"
+                },
+                {
+                  "source": "blocks/error-handler/adapters/fastify.test.ts",
+                  "target": "adapters/fastify.test.ts"
+                }
+              ]
+            }
+          }
+        },
+        "hono": {
+          "dependencies": ["hono@^4.13.5"],
+          "variants": {
+            "default": {
+              "files": [
+                {
+                  "source": "blocks/error-handler/adapters/hono.ts",
+                  "target": "adapters/hono.ts"
+                },
+                {
+                  "source": "blocks/error-handler/adapters/hono.test.ts",
+                  "target": "adapters/hono.test.ts"
                 }
               ]
             }
