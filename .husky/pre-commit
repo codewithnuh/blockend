@@ -1,1 +1,12 @@
+#!/usr/bin/env sh
+# Pre-commit hook: regenerate registry types when registry/index.json changes,
+# then run lint-staged.
+
+# Check if registry/index.json is staged
+if git diff --cached --name-only | grep -q "^registry/index.json$"; then
+  echo "registry/index.json changed — regenerating registry/generated.d.ts"
+  node scripts/generate-registry-types.mjs
+  git add registry/generated.d.ts
+fi
+
 pnpm exec lint-staged

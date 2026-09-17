@@ -14,7 +14,9 @@
     "format:check": "prettier . --check",
     "typecheck": "turbo run typecheck",
     "typecheck:blocks": "tsc --noEmit -p blocks/tsconfig.json",
-    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm typecheck:blocks && pnpm test",
+    "validate:registry": "node scripts/validate-registry.mjs",
+    "generate:registry-types": "node scripts/generate-registry-types.mjs",
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm typecheck:blocks && pnpm validate:registry && pnpm test",
     "prepare": "husky"
   },
   "keywords": [
@@ -85,6 +87,9 @@
     ],
     "*.{js,cjs,mjs,ts,tsx,jsx}": [
       "oxlint --fix"
+    ],
+    "registry/index.json": [
+      "node scripts/validate-registry.mjs"
     ]
   }
 }

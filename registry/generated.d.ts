@@ -1,0 +1,1016 @@
+// Auto-generated from registry/index.json — do not edit manually.
+// Run: pnpm generate:registry-types
+
+export type BlockKey =
+  | "rate-limiter"
+  | "error-handler"
+  | "logger"
+  | "request-validator"
+  | "response-formatter"
+  | "env-config"
+  | "health-check"
+  | "graceful-shutdown"
+  | "idempotency"
+  | "password-hash";
+
+export type RegistryData = {
+  $schema: "./registry-schema.json";
+  version: "1.1.0";
+  blocks: {
+    "rate-limiter": {
+      name: "Rate Limiter";
+      description: "IP-based rate limiting middleware with pluggable storage strategies";
+      version: "1.0.0";
+      devDependencies: ["vitest@^4.1.11"];
+      baseFiles: [
+        {
+          source: "blocks/rate-limiter/core/core.ts";
+          target: "core/core.ts";
+        },
+        {
+          source: "blocks/rate-limiter/utils/ip.ts";
+          target: "utils/ip.ts";
+        },
+        {
+          source: "blocks/rate-limiter/utils/ip.test.ts";
+          target: "utils/ip.test.ts";
+        }
+      ];
+      adapters: {
+        express: {
+          dependencies: ["express@^5.2.1"];
+          devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
+          variants: {
+            memory: {
+              devDependencies: ["vitest@^4.1.11"];
+              files: [
+                {
+                  source: "blocks/rate-limiter/adapters/express.ts";
+                  target: "adapters/express.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/adapters/express.test.ts";
+                  target: "adapters/express.test.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/variants/memory-store.ts";
+                  target: "variants/memory-store.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/variants/store.test.ts";
+                  target: "variants/memory-store.test.ts";
+                }
+              ];
+            };
+            redis: {
+              dependencies: ["ioredis@^5.11.1"];
+              devDependencies: ["vitest@^4.1.11"];
+              files: [
+                {
+                  source: "blocks/rate-limiter/adapters/express.ts";
+                  target: "adapters/express.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/adapters/express.test.ts";
+                  target: "adapters/express.test.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/variants/redis-store.ts";
+                  target: "variants/redis-store.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/variants/redis.test.ts";
+                  target: "variants/redis-store.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        fastify: {
+          dependencies: ["fastify@^5.12.1"];
+          variants: {
+            default: {
+              devDependencies: ["vitest@^4.1.11"];
+              files: [
+                {
+                  source: "blocks/rate-limiter/adapters/fastify.ts";
+                  target: "adapters/fastify.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/adapters/fastify.test.ts";
+                  target: "adapters/fastify.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        hono: {
+          dependencies: ["hono@^4.13.5"];
+          variants: {
+            default: {
+              devDependencies: ["vitest@^4.1.11"];
+              files: [
+                {
+                  source: "blocks/rate-limiter/adapters/hono.ts";
+                  target: "adapters/hono.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/adapters/hono.test.ts";
+                  target: "adapters/hono.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+      environments: {
+        "*": {
+          variants: {
+            memory: {
+              files: [
+                {
+                  source: "blocks/rate-limiter/variants/memory-store.ts";
+                  target: "variants/memory-store.ts";
+                }
+              ];
+            };
+            redis: {
+              dependencies: ["ioredis@^5.11.1"];
+              devDependencies: ["vitest@^4.1.11"];
+              files: [
+                {
+                  source: "blocks/rate-limiter/variants/redis-store.ts";
+                  target: "variants/redis-store.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/variants/redis.test.ts";
+                  target: "variants/redis.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+    "error-handler": {
+      name: "Error Boundary";
+      description: "Framework-agnostic error normalization, safe serialization, and optional reporting with HTTP adapters.";
+      version: "2.0.0";
+      devDependencies: ["vitest@^4.1.11"];
+      baseFiles: [
+        {
+          source: "blocks/error-handler/index.ts";
+          target: "index.ts";
+        },
+        {
+          source: "blocks/error-handler/types/index.ts";
+          target: "types/index.ts";
+        },
+        {
+          source: "blocks/error-handler/core/app-error.ts";
+          target: "core/app-error.ts";
+        },
+        {
+          source: "blocks/error-handler/core/app-error.test.ts";
+          target: "core/app-error.test.ts";
+        },
+        {
+          source: "blocks/error-handler/core/classify.ts";
+          target: "core/classify.ts";
+        },
+        {
+          source: "blocks/error-handler/core/context.ts";
+          target: "core/context.ts";
+        },
+        {
+          source: "blocks/error-handler/core/create-error-boundary.ts";
+          target: "core/create-error-boundary.ts";
+        },
+        {
+          source: "blocks/error-handler/core/create-error-boundary.test.ts";
+          target: "core/create-error-boundary.test.ts";
+        },
+        {
+          source: "blocks/error-handler/core/defaults.ts";
+          target: "core/defaults.ts";
+        },
+        {
+          source: "blocks/error-handler/core/normalize.ts";
+          target: "core/normalize.ts";
+        },
+        {
+          source: "blocks/error-handler/core/sanitize.ts";
+          target: "core/sanitize.ts";
+        },
+        {
+          source: "blocks/error-handler/core/serialize.ts";
+          target: "core/serialize.ts";
+        }
+      ];
+      adapters: {
+        express: {
+          dependencies: ["express@^5.2.1"];
+          devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/error-handler/adapters/express.ts";
+                  target: "adapters/express.ts";
+                },
+                {
+                  source: "blocks/error-handler/adapters/express.test.ts";
+                  target: "adapters/express.test.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/app-error.ts";
+                  target: "express/app-error.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/app-error.test.ts";
+                  target: "express/app-error.test.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/async-handler.ts";
+                  target: "express/async-handler.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/async-handler.test.ts";
+                  target: "express/async-handler.test.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/errors.ts";
+                  target: "express/errors.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/global-error-handler.ts";
+                  target: "express/global-error-handler.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/global-error-handler.test.ts";
+                  target: "express/global-error-handler.test.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/http-status.ts";
+                  target: "express/http-status.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/index.ts";
+                  target: "express/index.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/throw-error.ts";
+                  target: "express/throw-error.ts";
+                },
+                {
+                  source: "blocks/error-handler/express/throw-error.test.ts";
+                  target: "express/throw-error.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        fastify: {
+          dependencies: ["fastify@^5.12.1"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/error-handler/adapters/fastify.ts";
+                  target: "adapters/fastify.ts";
+                },
+                {
+                  source: "blocks/error-handler/adapters/fastify.test.ts";
+                  target: "adapters/fastify.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        hono: {
+          dependencies: ["hono@^4.13.5"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/error-handler/adapters/hono.ts";
+                  target: "adapters/hono.ts";
+                },
+                {
+                  source: "blocks/error-handler/adapters/hono.test.ts";
+                  target: "adapters/hono.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+    logger: {
+      name: "Structured Context Logger";
+      description: "Framework-agnostic context logging engine.";
+      version: "1.0.0";
+      dependencies: ["pino@^10.3.1"];
+      devDependencies: ["vitest@^4.1.11"];
+      baseFiles: [
+        {
+          source: "blocks/logger/core.ts";
+          target: "core.ts";
+        },
+        {
+          source: "blocks/logger/core.test.ts";
+          target: "core.test.ts";
+        }
+      ];
+      adapters: {
+        express: {
+          dependencies: ["express@^5.2.1"];
+          devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/logger/adapters/express.ts";
+                  target: "adapters/express.ts";
+                },
+                {
+                  source: "blocks/logger/adapters/express.test.ts";
+                  target: "adapters/express.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        fastify: {
+          dependencies: ["fastify@^5.12.1", "fastify-plugin@^6.0.0"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/logger/adapters/fastify.ts";
+                  target: "adapters/fastify.ts";
+                },
+                {
+                  source: "blocks/logger/adapters/fastify.test.ts";
+                  target: "adapters/fastify.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        hono: {
+          dependencies: ["hono@^4.13.5"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/logger/adapters/hono.ts";
+                  target: "adapters/hono.ts";
+                },
+                {
+                  source: "blocks/logger/adapters/hono.test.ts";
+                  target: "adapters/hono.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+    "request-validator": {
+      name: "Request Validator";
+      description: "Framework-agnostic request validation powered by Zod.";
+      version: "1.0.0";
+      dependencies: ["zod@^4.4.3"];
+      devDependencies: ["vitest@^4.1.11"];
+      baseFiles: [
+        {
+          source: "blocks/request-validator/core.ts";
+          target: "core.ts";
+        },
+        {
+          source: "blocks/request-validator/contract.ts";
+          target: "contract.ts";
+        },
+        {
+          source: "blocks/request-validator/core.test.ts";
+          target: "core.test.ts";
+        }
+      ];
+      adapters: {
+        express: {
+          dependencies: ["express@^5.2.1"];
+          devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/request-validator/adapters/express.ts";
+                  target: "adapters/express.ts";
+                },
+                {
+                  source: "blocks/request-validator/adapters/express.test.ts";
+                  target: "adapters/express.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        hono: {
+          dependencies: ["hono@^4.13.5"];
+          devDependencies: ["vitest@^4.1.11"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/request-validator/adapters/hono.ts";
+                  target: "adapters/hono.ts";
+                },
+                {
+                  source: "blocks/request-validator/adapters/hono.test.ts";
+                  target: "adapters/hono.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        fastify: {
+          dependencies: ["fastify@^5.12.1"];
+          devDependencies: ["vitest@^4.1.11"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/request-validator/adapters/fastify.ts";
+                  target: "adapters/fastify.ts";
+                },
+                {
+                  source: "blocks/request-validator/adapters/fastify.test.ts";
+                  target: "adapters/fastify.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+    "response-formatter": {
+      name: "Response Formatter";
+      description: "Framework-agnostic API response formatting.";
+      version: "1.0.0";
+      devDependencies: ["vitest@^4.1.11"];
+      baseFiles: [
+        {
+          source: "blocks/response-formatter/core.ts";
+          target: "core.ts";
+        },
+        {
+          source: "blocks/response-formatter/contract.ts";
+          target: "contract.ts";
+        },
+        {
+          source: "blocks/response-formatter/core.test.ts";
+          target: "core.test.ts";
+        }
+      ];
+      adapters: {
+        express: {
+          dependencies: ["express@^5.2.1"];
+          devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/response-formatter/adapters/express.ts";
+                  target: "adapters/express.ts";
+                },
+                {
+                  source: "blocks/response-formatter/adapters/express.test.ts";
+                  target: "adapters/express.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        hono: {
+          dependencies: ["hono@^4.13.5"];
+          devDependencies: ["vitest@^4.1.11"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/response-formatter/adapters/hono.ts";
+                  target: "adapters/hono.ts";
+                },
+                {
+                  source: "blocks/response-formatter/adapters/hono.test.ts";
+                  target: "adapters/hono.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        fastify: {
+          dependencies: ["fastify@^5.12.1"];
+          devDependencies: ["vitest@^4.1.11"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/response-formatter/adapters/fastify.ts";
+                  target: "adapters/fastify.ts";
+                },
+                {
+                  source: "blocks/response-formatter/adapters/fastify.test.ts";
+                  target: "adapters/fastify.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+    "env-config": {
+      name: "Environment Configuration";
+      description: "Type-safe environment variable validation using Zod.";
+      version: "1.0.0";
+      frameworks: ["*"];
+      dependencies: ["zod@^4.4.3"];
+      devDependencies: ["vitest@^4.1.11"];
+      adapters: {
+        "*": {
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/env-config/index.ts";
+                  target: "index.ts";
+                },
+                {
+                  source: "blocks/env-config/index.test.ts";
+                  target: "index.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+    "health-check": {
+      name: "System Health Check Monitoring";
+      description: "Framework-agnostic health assessment suite.";
+      version: "1.0.0";
+      devDependencies: ["vitest@^4.1.11"];
+      baseFiles: [
+        {
+          source: "blocks/health-check/core/build-report.ts";
+          target: "core/build-report.ts";
+        },
+        {
+          source: "blocks/health-check/core/build-report.test.ts";
+          target: "core/build-report.test.ts";
+        },
+        {
+          source: "blocks/health-check/core/calculate-status.ts";
+          target: "core/calculate-status.ts";
+        },
+        {
+          source: "blocks/health-check/core/calculate-status.test.ts";
+          target: "core/calculate-status.test.ts";
+        },
+        {
+          source: "blocks/health-check/core/create-health.ts";
+          target: "core/create-health.ts";
+        },
+        {
+          source: "blocks/health-check/core/create-health.test.ts";
+          target: "core/create-health.test.ts";
+        },
+        {
+          source: "blocks/health-check/core/run-check.ts";
+          target: "core/run-check.ts";
+        },
+        {
+          source: "blocks/health-check/core/run-check.test.ts";
+          target: "core/run-check.test.ts";
+        },
+        {
+          source: "blocks/health-check/core/run-checks.ts";
+          target: "core/run-checks.ts";
+        },
+        {
+          source: "blocks/health-check/core/run-checks.test.ts";
+          target: "core/run-checks.test.ts";
+        },
+        {
+          source: "blocks/health-check/core/validate-config.ts";
+          target: "core/validate-config.ts";
+        },
+        {
+          source: "blocks/health-check/types/index.ts";
+          target: "types/index.ts";
+        }
+      ];
+      adapters: {
+        express: {
+          dependencies: ["express@^5.2.1"];
+          devDependencies: ["@types/express@^5.0.6"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/health-check/adapters/express.ts";
+                  target: "adapters/express.ts";
+                },
+                {
+                  source: "blocks/health-check/adapters/express.test.ts";
+                  target: "adapters/express.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        fastify: {
+          dependencies: ["fastify@^5.12.1"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/health-check/adapters/fastify.ts";
+                  target: "adapters/fastify.ts";
+                },
+                {
+                  source: "blocks/health-check/adapters/fastify.test.ts";
+                  target: "adapters/fastify.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        hono: {
+          dependencies: ["hono@^4.13.5"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/health-check/adapters/hono.ts";
+                  target: "adapters/hono.ts";
+                },
+                {
+                  source: "blocks/health-check/adapters/hono.test.ts";
+                  target: "adapters/hono.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+    "graceful-shutdown": {
+      name: "Graceful Shutdown";
+      description: "Dependency-free graceful shutdown with in-flight request draining and per-framework adapters";
+      version: "1.0.0";
+      devDependencies: ["vitest@^4.1.11", "@types/node@^26.2.0"];
+      baseFiles: [
+        {
+          source: "blocks/graceful-shutdown/index.ts";
+          target: "index.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/constants.ts";
+          target: "constants.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/types.ts";
+          target: "types.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/core/shutdown.ts";
+          target: "core/shutdown.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/core/connection-tracker.ts";
+          target: "core/connection-tracker.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/utils/index.ts";
+          target: "utils/index.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/utils/http.ts";
+          target: "utils/http.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/utils/state.ts";
+          target: "utils/state.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/utils/timeout.ts";
+          target: "utils/timeout.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/tests/unit/shutdown.test.ts";
+          target: "tests/unit/shutdown.test.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/tests/unit/connection-tracker.test.ts";
+          target: "tests/unit/connection-tracker.test.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/tests/unit/http-task.test.ts";
+          target: "tests/unit/http-task.test.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/tests/unit/state.test.ts";
+          target: "tests/unit/state.test.ts";
+        },
+        {
+          source: "blocks/graceful-shutdown/tests/unit/timeout.test.ts";
+          target: "tests/unit/timeout.test.ts";
+        }
+      ];
+      adapters: {
+        express: {
+          dependencies: ["express@^5.2.1"];
+          devDependencies: ["@types/express@^5.0.6"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/graceful-shutdown/adapters/express.ts";
+                  target: "adapters/express.ts";
+                },
+                {
+                  source: "blocks/graceful-shutdown/tests/integration/express.test.ts";
+                  target: "tests/integration/express.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        fastify: {
+          dependencies: ["fastify@^5.12.1"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/graceful-shutdown/adapters/fastify.ts";
+                  target: "adapters/fastify.ts";
+                },
+                {
+                  source: "blocks/graceful-shutdown/tests/integration/fastify.test.ts";
+                  target: "tests/integration/fastify.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        hono: {
+          dependencies: ["hono@^4.13.5", "@hono/node-server@^2.1.1"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/graceful-shutdown/adapters/hono.ts";
+                  target: "adapters/hono.ts";
+                },
+                {
+                  source: "blocks/graceful-shutdown/tests/integration/hono.test.ts";
+                  target: "tests/integration/hono.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+    idempotency: {
+      name: "Idempotency";
+      description: "Exactly-once request execution with pluggable stores and cache, plus an Express adapter";
+      version: "1.0.0";
+      devDependencies: ["vitest@^4.1.11", "@types/node@^26.2.0"];
+      baseFiles: [
+        {
+          source: "blocks/idempotency/index.ts";
+          target: "index.ts";
+        },
+        {
+          source: "blocks/idempotency/core/idempotency-handler.ts";
+          target: "core/idempotency-handler.ts";
+        },
+        {
+          source: "blocks/idempotency/core/idempotency-handler.test.ts";
+          target: "core/idempotency-handler.test.ts";
+        },
+        {
+          source: "blocks/idempotency/core/core.test.ts";
+          target: "core/core.test.ts";
+        },
+        {
+          source: "blocks/idempotency/errors/codes.ts";
+          target: "errors/codes.ts";
+        },
+        {
+          source: "blocks/idempotency/errors/idempotency-errors.ts";
+          target: "errors/idempotency-errors.ts";
+        },
+        {
+          source: "blocks/idempotency/interfaces/cache.ts";
+          target: "interfaces/cache.ts";
+        },
+        {
+          source: "blocks/idempotency/interfaces/logger.ts";
+          target: "interfaces/logger.ts";
+        },
+        {
+          source: "blocks/idempotency/interfaces/observability.ts";
+          target: "interfaces/observability.ts";
+        },
+        {
+          source: "blocks/idempotency/interfaces/store.ts";
+          target: "interfaces/store.ts";
+        },
+        {
+          source: "blocks/idempotency/types/index.ts";
+          target: "types/index.ts";
+        },
+        {
+          source: "blocks/idempotency/services/cache-manager.ts";
+          target: "services/cache-manager.ts";
+        },
+        {
+          source: "blocks/idempotency/services/cache-manager.test.ts";
+          target: "services/cache-manager.test.ts";
+        },
+        {
+          source: "blocks/idempotency/jobs/record-cleaner.ts";
+          target: "jobs/record-cleaner.ts";
+        },
+        {
+          source: "blocks/idempotency/jobs/record-cleaner.test.ts";
+          target: "jobs/record-cleaner.test.ts";
+        },
+        {
+          source: "blocks/idempotency/jobs/record-recovery.ts";
+          target: "jobs/record-recovery.ts";
+        },
+        {
+          source: "blocks/idempotency/jobs/record-recovery.test.ts";
+          target: "jobs/record-recovery.test.ts";
+        },
+        {
+          source: "blocks/idempotency/utils/constant-time-equals.ts";
+          target: "utils/constant-time-equals.ts";
+        },
+        {
+          source: "blocks/idempotency/utils/constant-time-equals.test.ts";
+          target: "utils/constant-time-equals.test.ts";
+        },
+        {
+          source: "blocks/idempotency/utils/create-logger.ts";
+          target: "utils/create-logger.ts";
+        },
+        {
+          source: "blocks/idempotency/utils/key-validator.ts";
+          target: "utils/key-validator.ts";
+        },
+        {
+          source: "blocks/idempotency/utils/key-validator.test.ts";
+          target: "utils/key-validator.test.ts";
+        },
+        {
+          source: "blocks/idempotency/utils/serializer.ts";
+          target: "utils/serializer.ts";
+        },
+        {
+          source: "blocks/idempotency/utils/serializer.test.ts";
+          target: "utils/serializer.test.ts";
+        },
+        {
+          source: "blocks/idempotency/adapters/shared.ts";
+          target: "adapters/shared.ts";
+        }
+      ];
+      adapters: {
+        express: {
+          dependencies: ["express@^5.2.1"];
+          devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/idempotency/adapters/express.ts";
+                  target: "adapters/express.ts";
+                },
+                {
+                  source: "blocks/idempotency/adapters/express.test.ts";
+                  target: "adapters/express.test.ts";
+                },
+                {
+                  source: "blocks/idempotency/adapters/express.integration.test.ts";
+                  target: "adapters/express.integration.test.ts";
+                },
+                {
+                  source: "blocks/idempotency/adapters/express.security.test.ts";
+                  target: "adapters/express.security.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        fastify: {
+          dependencies: ["fastify@^5.12.1"];
+          devDependencies: ["vitest@^4.1.11"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/idempotency/adapters/fastify.ts";
+                  target: "adapters/fastify.ts";
+                },
+                {
+                  source: "blocks/idempotency/adapters/fastify.test.ts";
+                  target: "adapters/fastify.test.ts";
+                },
+                {
+                  source: "blocks/idempotency/adapters/fastify.integration.test.ts";
+                  target: "adapters/fastify.integration.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        hono: {
+          dependencies: ["hono@^4.13.5"];
+          devDependencies: ["vitest@^4.1.11"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/idempotency/adapters/hono.ts";
+                  target: "adapters/hono.ts";
+                },
+                {
+                  source: "blocks/idempotency/adapters/hono.test.ts";
+                  target: "adapters/hono.test.ts";
+                },
+                {
+                  source: "blocks/idempotency/adapters/hono.integration.test.ts";
+                  target: "adapters/hono.integration.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+    "password-hash": {
+      name: "Password Hashing";
+      description: "Argon2id password hashing with HMAC-SHA256 peppering, automatic salting, and rehash detection.";
+      version: "1.0.0";
+      frameworks: ["*"];
+      dependencies: ["@node-rs/argon2@^2.1.0"];
+      devDependencies: ["vitest@^4.1.11", "@types/node@^26.2.0"];
+      adapters: {
+        "*": {
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/password-hash/types.ts";
+                  target: "types.ts";
+                },
+                {
+                  source: "blocks/password-hash/errors.ts";
+                  target: "errors.ts";
+                },
+                {
+                  source: "blocks/password-hash/errors.test.ts";
+                  target: "errors.test.ts";
+                },
+                {
+                  source: "blocks/password-hash/config.ts";
+                  target: "config.ts";
+                },
+                {
+                  source: "blocks/password-hash/config.test.ts";
+                  target: "config.test.ts";
+                },
+                {
+                  source: "blocks/password-hash/core.ts";
+                  target: "core.ts";
+                },
+                {
+                  source: "blocks/password-hash/core.test.ts";
+                  target: "core.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+  };
+};
+
+export declare const REGISTRY: RegistryData;

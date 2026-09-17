@@ -6,6 +6,6 @@ export default defineConfig({
     environment: "node",
     globals: true,
     // Scan your clean blocks registry for tests
-    include: ["blocks/**/*.test.ts"]
+    include: ["blocks/**/*.test.ts", "registry/**/*.test.ts"]
   }
 });
