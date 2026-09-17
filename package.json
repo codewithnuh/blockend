@@ -87,6 +87,9 @@
     ],
     "*.{js,cjs,mjs,ts,tsx,jsx}": [
       "oxlint --fix"
+    ],
+    "registry/index.json": [
+      "node scripts/validate-registry.mjs"
     ]
   }
 }

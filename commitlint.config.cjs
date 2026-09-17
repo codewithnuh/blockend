@@ -14,6 +14,7 @@ const types = [
 
 const scopes = [
   "apps",
+  "registry",
   "cli",
   "web",
   "packages",
