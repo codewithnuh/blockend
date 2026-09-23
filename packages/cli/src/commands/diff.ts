@@ -3,7 +3,14 @@ import path, { join, dirname } from "path";
 import fs from "fs/promises";
 import { intro, outro, spinner, log } from "@clack/prompts";
 import pc from "picocolors";
-import { RegistryManifest, BlockManifest, AssetMapping, EnvironmentConfig } from "./add.js";
+import {
+  RegistryManifest,
+  BlockManifest,
+  AssetMapping,
+  EnvironmentConfig,
+  selectVariant,
+  resolvePreferredVariant
+} from "./add.js";
 import { configPayloadType } from "./init.js";
 
 // ─── types ───────────────────────────────────────────────────────────────────
@@ -191,7 +198,7 @@ export async function diffCommand(
     return { block: blockName, files: [], error };
   }
 
-  // ── Resolve variant (use first available) ───────────────────────────────
+  // ── Resolve variant (prefer the variant recorded at install time) ────────
 
   const variantKeys = Object.keys(adapterContext.variants ?? {});
   if (variantKeys.length === 0) {
@@ -204,9 +211,15 @@ export async function diffCommand(
     return { block: blockName, files: [], error };
   }
 
-  const selectedVariant = variantKeys[0];
-  const variantMeta = adapterContext.variants[selectedVariant];
   const targetFolder = path.resolve(blocksRootAbsolute, blockName);
+  const installedRecord = config.installed?.find((b) => b.name === blockName);
+  const preferred = await resolvePreferredVariant(
+    variantKeys,
+    installedRecord?.variant,
+    targetFolder
+  );
+  const selectedVariant = selectVariant(variantKeys, preferred);
+  const variantMeta = adapterContext.variants[selectedVariant];
 
   // ── Build file list ─────────────────────────────────────────────────────
 

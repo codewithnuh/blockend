@@ -336,3 +336,174 @@ describe("updateCommand - Version Tracking", () => {
     expect(fs.writeFile).not.toHaveBeenCalled();
   });
 });
+
+describe("updateCommand - Installed Variant Tracking", () => {
+  const multiVariantRegistry = {
+    "rate-limiter": {
+      name: "Rate Limiter",
+      description: "IP-based rate limiting",
+      version: "1.1.0",
+      baseFiles: [{ source: "blocks/rate-limiter/core/core.ts", target: "core/core.ts" }],
+      adapters: {
+        express: {
+          variants: {
+            memory: {
+              files: [
+                {
+                  source: "blocks/rate-limiter/variants/memory-store.ts",
+                  target: "variants/memory-store.ts"
+                }
+              ]
+            },
+            redis: {
+              files: [
+                {
+                  source: "blocks/rate-limiter/variants/redis-store.ts",
+                  target: "variants/redis-store.ts"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  };
+
+  const redisConfig = JSON.stringify({
+    environment: "express",
+    language: "typescript",
+    aliases: { blocks: "@/blocks" },
+    paths: { blocks: "./src/blocks" },
+    installed: [
+      {
+        name: "rate-limiter",
+        version: "1.0.0",
+        installedAt: "2024-01-01",
+        files: ["variants/redis-store.ts"],
+        contentHash: "abc",
+        variant: "redis"
+      }
+    ]
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(process, "exit").mockImplementation((() => {}) as unknown as (
+      code?: string | number | null
+    ) => never);
+
+    vi.mocked(fs.access).mockImplementation(async (p) => {
+      if (String(p).endsWith("blockend.json")) return;
+      throw new Error("not found");
+    });
+    vi.mocked(fs.readFile).mockImplementation(async (p) => {
+      const pathStr = String(p);
+      if (pathStr.endsWith("blockend.json")) return redisConfig;
+      if (pathStr.endsWith("redis-store.ts") || pathStr.endsWith("core.ts")) {
+        return "old local content";
+      }
+      throw new Error(`not found: ${pathStr}`);
+    });
+  });
+
+  it("diffs redis files when the installed record has variant=redis", async () => {
+    const fetched: string[] = [];
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      fetched.push(String(url));
+      return {
+        ok: true,
+        json: async () => multiVariantRegistry,
+        text: async () => "new remote content"
+      } as Response;
+    });
+
+    const result = await updateCommand({ diff: true });
+
+    expect(result.diffs?.["rate-limiter"]).toBeDefined();
+    const redisFetches = fetched.filter((u) => u.includes("redis-store.ts"));
+    const memoryFetches = fetched.filter((u) => u.includes("memory-store.ts"));
+
+    expect(redisFetches.length).toBeGreaterThan(0);
+    expect(memoryFetches).toHaveLength(0);
+  });
+
+  it("persists variant=redis through --apply instead of resetting to memory", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => multiVariantRegistry,
+      text: async () => "new remote content"
+    } as unknown as Response);
+
+    vi.mocked(prompts.multiselect).mockResolvedValue(["rate-limiter"]);
+    vi.mocked(prompts.confirm).mockResolvedValue(true);
+
+    const result = await updateCommand({ apply: true, diff: false });
+
+    expect(result.applied).toContain("rate-limiter");
+
+    const writeFileCalls = vi.mocked(fs.writeFile).mock.calls;
+    const blockendWrite = writeFileCalls.find((c) => String(c[0]).endsWith("blockend.json"));
+    expect(blockendWrite).toBeDefined();
+
+    const writtenConfig = JSON.parse(String(blockendWrite![1]));
+    const updatedRecord = writtenConfig.installed.find(
+      (b: { name: string }) => b.name === "rate-limiter"
+    );
+
+    expect(updatedRecord.variant).toBe("redis");
+    expect(updatedRecord.files).toContain("variants/redis-store.ts");
+    expect(updatedRecord.files).not.toContain("variants/memory-store.ts");
+  });
+
+  it("infers redis from disk when the installed record has no variant field", async () => {
+    const untrackedRedisConfig = JSON.stringify({
+      environment: "express",
+      language: "typescript",
+      aliases: { blocks: "@/blocks" },
+      paths: { blocks: "./src/blocks" },
+      installed: [
+        {
+          name: "rate-limiter",
+          version: "1.0.0",
+          installedAt: "2024-01-01",
+          files: ["variants/redis-store.ts"],
+          contentHash: "abc"
+        }
+      ]
+    });
+
+    vi.mocked(fs.readFile).mockImplementation(async (p) => {
+      const pathStr = String(p);
+      if (pathStr.endsWith("blockend.json")) return untrackedRedisConfig;
+      if (pathStr.endsWith("redis-store.ts") || pathStr.endsWith("core.ts")) {
+        return "old local content";
+      }
+      throw new Error(`not found: ${pathStr}`);
+    });
+
+    vi.mocked(fs.access).mockImplementation(async (p) => {
+      const pathStr = String(p);
+      if (pathStr.endsWith("blockend.json")) return;
+      if (pathStr.endsWith("redis-store.ts")) return;
+      throw new Error("not found");
+    });
+
+    const fetched: string[] = [];
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      fetched.push(String(url));
+      return {
+        ok: true,
+        json: async () => multiVariantRegistry,
+        text: async () => "new remote content"
+      } as Response;
+    });
+
+    const result = await updateCommand({ diff: true });
+
+    expect(result.diffs?.["rate-limiter"]).toBeDefined();
+    expect(fetched.some((u) => u.includes("redis-store.ts"))).toBe(true);
+    expect(fetched.some((u) => u.includes("memory-store.ts"))).toBe(false);
+  });
+});

@@ -179,4 +179,77 @@ describe("diffCommand - Preview Generated Files", () => {
 
     expect(result.files).toHaveLength(0);
   });
+
+  it("uses the installed record variant instead of variantKeys[0]", async () => {
+    const multiVariantConfig = JSON.stringify({
+      environment: "express",
+      language: "typescript",
+      aliases: { blocks: "@/blocks" },
+      paths: { blocks: "./src/blocks" },
+      installed: [
+        {
+          name: "rate-limiter",
+          version: "1.0.0",
+          installedAt: "2024-01-01",
+          files: ["variants/redis-store.ts"],
+          contentHash: "abc",
+          variant: "redis"
+        }
+      ]
+    });
+
+    const multiVariantRegistry = {
+      "rate-limiter": {
+        name: "Rate Limiter",
+        description: "IP-based rate limiting",
+        baseFiles: [{ source: "blocks/rate-limiter/core/core.ts", target: "core/core.ts" }],
+        adapters: {
+          express: {
+            variants: {
+              memory: {
+                files: [
+                  {
+                    source: "blocks/rate-limiter/variants/memory-store.ts",
+                    target: "variants/memory-store.ts"
+                  }
+                ]
+              },
+              redis: {
+                files: [
+                  {
+                    source: "blocks/rate-limiter/variants/redis-store.ts",
+                    target: "variants/redis-store.ts"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    };
+
+    vi.mocked(fs.readFile).mockImplementation(async (p) => {
+      const pathStr = String(p);
+      if (pathStr.endsWith("blockend.json")) return multiVariantConfig;
+      throw new Error(`not found: ${pathStr}`);
+    });
+
+    const fetched: string[] = [];
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      fetched.push(String(url));
+      return {
+        ok: true,
+        json: async () => multiVariantRegistry,
+        text: async () => "remote content"
+      } as Response;
+    });
+
+    const result = await diffCommand("rate-limiter");
+
+    expect(result.error).toBeUndefined();
+    expect(result.files.map((f) => f.name)).toContain("variants/redis-store.ts");
+    expect(result.files.map((f) => f.name)).not.toContain("variants/memory-store.ts");
+    expect(fetched.some((u) => u.includes("redis-store.ts"))).toBe(true);
+    expect(fetched.some((u) => u.includes("memory-store.ts"))).toBe(false);
+  });
 });
