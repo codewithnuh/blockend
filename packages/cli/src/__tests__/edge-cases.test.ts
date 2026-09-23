@@ -1,11 +1,94 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   rewriteFileImports,
   parseDepSpec,
   semverSatisfies,
   getVersionConflicts,
-  getMissingDependencies
+  getMissingDependencies,
+  selectVariant,
+  resolvePreferredVariant
 } from "../commands/add.js";
+import fs from "fs/promises";
+
+vi.mock("fs/promises", () => {
+  const access = vi.fn();
+  const readFile = vi.fn();
+  const writeFile = vi.fn();
+  const mkdir = vi.fn();
+  return {
+    default: { access, readFile, writeFile, mkdir },
+    access,
+    readFile,
+    writeFile,
+    mkdir
+  };
+});
+
+// ── Variant selection for update/diff ────────────────────────────────────────
+
+describe("selectVariant - non-interactive variant selection", () => {
+  const keys = ["memory", "default", "redis"];
+
+  it("prefers the recorded install variant over variantKeys[0]", () => {
+    expect(selectVariant(keys, "redis")).toBe("redis");
+    expect(selectVariant(keys, "default")).toBe("default");
+    expect(selectVariant(keys, "memory")).toBe("memory");
+  });
+
+  it("ignores a recorded variant that no longer exists in the registry", () => {
+    expect(selectVariant(["memory", "redis"], "legacy-key")).toBe("memory");
+  });
+
+  it("falls back to memory, then default, then the first key", () => {
+    expect(selectVariant(keys)).toBe("memory");
+    expect(selectVariant(["default", "redis"])).toBe("default");
+    expect(selectVariant(["redis"])).toBe("redis");
+  });
+});
+
+describe("resolvePreferredVariant - recorded + on-disk inference", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses the recorded variant when it still exists", async () => {
+    const preferred = await resolvePreferredVariant(
+      ["memory", "redis"],
+      "redis",
+      "/project/src/blocks/rate-limiter"
+    );
+
+    expect(preferred).toBe("redis");
+    expect(fs.access).not.toHaveBeenCalled();
+  });
+
+  it("infers redis from on-disk markers when no variant is recorded", async () => {
+    vi.mocked(fs.access).mockImplementation(async (p) => {
+      if (String(p).endsWith("redis-store.ts")) return;
+      throw new Error("not found");
+    });
+
+    const preferred = await resolvePreferredVariant(
+      ["memory", "redis"],
+      undefined,
+      "/project/src/blocks/rate-limiter"
+    );
+
+    expect(preferred).toBe("redis");
+  });
+
+  it("returns undefined when nothing is recorded and redis files are absent", async () => {
+    vi.mocked(fs.access).mockRejectedValue(new Error("not found"));
+
+    const preferred = await resolvePreferredVariant(
+      ["memory", "redis"],
+      undefined,
+      "/project/src/blocks/rate-limiter"
+    );
+
+    expect(preferred).toBeUndefined();
+  });
+});
 
 // ── Import rewriting: external package preservation ───────────────────────────
 

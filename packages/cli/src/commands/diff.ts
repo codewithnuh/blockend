@@ -8,7 +8,8 @@ import {
   BlockManifest,
   AssetMapping,
   EnvironmentConfig,
-  selectVariant
+  selectVariant,
+  resolvePreferredVariant
 } from "./add.js";
 import { configPayloadType } from "./init.js";
 
@@ -210,10 +211,15 @@ export async function diffCommand(
     return { block: blockName, files: [], error };
   }
 
-  const installedRecord = config.installed?.find((b) => b.name === blockName);
-  const selectedVariant = selectVariant(variantKeys, installedRecord?.variant);
-  const variantMeta = adapterContext.variants[selectedVariant];
   const targetFolder = path.resolve(blocksRootAbsolute, blockName);
+  const installedRecord = config.installed?.find((b) => b.name === blockName);
+  const preferred = await resolvePreferredVariant(
+    variantKeys,
+    installedRecord?.variant,
+    targetFolder
+  );
+  const selectedVariant = selectVariant(variantKeys, preferred);
+  const variantMeta = adapterContext.variants[selectedVariant];
 
   // ── Build file list ─────────────────────────────────────────────────────
 

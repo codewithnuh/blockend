@@ -9,7 +9,8 @@ import {
   AssetMapping,
   EnvironmentConfig,
   rewriteFileImports,
-  selectVariant
+  selectVariant,
+  resolvePreferredVariant
 } from "./add.js";
 import { configPayloadType, InstalledBlockRecord } from "./init.js";
 
@@ -255,18 +256,24 @@ function outputUpdateResult(json: boolean, result: UpdateResult): void {
 
 // ─── block file resolution (shared logic) ────────────────────────────────────
 
-function resolveBlockFiles(
+async function resolveBlockFiles(
   blockMeta: BlockManifest,
   envKey: string,
-  preferredVariant?: string
-): { files: AssetMapping[]; variant: string } | null {
+  preferredVariant?: string,
+  targetFolder?: string
+): Promise<{ files: AssetMapping[]; variant: string } | null> {
   const adapterContext = resolveAdapterContext(blockMeta, envKey);
   if (!adapterContext) return null;
 
   const variantKeys = Object.keys(adapterContext.variants ?? {});
   if (variantKeys.length === 0) return null;
 
-  const selectedVariant = selectVariant(variantKeys, preferredVariant);
+  let preferred = preferredVariant;
+  if (targetFolder && (!preferred || !variantKeys.includes(preferred))) {
+    preferred = (await resolvePreferredVariant(variantKeys, preferred, targetFolder)) ?? preferred;
+  }
+
+  const selectedVariant = selectVariant(variantKeys, preferred);
   const variantMeta = adapterContext.variants[selectedVariant];
 
   const expectedFiles: AssetMapping[] = [];
@@ -387,10 +394,10 @@ export async function updateCommand(
 
     // Build diff for blocks with updates
     if (hasUpdate && diff) {
-      const resolved = resolveBlockFiles(blockMeta, envKey, record.variant);
+      const targetFolder = path.resolve(blocksRootAbsolute, record.name);
+      const resolved = await resolveBlockFiles(blockMeta, envKey, record.variant, targetFolder);
       if (!resolved) continue;
 
-      const targetFolder = path.resolve(blocksRootAbsolute, record.name);
       const fileDiffs: FileDiff[] = [];
 
       for (const fm of resolved.files) {
@@ -494,10 +501,10 @@ export async function updateCommand(
       if (!blockMeta) continue;
 
       const record = installedRecords.find((r) => r.name === blockName);
-      const resolved = resolveBlockFiles(blockMeta, envKey, record?.variant);
+      const targetFolder = path.resolve(blocksRootAbsolute, blockName);
+      const resolved = await resolveBlockFiles(blockMeta, envKey, record?.variant, targetFolder);
       if (!resolved) continue;
 
-      const targetFolder = path.resolve(blocksRootAbsolute, blockName);
       const downloadedTargets = new Set<string>();
 
       try {

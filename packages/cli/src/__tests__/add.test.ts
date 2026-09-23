@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { addCommand } from "../commands/add.js";
+import { addCommand, selectVariant } from "../commands/add.js";
 import { join } from "path";
 import fs from "fs/promises";
 import * as prompts from "@clack/prompts";
@@ -210,5 +210,29 @@ describe("addCommand - Execution Matrix", () => {
 
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(prompts.outro).toHaveBeenCalledWith(expect.stringContaining("preserved"));
+  });
+
+  it("selectVariant prefers the recorded install variant over the first registry key", () => {
+    const keys = ["memory", "default", "redis"];
+
+    expect(selectVariant(keys, "redis")).toBe("redis");
+    expect(selectVariant(keys)).toBe("memory");
+    expect(selectVariant(keys, "removed-variant")).toBe("memory");
+  });
+
+  it("records the selected variant in blockend.json", async () => {
+    await addCommand("pino-logger");
+
+    const blockendWrite = vi
+      .mocked(fs.writeFile)
+      .mock.calls.find((c) => String(c[0]).endsWith("blockend.json"));
+
+    expect(blockendWrite).toBeDefined();
+
+    const written = JSON.parse(String(blockendWrite![1]));
+    const record = written.installed.find((b: { name: string }) => b.name === "pino-logger");
+
+    expect(record).toBeDefined();
+    expect(record.variant).toBe("default");
   });
 });
