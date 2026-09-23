@@ -1,5 +1,5 @@
 import type { Redis } from "ioredis";
-import type { RateLimitStore, RateLimitRecord } from "../core/core.js";
+import type { RateLimitStore, RateLimitRecord } from "../core/core";
 
 type RateLimitIncrementResult = [hits: number, pttl: number];
 

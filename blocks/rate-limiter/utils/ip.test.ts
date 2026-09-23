@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getClientIp } from "./ip.js";
+import { getClientIp } from "./ip";
 
 describe("getClientIp", () => {
   it("prefers the first x-forwarded-for address and trims proxy whitespace", () => {
