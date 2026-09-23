@@ -77,7 +77,8 @@ describeRedis("RedisStore integration", () => {
 
     const first = await store.increment("ttl-key", windowMs);
     expect(first.hits).toBe(1);
-
+    // Allow a short delay for time to elapse on the TTL
+    await new Promise((resolve) => setTimeout(resolve, 50));
     const second = await store.increment("ttl-key", windowMs);
     expect(second.hits).toBe(2);
 
