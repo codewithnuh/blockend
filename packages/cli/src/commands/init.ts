@@ -315,6 +315,8 @@ export interface InstalledBlockRecord {
   installedAt: string;
   files: string[];
   contentHash: string;
+  /** Storage variant selected at install time (e.g. "memory", "redis", "default"). */
+  variant?: string;
 }
 
 export type configPayloadType = {

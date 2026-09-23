@@ -64,7 +64,7 @@ export type RegistryData = {
             };
             redis: {
               dependencies: ["ioredis@^5.11.1"];
-              devDependencies: ["vitest@^4.1.11"];
+              devDependencies: ["vitest@^4.1.11", "dotenv@^18.0.2"];
               files: [
                 {
                   source: "blocks/rate-limiter/adapters/express.ts";
@@ -118,9 +118,30 @@ export type RegistryData = {
                 }
               ];
             };
+            default: {
+              devDependencies: ["vitest@^4.1.11"];
+              files: [
+                {
+                  source: "blocks/rate-limiter/adapters/fastify.ts";
+                  target: "adapters/fastify.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/adapters/fastify.test.ts";
+                  target: "adapters/fastify.test.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/variants/memory-store.ts";
+                  target: "variants/memory-store.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/variants/store.test.ts";
+                  target: "variants/memory-store.test.ts";
+                }
+              ];
+            };
             redis: {
               dependencies: ["ioredis@^5.11.1"];
-              devDependencies: ["vitest@^4.1.11"];
+              devDependencies: ["vitest@^4.1.11", "dotenv@^18.0.2"];
               files: [
                 {
                   source: "blocks/rate-limiter/adapters/fastify.ts";
@@ -174,9 +195,30 @@ export type RegistryData = {
                 }
               ];
             };
+            default: {
+              devDependencies: ["vitest@^4.1.11"];
+              files: [
+                {
+                  source: "blocks/rate-limiter/adapters/hono.ts";
+                  target: "adapters/hono.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/adapters/hono.test.ts";
+                  target: "adapters/hono.test.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/variants/memory-store.ts";
+                  target: "variants/memory-store.ts";
+                },
+                {
+                  source: "blocks/rate-limiter/variants/store.test.ts";
+                  target: "variants/memory-store.test.ts";
+                }
+              ];
+            };
             redis: {
               dependencies: ["ioredis@^5.11.1"];
-              devDependencies: ["vitest@^4.1.11"];
+              devDependencies: ["vitest@^4.1.11", "dotenv@^18.0.2"];
               files: [
                 {
                   source: "blocks/rate-limiter/adapters/hono.ts";

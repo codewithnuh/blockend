@@ -30,9 +30,11 @@ describeRedis("RedisStore integration", () => {
 
   afterAll(async () => {
     const keys = await client.keys("integ-test:*");
+    const prefixed = await client.keys("myprefix:*");
+    const allKeys = [...keys, ...prefixed];
 
-    if (keys.length > 0) {
-      await client.del(...keys);
+    if (allKeys.length > 0) {
+      await client.del(...allKeys);
     }
 
     await client.quit();
@@ -40,9 +42,11 @@ describeRedis("RedisStore integration", () => {
 
   afterEach(async () => {
     const keys = await client.keys("integ-test:*");
+    const prefixed = await client.keys("myprefix:*");
+    const allKeys = [...keys, ...prefixed];
 
-    if (keys.length > 0) {
-      await client.del(...keys);
+    if (allKeys.length > 0) {
+      await client.del(...allKeys);
     }
   });
 
@@ -173,20 +177,24 @@ describeRedis("RedisStore integration", () => {
   it("applies the configured key prefix to Redis keys", async () => {
     const prefixedStore = new RedisStore(client, "myprefix:");
 
-    await prefixedStore.increment("prefixed", 60_000);
+    try {
+      await prefixedStore.increment("prefixed", 60_000);
 
-    const rawValue = await client.get("myprefix:prefixed");
+      const rawValue = await client.get("myprefix:prefixed");
 
-    expect(rawValue).not.toBeNull();
+      expect(rawValue).not.toBeNull();
 
-    if (rawValue === null) {
-      throw new Error("Expected prefixed Redis key to exist");
+      if (rawValue === null) {
+        throw new Error("Expected prefixed Redis key to exist");
+      }
+
+      expect(Number(rawValue)).toBe(1);
+
+      const unprefixed = await client.get("prefixed");
+
+      expect(unprefixed).toBeNull();
+    } finally {
+      await client.del("myprefix:prefixed");
     }
-
-    expect(Number(rawValue)).toBe(1);
-
-    const unprefixed = await client.get("prefixed");
-
-    expect(unprefixed).toBeNull();
   });
 });

@@ -8,7 +8,8 @@ import {
   BlockManifest,
   AssetMapping,
   EnvironmentConfig,
-  rewriteFileImports
+  rewriteFileImports,
+  selectVariant
 } from "./add.js";
 import { configPayloadType, InstalledBlockRecord } from "./init.js";
 
@@ -256,7 +257,8 @@ function outputUpdateResult(json: boolean, result: UpdateResult): void {
 
 function resolveBlockFiles(
   blockMeta: BlockManifest,
-  envKey: string
+  envKey: string,
+  preferredVariant?: string
 ): { files: AssetMapping[]; variant: string } | null {
   const adapterContext = resolveAdapterContext(blockMeta, envKey);
   if (!adapterContext) return null;
@@ -264,7 +266,7 @@ function resolveBlockFiles(
   const variantKeys = Object.keys(adapterContext.variants ?? {});
   if (variantKeys.length === 0) return null;
 
-  const selectedVariant = variantKeys[0];
+  const selectedVariant = selectVariant(variantKeys, preferredVariant);
   const variantMeta = adapterContext.variants[selectedVariant];
 
   const expectedFiles: AssetMapping[] = [];
@@ -385,7 +387,7 @@ export async function updateCommand(
 
     // Build diff for blocks with updates
     if (hasUpdate && diff) {
-      const resolved = resolveBlockFiles(blockMeta, envKey);
+      const resolved = resolveBlockFiles(blockMeta, envKey, record.variant);
       if (!resolved) continue;
 
       const targetFolder = path.resolve(blocksRootAbsolute, record.name);
@@ -491,7 +493,8 @@ export async function updateCommand(
       const blockMeta = blockMap[blockName];
       if (!blockMeta) continue;
 
-      const resolved = resolveBlockFiles(blockMeta, envKey);
+      const record = installedRecords.find((r) => r.name === blockName);
+      const resolved = resolveBlockFiles(blockMeta, envKey, record?.variant);
       if (!resolved) continue;
 
       const targetFolder = path.resolve(blocksRootAbsolute, blockName);
@@ -535,7 +538,8 @@ export async function updateCommand(
           version: blockVersion,
           installedAt: new Date().toISOString(),
           files: resolved.files.map((f) => f.target),
-          contentHash: contentHash.toString(16)
+          contentHash: contentHash.toString(16),
+          variant: resolved.variant
         };
 
         try {

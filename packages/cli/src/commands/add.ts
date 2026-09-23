@@ -83,6 +83,19 @@ function blockSupportsEnv(block: BlockManifest, envKey: string): boolean {
   return block.adapters?.[envKey] !== undefined || block.environments?.[envKey] !== undefined;
 }
 /**
+ * Pick a registry variant for non-interactive paths (update/diff).
+ * Prefers the variant recorded at install time; falls back to a safe default.
+ */
+export function selectVariant(variantKeys: string[], preferredVariant?: string): string {
+  if (preferredVariant && variantKeys.includes(preferredVariant)) {
+    return preferredVariant;
+  }
+  if (variantKeys.includes("memory")) return "memory";
+  if (variantKeys.includes("default")) return "default";
+  return variantKeys[0];
+}
+
+/**
  * Parse a dependency specifier like "vitest@^4.0.0" into { name, versionRange }.
  * If no version specified, versionRange is null.
  */
@@ -618,7 +631,8 @@ async function addSingleBlock(
       version: blockVersion,
       installedAt: new Date().toISOString(),
       files: filesWritten.map((f) => path.relative(targetFolder, f).replace(/\\/g, "/")),
-      contentHash: contentHash.toString(16)
+      contentHash: contentHash.toString(16),
+      variant: selectedVariant
     };
 
     try {
