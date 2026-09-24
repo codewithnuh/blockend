@@ -15,12 +15,17 @@ export type BlockKey =
 
 export type RegistryData = {
   $schema: "./registry-schema.json";
-  version: "1.1.0";
+  version: "1.2.0";
   blocks: {
     "rate-limiter": {
       name: "Rate Limiter";
       description: "IP-based rate limiting middleware with pluggable storage strategies";
       version: "1.0.1";
+      releasedAt: "2026-06-27";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["idempotency", "logger", "error-handler"];
       devDependencies: ["vitest@^4.1.11"];
       baseFiles: [
         {
@@ -282,6 +287,11 @@ export type RegistryData = {
       name: "Error Boundary";
       description: "Framework-agnostic error normalization, safe serialization, and optional reporting with HTTP adapters.";
       version: "2.0.0";
+      releasedAt: "2026-06-29";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["logger", "request-validator", "response-formatter"];
       devDependencies: ["vitest@^4.1.11"];
       baseFiles: [
         {
@@ -436,6 +446,11 @@ export type RegistryData = {
       name: "Structured Context Logger";
       description: "Framework-agnostic context logging engine.";
       version: "1.0.0";
+      releasedAt: "2026-07-01";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["error-handler", "health-check", "graceful-shutdown", "idempotency"];
       dependencies: ["pino@^10.3.1"];
       devDependencies: ["vitest@^4.1.11"];
       baseFiles: [
@@ -507,6 +522,11 @@ export type RegistryData = {
       name: "Request Validator";
       description: "Framework-agnostic request validation powered by Zod.";
       version: "1.0.0";
+      releasedAt: "2026-07-03";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["error-handler", "response-formatter"];
       dependencies: ["zod@^4.4.3"];
       devDependencies: ["vitest@^4.1.11"];
       baseFiles: [
@@ -584,6 +604,11 @@ export type RegistryData = {
       name: "Response Formatter";
       description: "Framework-agnostic API response formatting.";
       version: "1.0.0";
+      releasedAt: "2026-07-07";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["error-handler", "request-validator"];
       devDependencies: ["vitest@^4.1.11"];
       baseFiles: [
         {
@@ -660,6 +685,11 @@ export type RegistryData = {
       name: "Environment Configuration";
       description: "Type-safe environment variable validation using Zod.";
       version: "1.0.0";
+      releasedAt: "2026-07-14";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["logger", "password-hash"];
       frameworks: ["*"];
       dependencies: ["zod@^4.4.3"];
       devDependencies: ["vitest@^4.1.11"];
@@ -686,6 +716,11 @@ export type RegistryData = {
       name: "System Health Check Monitoring";
       description: "Framework-agnostic health assessment suite.";
       version: "1.0.0";
+      releasedAt: "2026-07-20";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["graceful-shutdown", "logger"];
       devDependencies: ["vitest@^4.1.11"];
       baseFiles: [
         {
@@ -796,6 +831,11 @@ export type RegistryData = {
       name: "Graceful Shutdown";
       description: "Dependency-free graceful shutdown with in-flight request draining and per-framework adapters";
       version: "1.0.0";
+      releasedAt: "2026-08-07";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["health-check", "logger"];
       devDependencies: ["vitest@^4.1.11", "@types/node@^26.2.0"];
       baseFiles: [
         {
@@ -914,6 +954,11 @@ export type RegistryData = {
       name: "Idempotency";
       description: "Exactly-once request execution with pluggable stores and cache, plus an Express adapter";
       version: "1.0.0";
+      releasedAt: "2026-08-16";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["rate-limiter", "error-handler", "logger"];
       devDependencies: ["vitest@^4.1.11", "@types/node@^26.2.0"];
       baseFiles: [
         {
@@ -1094,6 +1139,11 @@ export type RegistryData = {
       name: "Password Hashing";
       description: "Argon2id password hashing with HMAC-SHA256 peppering, automatic salting, and rehash detection.";
       version: "1.0.0";
+      releasedAt: "2026-08-27";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["env-config", "request-validator"];
       frameworks: ["*"];
       dependencies: ["@node-rs/argon2@^2.1.0"];
       devDependencies: ["vitest@^4.1.11", "@types/node@^26.2.0"];

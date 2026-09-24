@@ -34,6 +34,49 @@
             },
             "uniqueItems": true
           },
+          "releasedAt": {
+            "type": "string",
+            "description": "ISO calendar date (YYYY-MM-DD) when this block was first released.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "runtimes": {
+            "type": "object",
+            "description": "Supported runtime engine ranges (semver range strings), e.g. {\"node\": \">=20\"}.",
+            "propertyNames": {
+              "enum": ["node"]
+            },
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "requires": {
+            "type": "array",
+            "description": "Registry slugs that must be installed alongside this block.",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+            },
+            "uniqueItems": true
+          },
+          "related": {
+            "type": "array",
+            "description": "Registry slugs that pair well with this block (soft catalog links).",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+            },
+            "uniqueItems": true
+          },
+          "conflicts": {
+            "type": "array",
+            "description": "Registry slugs that must not be installed together with this block.",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+            },
+            "uniqueItems": true
+          },
           "dependencies": {
             "type": "array",
             "description": "Production dependencies. Each entry can be a bare name (\"vitest\") or include a version range (\"vitest@^4.0.0\").",

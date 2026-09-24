@@ -1,11 +1,14 @@
 {
   "$schema": "./registry-schema.json",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "blocks": {
     "rate-limiter": {
       "name": "Rate Limiter",
       "description": "IP-based rate limiting middleware with pluggable storage strategies",
       "version": "1.0.1",
+      "releasedAt": "2026-06-27",
+      "runtimes": { "node": ">=20" },
+      "related": ["idempotency", "logger", "error-handler"],
       "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
         { "source": "blocks/rate-limiter/core/core.ts", "target": "core/core.ts" },
@@ -253,6 +256,9 @@
       "name": "Error Boundary",
       "description": "Framework-agnostic error normalization, safe serialization, and optional reporting with HTTP adapters.",
       "version": "2.0.0",
+      "releasedAt": "2026-06-29",
+      "runtimes": { "node": ">=20" },
+      "related": ["logger", "request-validator", "response-formatter"],
       "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
         { "source": "blocks/error-handler/index.ts", "target": "index.ts" },
@@ -402,6 +408,9 @@
       "name": "Structured Context Logger",
       "description": "Framework-agnostic context logging engine.",
       "version": "1.0.0",
+      "releasedAt": "2026-07-01",
+      "runtimes": { "node": ">=20" },
+      "related": ["error-handler", "health-check", "graceful-shutdown", "idempotency"],
       "dependencies": ["pino@^10.3.1"],
       "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
@@ -462,6 +471,9 @@
       "name": "Request Validator",
       "description": "Framework-agnostic request validation powered by Zod.",
       "version": "1.0.0",
+      "releasedAt": "2026-07-03",
+      "runtimes": { "node": ">=20" },
+      "related": ["error-handler", "response-formatter"],
       "dependencies": ["zod@^4.4.3"],
       "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
@@ -534,6 +546,9 @@
       "name": "Response Formatter",
       "description": "Framework-agnostic API response formatting.",
       "version": "1.0.0",
+      "releasedAt": "2026-07-07",
+      "runtimes": { "node": ">=20" },
+      "related": ["error-handler", "request-validator"],
       "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
         { "source": "blocks/response-formatter/core.ts", "target": "core.ts" },
@@ -605,6 +620,9 @@
       "name": "Environment Configuration",
       "description": "Type-safe environment variable validation using Zod.",
       "version": "1.0.0",
+      "releasedAt": "2026-07-14",
+      "runtimes": { "node": ">=20" },
+      "related": ["logger", "password-hash"],
       "frameworks": ["*"],
       "dependencies": ["zod@^4.4.3"],
       "devDependencies": ["vitest@^4.1.11"],
@@ -625,6 +643,9 @@
       "name": "System Health Check Monitoring",
       "description": "Framework-agnostic health assessment suite.",
       "version": "1.0.0",
+      "releasedAt": "2026-07-20",
+      "runtimes": { "node": ">=20" },
+      "related": ["graceful-shutdown", "logger"],
       "devDependencies": ["vitest@^4.1.11"],
       "baseFiles": [
         { "source": "blocks/health-check/core/build-report.ts", "target": "core/build-report.ts" },
@@ -720,6 +741,9 @@
       "name": "Graceful Shutdown",
       "description": "Dependency-free graceful shutdown with in-flight request draining and per-framework adapters",
       "version": "1.0.0",
+      "releasedAt": "2026-08-07",
+      "runtimes": { "node": ">=20" },
+      "related": ["health-check", "logger"],
       "devDependencies": ["vitest@^4.1.11", "@types/node@^26.2.0"],
       "baseFiles": [
         { "source": "blocks/graceful-shutdown/index.ts", "target": "index.ts" },
@@ -814,6 +838,9 @@
       "name": "Idempotency",
       "description": "Exactly-once request execution with pluggable stores and cache, plus an Express adapter",
       "version": "1.0.0",
+      "releasedAt": "2026-08-16",
+      "runtimes": { "node": ">=20" },
+      "related": ["rate-limiter", "error-handler", "logger"],
       "devDependencies": ["vitest@^4.1.11", "@types/node@^26.2.0"],
       "baseFiles": [
         { "source": "blocks/idempotency/index.ts", "target": "index.ts" },
@@ -968,6 +995,9 @@
       "name": "Password Hashing",
       "description": "Argon2id password hashing with HMAC-SHA256 peppering, automatic salting, and rehash detection.",
       "version": "1.0.0",
+      "releasedAt": "2026-08-27",
+      "runtimes": { "node": ">=20" },
+      "related": ["env-config", "request-validator"],
       "frameworks": ["*"],
       "dependencies": ["@node-rs/argon2@^2.1.0"],
       "devDependencies": ["vitest@^4.1.11", "@types/node@^26.2.0"],

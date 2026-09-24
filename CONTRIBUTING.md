@@ -129,6 +129,44 @@ Do not modify the registry structure without updating the schema accordingly.
 
 ---
 
+## Release & Compatibility Metadata
+
+Each block may declare optional release and relationship fields. They power the catalog, stack builder, and CLI compatibility checks — and invalid references fail `pnpm validate:registry` (and CI).
+
+| Field        | Type                            | Example              | Meaning                                        |
+| ------------ | ------------------------------- | -------------------- | ---------------------------------------------- |
+| `releasedAt` | ISO date `YYYY-MM-DD`           | `"2026-06-27"`       | First public release date of the block         |
+| `runtimes`   | object of engine → semver range | `{ "node": ">=20" }` | Supported runtimes (currently `node`)          |
+| `requires`   | array of registry slugs         | `["error-handler"]`  | Blocks that **must** be installed together     |
+| `related`    | array of registry slugs         | `["logger"]`         | Soft “works with” links for the catalog        |
+| `conflicts`  | array of registry slugs         | `["other-block"]`    | Blocks that must **not** be installed together |
+
+Example:
+
+```json
+{
+  "name": "Rate Limiter",
+  "description": "IP-based rate limiting middleware",
+  "version": "1.0.1",
+  "releasedAt": "2026-06-27",
+  "runtimes": { "node": ">=20" },
+  "related": ["idempotency", "logger"],
+  "requires": [],
+  "conflicts": [],
+  "baseFiles": []
+}
+```
+
+Rules enforced by validation:
+
+- Every slug in `requires`, `related`, and `conflicts` **must exist** as a key under `blocks`.
+- A block cannot list itself.
+- `requires` must not form a cycle (A → B → A fails).
+- `releasedAt` must be a real calendar date.
+- `runtimes` only accepts the `node` engine key.
+
+---
+
 ## Registry Architecture
 
 Blockend currently supports **two registry layouts** for compatibility, but **all new contributions must use the modern adapter-based architecture.**

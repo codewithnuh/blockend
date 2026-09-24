@@ -30,13 +30,6 @@ export interface FeatureItem {
   description: string;
 }
 
-export interface CatalogBlock {
-  name: string;
-  tag: string;
-  description: string;
-  command: string;
-}
-
 export interface Framework {
   name: string;
   icon: string;
@@ -212,58 +205,7 @@ export const FEATURES = {
 
 export const BLOCKS_CATALOG = {
   badge: "Catalog",
-  headline: "Production blocks ready for generation.",
-  blocks: [
-    {
-      name: "rate-limiter",
-      tag: "HTTP",
-      description: "Token bucket rate limiting with in-memory or storage adapter options.",
-      command: "blockend-cli add rate-limiter"
-    },
-    {
-      name: "error-handler",
-      tag: "Errors",
-      description: "Centralized error normalization pipeline with custom exception classes.",
-      command: "blockend-cli add error-handler"
-    },
-    {
-      name: "logger",
-      tag: "Observability",
-      description: "Structured JSON request logging with correlation ID propagation.",
-      command: "blockend-cli add logger"
-    },
-    {
-      name: "request-validator",
-      tag: "Validation",
-      description: "Zod-based body and query validation middleware adapter.",
-      command: "blockend-cli add request-validator"
-    },
-    {
-      name: "response-formatter",
-      tag: "Response",
-      description: "Standardized API success and error envelope payloads.",
-      command: "blockend-cli add response-formatter"
-    },
-    {
-      name: "health-check",
-      tag: "Ops",
-      description: "Liveness and readiness health probe handlers.",
-      command: "blockend-cli add health-check"
-    },
-    {
-      name: "env-config",
-      tag: "Config",
-      description: "Type-safe environment variable parser and validator with Zod schemas.",
-      command: "blockend-cli add env-config"
-    },
-    {
-      name: "System Health Check Monitoring",
-      tag: "DevOps",
-      description:
-        "Framework-agnostic health assessment suite for monitoring application and dependency health.",
-      command: "blockend-cli add health-check"
-    }
-  ] as CatalogBlock[]
+  headline: "Production blocks ready for generation."
 } as const;
 
 export const FRAMEWORKS = {

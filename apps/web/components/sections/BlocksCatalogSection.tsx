@@ -1,15 +1,19 @@
-"use client";
-
-import { useState } from "react";
 import { BLOCKS_CATALOG } from "@/lib/landing-constants";
+import { loadCatalog, type CatalogBlock } from "@/lib/registry";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import posthog from "posthog-js";
+import { CatalogCopyButton } from "@/components/sections/CatalogCopyButton";
 
-export function BlocksCatalogSection() {
+const LANDING_BLOCK_LIMIT = 8;
+
+export async function BlocksCatalogSection() {
+  const allBlocks = await loadCatalog();
+  const blocks = allBlocks.slice(0, LANDING_BLOCK_LIMIT);
+  const totalCount = allBlocks.length;
+
   return (
     <section
       id="catalog"
@@ -44,39 +48,40 @@ export function BlocksCatalogSection() {
         </Button>
       </header>
 
-      {/* Grid of Catalog Cards */}
-      <ul
-        role="list"
-        aria-label="Available backend blocks"
-        className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 list-none p-0 m-0"
-      >
-        {BLOCKS_CATALOG.blocks.map((block) => (
-          <li key={block.name} className="flex">
-            <BlockCard block={block} />
-          </li>
-        ))}
-      </ul>
+      {blocks.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No blocks available yet.</p>
+      ) : (
+        <>
+          <ul
+            role="list"
+            aria-label="Latest backend blocks, newest first"
+            className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 list-none p-0 m-0"
+          >
+            {blocks.map((block) => (
+              <li key={block.key} className="flex">
+                <BlockCard block={block} />
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-6 font-mono text-[11px] text-muted-foreground dark:text-ash">
+            Showing {blocks.length}
+            {totalCount > blocks.length ? ` of ${totalCount}` : ""} blocks · sorted by release date
+            ·{" "}
+            <Link
+              href="/docs/blocks-reference"
+              className="underline underline-offset-2 hover:text-fg dark:hover:text-paper"
+            >
+              view full catalog
+            </Link>
+          </p>
+        </>
+      )}
     </section>
   );
 }
 
-function BlockCard({ block }: { block: (typeof BLOCKS_CATALOG.blocks)[number] }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(`npx ${block.command}`);
-      posthog.capture("catalog_block_command_copied", {
-        block_name: block.name,
-        block_tag: block.tag
-      });
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Handle fallback/silent fail
-    }
-  };
-
+function BlockCard({ block }: { block: CatalogBlock }) {
   return (
     <Card className="w-full p-5 rounded-card bg-surface border-border dark:bg-carbon dark:border-graphite flex flex-col justify-between space-y-4 shadow-sm transition-colors">
       <div className="space-y-2">
@@ -98,6 +103,38 @@ function BlockCard({ block }: { block: (typeof BLOCKS_CATALOG.blocks)[number] })
             {block.description}
           </p>
         </CardContent>
+
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {!block.isAgnostic && block.adapterKeys.length > 0 && (
+            <span className="rounded-md bg-surface-2 dark:bg-obsidian border border-border dark:border-graphite px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground dark:text-fog">
+              {block.frameworkLabel}
+            </span>
+          )}
+
+          {block.isAgnostic && (
+            <span className="rounded-md bg-primary/10 text-primary px-1.5 py-0.5 font-mono text-[10px]">
+              Framework-agnostic
+            </span>
+          )}
+
+          {block.nodeRange && (
+            <span className="rounded-md bg-surface-2 dark:bg-obsidian border border-border dark:border-graphite px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground dark:text-fog">
+              Node {block.nodeRange}
+            </span>
+          )}
+
+          {block.version && (
+            <span className="rounded-md bg-surface-2 dark:bg-obsidian border border-border dark:border-graphite px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground dark:text-fog">
+              v{block.version}
+            </span>
+          )}
+
+          {block.releasedAtLabel && (
+            <span className="rounded-md bg-surface-2 dark:bg-obsidian border border-border dark:border-graphite px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground dark:text-fog">
+              {block.releasedAtLabel}
+            </span>
+          )}
+        </div>
       </div>
 
       <CardFooter className="p-0 py-3 border-t border-border dark:border-graphite flex justify-between items-center text-[11px] font-mono text-muted-foreground dark:text-ash transition-colors">
@@ -105,29 +142,7 @@ function BlockCard({ block }: { block: (typeof BLOCKS_CATALOG.blocks)[number] })
           {block.command}
         </code>
 
-        <div className="relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => void handleCopy()}
-            className="h-6 w-6 p-0 hover:bg-surface-2 dark:hover:bg-obsidian hover:text-fg dark:hover:text-mist text-muted-foreground dark:text-ash transition-colors"
-            aria-label={`Copy command to install ${block.name}`}
-          >
-            {copied ? (
-              <Check
-                className="w-3.5 h-3.5 text-emerald-600 dark:text-pulse-green transition-colors"
-                aria-hidden="true"
-                strokeWidth={2.5}
-              />
-            ) : (
-              <Copy className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.5} />
-            )}
-          </Button>
-
-          <span className="sr-only" role="status" aria-live="polite">
-            {copied ? `Command npx ${block.command} copied to clipboard` : ""}
-          </span>
-        </div>
+        <CatalogCopyButton command={block.command} blockName={block.name} blockTag={block.tag} />
       </CardFooter>
     </Card>
   );

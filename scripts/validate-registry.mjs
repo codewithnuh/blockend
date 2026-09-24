@@ -32,6 +32,27 @@ const FrameworkMappingSchema = z.object({
 });
 
 const DependencyPattern = /^[a-z@][a-z0-9._/-]*(@[~^>=<]*[0-9]+(\.[0-9]+)*)?$/;
+const BlockSlugPattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+const ReleasedAtPattern = /^\d{4}-\d{2}-\d{2}$/;
+
+const blockSlugArray = (label) =>
+  z
+    .array(
+      z
+        .string()
+        .regex(BlockSlugPattern, `${label} entries must be valid registry slugs: {VALUE}`)
+        .min(1, `${label} entries must not be empty`)
+    )
+    .optional();
+
+function isValidCalendarDate(value) {
+  if (!ReleasedAtPattern.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  );
+}
 
 const BlockSchema = z
   .object({
@@ -39,6 +60,16 @@ const BlockSchema = z
     description: z.string().min(1, "block description must not be empty"),
     version: z.string().optional(),
     frameworks: z.array(z.enum(VALID_FRAMEWORK_KEYS)).optional(),
+    releasedAt: z
+      .string()
+      .refine(isValidCalendarDate, "releasedAt must be a valid ISO date (YYYY-MM-DD)")
+      .optional(),
+    runtimes: z
+      .record(z.enum(["node"]), z.string().min(1, "runtime version range must not be empty"))
+      .optional(),
+    requires: blockSlugArray("requires"),
+    related: blockSlugArray("related"),
+    conflicts: blockSlugArray("conflicts"),
     dependencies: z
       .array(z.string().regex(DependencyPattern, "invalid dependency format: {VALUE}"))
       .optional(),
@@ -133,6 +164,106 @@ export function checkDuplicateKeys(registry) {
     } else {
       lowerMap.set(lower, key);
     }
+  }
+
+  return errors;
+}
+
+// ─── Block relationship (requires / related / conflicts) checks ──────────────
+
+const RELATIONSHIP_FIELDS = ["requires", "related", "conflicts"];
+
+export function checkBlockRelationships(registry) {
+  const errors = [];
+  const slugs = new Set(Object.keys(registry.blocks ?? {}));
+
+  for (const [blockKey, block] of Object.entries(registry.blocks ?? {})) {
+    for (const field of RELATIONSHIP_FIELDS) {
+      const values = block[field];
+      if (!values) continue;
+
+      const seen = new Set();
+      for (let i = 0; i < values.length; i++) {
+        const slug = values[i];
+
+        if (slug === blockKey) {
+          errors.push(
+            new ValidationError(
+              blockKey,
+              `${field}[${i}]`,
+              `Block cannot reference itself in "${field}"`,
+              `Remove "${slug}" from ${field}`
+            )
+          );
+          continue;
+        }
+
+        if (!slugs.has(slug)) {
+          errors.push(
+            new ValidationError(
+              blockKey,
+              `${field}[${i}]`,
+              `Unknown block reference "${slug}" — not a registry slug`,
+              `Use an existing slug (${[...slugs].join(", ")}) or add a "${slug}" block`
+            )
+          );
+          continue;
+        }
+
+        if (seen.has(slug)) {
+          errors.push(
+            new ValidationError(
+              blockKey,
+              `${field}[${i}]`,
+              `Duplicate block reference "${slug}" in "${field}"`,
+              `Remove the duplicate entry`
+            )
+          );
+        }
+        seen.add(slug);
+      }
+    }
+  }
+
+  errors.push(...checkRequiresCycles(registry));
+  return errors;
+}
+
+function checkRequiresCycles(registry) {
+  const errors = [];
+  const blocks = registry.blocks ?? {};
+  const visiting = new Set();
+  const visited = new Set();
+  const stack = [];
+
+  function visit(key) {
+    if (visiting.has(key)) {
+      const cycleStart = stack.indexOf(key);
+      const cycle = [...stack.slice(cycleStart), key].join(" → ");
+      errors.push(
+        new ValidationError(
+          key,
+          "requires",
+          `Circular requires chain: ${cycle}`,
+          `Break the cycle so requires relationships form a DAG`
+        )
+      );
+      return;
+    }
+    if (visited.has(key)) return;
+
+    visiting.add(key);
+    stack.push(key);
+    for (const dep of blocks[key]?.requires ?? []) {
+      if (blocks[dep]) visit(dep);
+    }
+    stack.pop();
+    visiting.delete(key);
+    visited.add(key);
+  }
+
+  for (const key of Object.keys(blocks)) {
+    visit(key);
   }
 
   return errors;
@@ -348,6 +479,7 @@ export async function validateRegistry(registry, repoRoot = REPO_ROOT) {
   allErrors.push(...checkDuplicateKeys(registry));
 
   if (registry.blocks && typeof registry.blocks === "object") {
+    allErrors.push(...checkBlockRelationships(registry));
     allErrors.push(...(await checkFileExistence(registry, repoRoot)));
     allErrors.push(...checkDependencyConflicts(registry));
     allErrors.push(...checkSourceTargetCollisions(registry));
