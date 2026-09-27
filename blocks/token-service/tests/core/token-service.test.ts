@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { exportPKCS8, exportSPKI, generateKeyPair } from "jose";
 import {
   createTokenService,
@@ -135,6 +135,20 @@ describe("TokenService", () => {
     expect((await service.verify(pair.accessToken!)).claims.aud).toBe("admin");
   });
 
+  it("rejects refresh contexts with an audience outside the configured allowlist", async () => {
+    const { service, store } = setup({
+      audience: ["api", "admin"],
+      resolveRefreshContext: async () => ({ audience: "untrusted-service" })
+    });
+    const issued = await service.issue({ sub: "x", tokens: { access: false } });
+
+    await expect(service.refresh(issued.refreshToken!)).rejects.toMatchObject({
+      code: "INVALID_INPUT"
+    });
+    const record = await store.getRefreshToken(hashToken(issued.refreshToken!));
+    expect(record?.status).toBe("active");
+  });
+
   it("clamps TTLs and supports access-only issue", async () => {
     const { service } = setup();
     const pair = await service.issue({
@@ -154,6 +168,20 @@ describe("TokenService", () => {
     await expect(service.verify(pair.accessToken!)).rejects.toMatchObject({
       code: "TOKEN_REVOKED"
     });
+  });
+
+  it("retains a revoked JTI through the maximum token lifetime and clock tolerance", async () => {
+    const now = new Date();
+    const { service, store } = setup({ now: () => now, clockSkewSeconds: 75 });
+    const revokeSpy = vi.spyOn(store, "revokeByJti");
+    const pair = await service.issue({ sub: "x", accessTokenTtlSeconds: 3600 });
+    const verified = await service.verify(pair.accessToken!);
+
+    await service.revoke({ jti: verified.claims.jti });
+
+    const expectedExpiry = new Date(now.getTime() + (3600 + 75) * 1000);
+    expect(revokeSpy).toHaveBeenCalledWith(verified.claims.jti, expectedExpiry);
+    expect(await store.isJtiRevoked(verified.claims.jti)).toBe(true);
   });
 
   it("requires production issuer and audience", () => {

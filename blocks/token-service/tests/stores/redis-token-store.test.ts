@@ -55,5 +55,7 @@ describe("RedisTokenStore", () => {
     expect(script).toContain("current.status = 'used'");
     expect(script).toContain("familyTtl < ttl");
     expect(script).toContain("subTtl < ttl");
+    expect(script).toContain("value.status == 'used'");
+    expect(script).toContain("redis.call('PEXPIRE', k, ttl)");
   });
 });

@@ -1,6 +1,12 @@
 import { Router, type Request, type Response } from "express";
 import type { TokenService } from "../core/types.js";
-import { errorBody, statusFor, type HttpAdapterOptions, type ProtectedAction } from "./http.js";
+import {
+  errorBody,
+  requireStringField,
+  statusFor,
+  type HttpAdapterOptions,
+  type ProtectedAction
+} from "./http.js";
 
 export type ExpressTokenAdapterOptions = HttpAdapterOptions<Request>;
 
@@ -21,8 +27,13 @@ export function createExpressTokenRouter(
   const protectedRun =
     (action: ProtectedAction, operation: (body: never) => Promise<unknown>) =>
     async (req: Request, res: Response) => {
-      if (!options.authorize || !(await options.authorize(action, req))) {
-        res.status(403).json({ error: { code: "FORBIDDEN", message: "Forbidden" } });
+      try {
+        if (!options.authorize || !(await options.authorize(action, req))) {
+          res.status(403).json({ error: { code: "FORBIDDEN", message: "Forbidden" } });
+          return;
+        }
+      } catch {
+        res.status(500).json(errorBody(undefined));
         return;
       }
       await run((body) => operation(body as never))(req, res);
@@ -35,11 +46,11 @@ export function createExpressTokenRouter(
   if (options.exposeVerify)
     router.post(
       "/verify",
-      run((body) => service.verify((body as { accessToken?: unknown }).accessToken as string))
+      run((body) => service.verify(requireStringField(body, "accessToken")))
     );
   router.post(
     "/refresh",
-    run((body) => service.refresh((body as { refreshToken?: unknown }).refreshToken as string))
+    run((body) => service.refresh(requireStringField(body, "refreshToken")))
   );
   if (options.exposeRevoke)
     router.post(

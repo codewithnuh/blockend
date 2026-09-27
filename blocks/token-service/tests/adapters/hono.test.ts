@@ -49,4 +49,30 @@ describe("Hono token adapter", () => {
 
     expect(response.status).toBe(403);
   });
+
+  it("returns client errors for malformed JSON and sanitizes authorization failures", async () => {
+    const app = createHonoTokenRoutes(service, {
+      exposeRevoke: true,
+      authorize: async () => {
+        throw new Error("private authorization detail");
+      }
+    });
+    const malformed = await app.request("/refresh", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{"
+    });
+    expect(malformed.status).toBe(400);
+    expect((await malformed.json()).error.code).toBe("INVALID_INPUT");
+
+    const revoke = await app.request("/revoke", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sub: "u" })
+    });
+    expect(revoke.status).toBe(500);
+    const body = await revoke.json();
+    expect(body).toEqual({ error: { code: "INTERNAL_ERROR", message: "Token operation failed" } });
+    expect(JSON.stringify(body)).not.toContain("private authorization detail");
+  });
 });

@@ -48,14 +48,43 @@ describe("PostgresTokenStore", () => {
     });
 
     expect(result.status).toBe("rotated");
-    expect(queries).toHaveLength(3);
-    expect(queries[0]).toContain("FOR UPDATE");
-    expect(queries[1]).toContain("SET status='used'");
-    expect(queries[2]).toContain("INSERT INTO blockend_refresh_tokens");
+    expect(queries).toHaveLength(5);
+    expect(queries[0]).toContain("SELECT subject");
+    expect(queries[1]).toContain("pg_advisory_xact_lock");
+    expect(queries[2]).toContain("FOR UPDATE");
+    expect(queries[3]).toContain("SET status='used'");
+    expect(queries[4]).toContain("INSERT INTO blockend_refresh_tokens");
     if (result.status === "rotated") {
       expect(result.record.sub).toBe("user-1");
       expect(result.record.familyId).toBe(row.family_id);
     }
+  });
+
+  it("uses the same subject advisory lock before subject and family revocation", async () => {
+    const queries: string[] = [];
+    const query: PgLike["query"] = async <T = Record<string, unknown>>(
+      sql: string
+    ): Promise<QueryResult<T>> => {
+      queries.push(sql);
+      if (sql.includes("SELECT DISTINCT subject"))
+        return { rows: [{ subject: "user-1" }] as T[], rowCount: 1 };
+      return { rows: [], rowCount: 1 };
+    };
+    const db: PgLike = {
+      query,
+      transaction: async <T>(work: (tx: PgTransaction) => Promise<T>) => work({ query })
+    };
+    const store = new PostgresTokenStore(db);
+
+    await store.revokeBySub("user-1");
+    expect(queries[0]).toContain("pg_advisory_xact_lock");
+    expect(queries[1]).toContain("WHERE subject=$1");
+    queries.length = 0;
+
+    await store.revokeByFamily(row.family_id);
+    expect(queries[0]).toContain("SELECT DISTINCT subject");
+    expect(queries[1]).toContain("pg_advisory_xact_lock");
+    expect(queries[2]).toContain("WHERE family_id=$1");
   });
 
   it("rejects unsafe table identifiers before composing SQL", () => {

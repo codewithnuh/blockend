@@ -51,6 +51,13 @@ export class PostgresTokenStore implements TokenStore {
     now: Date;
   }): Promise<RotateResult> {
     return this.db.transaction(async (tx) => {
+      const identity = await tx.query<{ subject: string }>(
+        `SELECT subject FROM ${this.table} WHERE token_hash=$1`,
+        [input.currentHash]
+      );
+      const subject = identity.rows[0]?.subject;
+      if (!subject) return { status: "missing" };
+      await this.lockSubject(tx, subject);
       const found = await tx.query<RefreshRow>(
         `SELECT * FROM ${this.table} WHERE token_hash=$1 FOR UPDATE`,
         [input.currentHash]
@@ -91,16 +98,26 @@ export class PostgresTokenStore implements TokenStore {
     await this.db.query(`UPDATE ${this.table} SET status='revoked' WHERE token_hash=$1`, [hash]);
   }
   async revokeByFamily(id: string): Promise<void> {
-    await this.db.query(
-      `UPDATE ${this.table} SET status='revoked' WHERE family_id=$1 AND status='active'`,
-      [id]
-    );
+    await this.db.transaction(async (tx) => {
+      const subjects = await tx.query<{ subject: string }>(
+        `SELECT DISTINCT subject FROM ${this.table} WHERE family_id=$1 ORDER BY subject`,
+        [id]
+      );
+      for (const { subject } of subjects.rows) await this.lockSubject(tx, subject);
+      await tx.query(
+        `UPDATE ${this.table} SET status='revoked' WHERE family_id=$1 AND status='active'`,
+        [id]
+      );
+    });
   }
   async revokeBySub(sub: string): Promise<void> {
-    await this.db.query(
-      `UPDATE ${this.table} SET status='revoked' WHERE subject=$1 AND status='active'`,
-      [sub]
-    );
+    await this.db.transaction(async (tx) => {
+      await this.lockSubject(tx, sub);
+      await tx.query(
+        `UPDATE ${this.table} SET status='revoked' WHERE subject=$1 AND status='active'`,
+        [sub]
+      );
+    });
   }
   async revokeByJti(jti: string, expiresAt?: Date): Promise<void> {
     await this.db.query(
@@ -126,5 +143,12 @@ export class PostgresTokenStore implements TokenStore {
       ...(r.used_at ? { usedAt: r.used_at } : {}),
       ...(r.metadata ? { metadata: r.metadata } : {})
     };
+  }
+
+  private async lockSubject(tx: PgTransaction, subject: string): Promise<void> {
+    await tx.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
+      "blockend_refresh_subject",
+      subject
+    ]);
   }
 }

@@ -4,6 +4,7 @@ import { Pool, type PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { exportPKCS8, exportSPKI, generateKeyPair } from "jose";
 import { createTokenService, LocalKeyProvider, PostgresTokenStore } from "../../src/index.js";
+import { hashToken } from "../../src/core/crypto.js";
 import type { PgLike, PgTransaction, QueryResult } from "../../src/stores/postgres-token-store.js";
 
 const connectionString = process.env.TOKEN_SERVICE_POSTGRES_URL;
@@ -13,6 +14,7 @@ let adminPool: Pool | undefined;
 let storePool: Pool | undefined;
 let schema: string | undefined;
 let tokens: ReturnType<typeof createTokenService>;
+let postgresStore: PostgresTokenStore;
 
 async function queryRows<Row>(
   client: Pool | PoolClient,
@@ -72,12 +74,13 @@ postgresIntegration("PostgresTokenStore integration", () => {
       }
     };
 
+    postgresStore = new PostgresTokenStore(db);
     tokens = createTokenService({
       issuer: "https://auth.example.com",
       audience: "api.example.com",
       algorithms: ["RS256"],
       keyProvider,
-      tokenStore: new PostgresTokenStore(db)
+      tokenStore: postgresStore
     });
   });
 
@@ -120,4 +123,23 @@ postgresIntegration("PostgresTokenStore integration", () => {
       code: "TOKEN_REVOKED"
     });
   });
+
+  it.each(["subject", "family"] as const)(
+    "orders a concurrent refresh against %s revocation so no descendant remains active",
+    async (target) => {
+      const issued = await tokens.issue({ sub: `postgres-race-${target}` });
+      const record = await postgresStore.getRefreshToken(hashToken(issued.refreshToken!));
+      if (!record) throw new Error("Expected issued refresh token to be stored");
+
+      const [rotation] = await Promise.allSettled([
+        tokens.refresh(issued.refreshToken!),
+        target === "subject"
+          ? tokens.revoke({ sub: record.sub })
+          : tokens.revoke({ familyId: record.familyId })
+      ]);
+      const descendant =
+        rotation.status === "fulfilled" ? rotation.value.refreshToken! : issued.refreshToken!;
+      await expect(tokens.refresh(descendant)).rejects.toMatchObject({ code: "TOKEN_REVOKED" });
+    }
+  );
 });

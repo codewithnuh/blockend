@@ -171,10 +171,12 @@ class DefaultTokenService implements TokenService {
       if (current.status === "active") {
         const context = (await this.options.resolveRefreshContext?.(current.sub)) ?? {};
         this.assertClaims(context.claims ?? {});
+        const audience = context.audience ?? this.options.audience;
+        this.assertAudience(audience);
         accessToken = await this.signAccess(
           current.sub,
           context.claims ?? {},
-          context.audience ?? this.options.audience,
+          audience,
           this.accessTtl,
           now
         );
@@ -239,6 +241,7 @@ class DefaultTokenService implements TokenService {
   async revoke(raw: RevokeInput): Promise<void> {
     try {
       const input = parseRevoke(raw);
+      const nowDate = this.now();
       if ("refreshToken" in input)
         await this.store(() => this.options.tokenStore.revokeByHash(hashToken(input.refreshToken)));
       else if ("familyId" in input)
@@ -251,7 +254,9 @@ class DefaultTokenService implements TokenService {
             "UNSUPPORTED_OPERATION",
             "This store does not support access-token revocation"
           );
-        await this.store(() => this.options.tokenStore.revokeByJti!(input.jti));
+        const clockTolerance = this.options.clockSkewSeconds ?? 30;
+        const expiresAt = new Date(nowDate.getTime() + (ACCESS_MAX + clockTolerance) * 1000);
+        await this.store(() => this.options.tokenStore.revokeByJti!(input.jti, expiresAt));
       }
       this.emit({
         name: "token.revoked",

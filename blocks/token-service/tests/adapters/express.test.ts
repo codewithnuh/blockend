@@ -1,6 +1,6 @@
 import express from "express";
 import request from "supertest";
-import { describe, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TokenError } from "../../src/core/errors.js";
 import type { TokenService } from "../../src/core/types.js";
 import { createExpressTokenRouter } from "../../src/adapters/express.js";
@@ -39,5 +39,38 @@ describe("Express token adapter", () => {
     app.use(createExpressTokenRouter(service, { exposeIssue: true }));
 
     await request(app).post("/issue").send({ sub: "u" }).expect(403);
+  });
+
+  it("returns client errors for null bodies and sanitizes authorization failures", async () => {
+    const app = express();
+    app.use(express.json({ strict: false }));
+    app.use(
+      createExpressTokenRouter(service, {
+        exposeIssue: true,
+        exposeVerify: true,
+        authorize: async () => {
+          throw new Error("private authorization detail");
+        }
+      })
+    );
+
+    const refresh = await request(app)
+      .post("/refresh")
+      .set("content-type", "application/json")
+      .send("null");
+    expect(refresh.status).toBe(400);
+    expect(refresh.body.error.code).toBe("INVALID_INPUT");
+    const verify = await request(app)
+      .post("/verify")
+      .set("content-type", "application/json")
+      .send("null");
+    expect(verify.status).toBe(400);
+    expect(verify.body.error.code).toBe("INVALID_INPUT");
+
+    const issue = await request(app).post("/issue").send({ sub: "u" });
+    expect(issue.status).toBe(500);
+    expect(issue.body).toEqual({
+      error: { code: "INTERNAL_ERROR", message: "Token operation failed" }
+    });
   });
 });

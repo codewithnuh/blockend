@@ -19,12 +19,24 @@ end
 if current.status == 'revoked' then return {'revoked', raw} end
 if tonumber(current.expiresAtMs) <= tonumber(ARGV[1]) then return {'expired', raw} end
 current.status = 'used'; current.usedAtMs = tonumber(ARGV[1])
-redis.call('SET', KEYS[1], cjson.encode(current), 'PX', math.max(1, tonumber(current.expiresAtMs) - tonumber(ARGV[1])))
 local replacement = cjson.decode(ARGV[2]); replacement.sub = current.sub; replacement.familyId = current.familyId
-redis.call('SET', KEYS[2], cjson.encode(replacement), 'PX', math.max(1, tonumber(replacement.expiresAtMs) - tonumber(ARGV[1])), 'NX')
 local ttl = math.max(1, tonumber(replacement.expiresAtMs) - tonumber(ARGV[1]))
 local familyKey = ARGV[3] .. 'family:' .. current.familyId
 local subKey = ARGV[3] .. 'sub:' .. current.sub
+redis.call('SET', KEYS[1], cjson.encode(current), 'PX', math.max(ttl, tonumber(current.expiresAtMs) - tonumber(ARGV[1])))
+redis.call('SET', KEYS[2], cjson.encode(replacement), 'PX', ttl, 'NX')
+-- A family can slide forward through later rotations. Keep every consumed
+-- token's reuse marker alive through the newest descendant's expiry.
+local members = redis.call('SMEMBERS', familyKey)
+for _,k in ipairs(members) do
+  if k ~= KEYS[1] then
+    local raw = redis.call('GET', k)
+    if raw then
+      local value = cjson.decode(raw)
+      if value.status == 'used' and redis.call('PTTL', k) < ttl then redis.call('PEXPIRE', k, ttl) end
+    end
+  end
+end
 redis.call('SADD', familyKey, KEYS[2])
 local familyTtl = redis.call('PTTL', familyKey)
 if familyTtl < ttl then redis.call('PEXPIRE', familyKey, ttl) end

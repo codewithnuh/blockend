@@ -47,4 +47,36 @@ describe("Fastify token adapter", () => {
     ).toBe(403);
     await app.close();
   });
+
+  it("returns client errors for null bodies and sanitizes authorization failures", async () => {
+    const app = Fastify();
+    await app.register(
+      createFastifyTokenPlugin(service, {
+        exposeIssue: true,
+        exposeVerify: true,
+        authorize: async () => {
+          throw new Error("private authorization detail");
+        }
+      })
+    );
+
+    for (const url of ["/refresh", "/verify"]) {
+      const response = await app.inject({
+        method: "POST",
+        url,
+        payload: "null",
+        headers: { "content-type": "application/json" }
+      });
+      expect(response.statusCode).toBe(400);
+      expect(response.json().error.code).toBe("INVALID_INPUT");
+    }
+
+    const issue = await app.inject({ method: "POST", url: "/issue", payload: { sub: "u" } });
+    expect(issue.statusCode).toBe(500);
+    expect(issue.json()).toEqual({
+      error: { code: "INTERNAL_ERROR", message: "Token operation failed" }
+    });
+    expect(issue.body).not.toContain("private authorization detail");
+    await app.close();
+  });
 });
