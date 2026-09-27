@@ -30,7 +30,7 @@ export class MemoryTokenStore implements TokenStore {
       return { status: "expired", record: { ...current } };
     if (current.familyExpiresAt.getTime() <= input.now.getTime())
       return { status: "expired", record: { ...current } };
-    if (current.rotationCount >= input.maxRotations)
+    if (current.rotationCount >= Math.min(current.rotationLimit, input.maxRotations))
       return { status: "limit", record: { ...current } };
     current.status = "used";
     current.usedAt = input.now;
