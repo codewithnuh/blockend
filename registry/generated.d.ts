@@ -1198,7 +1198,13 @@ export type RegistryData = {
       related: ["password-hash", "rate-limiter", "env-config"];
       frameworks: ["*"];
       dependencies: ["jose@^6.1.0", "zod@^4.4.3"];
-      devDependencies: ["vitest@^4.1.11", "@types/node@^26.2.0", "pg@^8.23.0", "@types/pg@^8.23.1"];
+      devDependencies: [
+        "vitest@^4.1.11",
+        "@types/node@^26.2.0",
+        "pg@^8.23.0",
+        "@types/pg@^8.23.1",
+        "ioredis@^5.11.1"
+      ];
       baseFiles: [
         {
           source: "blocks/token-service/src/index.ts";
@@ -1263,6 +1269,10 @@ export type RegistryData = {
         {
           source: "blocks/token-service/tests/stores/postgres-token-store.integration.test.ts";
           target: "tests/stores/postgres-token-store.integration.test.ts";
+        },
+        {
+          source: "blocks/token-service/tests/stores/redis-token-store.integration.test.ts";
+          target: "tests/stores/redis-token-store.integration.test.ts";
         },
         {
           source: "blocks/token-service/tests/stores/redis-token-store.test.ts";

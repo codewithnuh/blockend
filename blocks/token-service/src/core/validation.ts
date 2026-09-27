@@ -42,8 +42,8 @@ const optionsSchema = z
     refreshTokenTtlSeconds: z.number().int().positive().optional(),
     clockSkewSeconds: z.number().int().min(0).max(300).optional(),
     algorithms: z.array(z.enum(algorithms)).min(1).optional(),
-    keyProvider: z.custom<object>((v) => !!v),
-    tokenStore: z.custom<object>((v) => !!v),
+    keyProvider: z.custom<object>((v) => typeof v === "object" && v !== null),
+    tokenStore: z.custom<object>((v) => typeof v === "object" && v !== null),
     maxClaimsBytes: z.number().int().min(256).max(16_384).optional(),
     forbiddenClaimKeys: z.array(z.string().min(1)).optional(),
     onEvent: z.function().optional(),
@@ -52,6 +52,49 @@ const optionsSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
+    const validateMethods = (
+      candidate: object,
+      path: string,
+      required: string[],
+      optional: string[]
+    ) => {
+      const methods = candidate as Record<string, unknown>;
+      for (const method of required) {
+        if (typeof methods[method] !== "function")
+          ctx.addIssue({
+            code: "custom",
+            path: [path, method],
+            message: `${path}.${method} must be a function`
+          });
+      }
+      for (const method of optional) {
+        if (methods[method] !== undefined && typeof methods[method] !== "function")
+          ctx.addIssue({
+            code: "custom",
+            path: [path, method],
+            message: `${path}.${method} must be a function when provided`
+          });
+      }
+    };
+    validateMethods(
+      value.keyProvider,
+      "keyProvider",
+      ["getSigningKey", "getVerificationKey"],
+      ["signJwt", "getPublicJwks"]
+    );
+    validateMethods(
+      value.tokenStore,
+      "tokenStore",
+      [
+        "saveRefreshToken",
+        "getRefreshToken",
+        "rotateRefreshToken",
+        "revokeByHash",
+        "revokeByFamily",
+        "revokeBySub"
+      ],
+      ["revokeByJti", "isJtiRevoked"]
+    );
     if ((value.deploymentMode ?? "production") === "production") {
       if (!value.audience)
         ctx.addIssue({

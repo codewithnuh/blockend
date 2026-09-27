@@ -202,6 +202,24 @@ describe("TokenService", () => {
     ).not.toThrow();
   });
 
+  it("rejects key providers and token stores missing required methods at construction", () => {
+    expect(() => setup({ keyProvider: {} })).toThrow(TokenError);
+    expect(() => setup({ tokenStore: {} })).toThrow(TokenError);
+    expect(() =>
+      setup({
+        keyProvider: { getVerificationKey: provider.getVerificationKey.bind(provider) }
+      })
+    ).toThrow(TokenError);
+    expect(() =>
+      setup({
+        tokenStore: {
+          saveRefreshToken: async () => undefined,
+          getRefreshToken: async () => undefined
+        }
+      })
+    ).toThrow(TokenError);
+  });
+
   it("supports individual token selection and minimum TTL clamping", async () => {
     const { service } = setup();
     const refreshOnly = await service.issue({
