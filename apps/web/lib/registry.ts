@@ -67,7 +67,8 @@ const TAG_BY_KEY: Record<string, string> = {
   "health-check": "Ops",
   "graceful-shutdown": "Runtime",
   idempotency: "Reliability",
-  "password-hash": "Security"
+  "password-hash": "Security",
+  "token-service": "Security"
 };
 
 const normalize = (value: string) =>
