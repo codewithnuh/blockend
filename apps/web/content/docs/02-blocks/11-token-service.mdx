@@ -1,0 +1,596 @@
+---
+title: Token Service
+description: Issue and verify JWT access tokens, rotate opaque refresh tokens, and connect key and token storage to your production infrastructure.
+status: new
+---
+
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+import { SourceCode } from "../../../components/source-code";
+
+The **Token Service** block issues short lived JWT access tokens and one time opaque refresh tokens. It validates issuer, audience, algorithm, token type, and revocation state before returning trusted claims.
+
+Your application still owns login, authorization policy, browser cookie settings, CSRF protection, and account recovery.
+
+---
+
+## Features
+
+- Production configuration requires an HTTPS or URN issuer, an audience, and asymmetric JWT algorithms.
+- Access token lifetime defaults to 15 minutes and is capped at one hour.
+- Refresh tokens contain 256 bits of randomness. Stores keep only their SHA-256 hashes.
+- Refresh rotation is atomic in the supplied Redis and PostgreSQL stores. Reuse revokes the token family.
+- Key IDs (`kid`) support signing key rotation while old public keys remain available for verification.
+- Local PEM, remote JWKS, and vendor neutral KMS signing providers are included.
+- Express, Fastify, and Hono adapters expose refresh by default. Issue and revoke routes require an authorization callback.
+- Claims are size limited and reject reserved token fields and common secret field names.
+
+<Callout type="warn">
+  `MemoryTokenStore` is process local and loses state on restart. Use PostgreSQL or Redis for
+  refresh tokens in a multi instance production service. Use `StatelessTokenStore` only when you
+  issue access tokens without refresh or server side revocation.
+</Callout>
+
+## File structure
+
+```text
+token-service
+├── src
+│   ├── adapters
+│   │   ├── express.ts
+│   │   ├── fastify.ts
+│   │   ├── hono.ts
+│   │   └── http.ts
+│   ├── core
+│   │   ├── crypto.ts
+│   │   ├── errors.ts
+│   │   ├── token-service.ts
+│   │   ├── types.ts
+│   │   └── validation.ts
+│   ├── providers
+│   │   ├── kms-rsa-key-provider.ts
+│   │   ├── local-key-provider.ts
+│   │   └── remote-jwks-provider.ts
+│   ├── stores
+│   │   ├── memory-token-store.ts
+│   │   ├── postgres-token-store.ts
+│   │   ├── redis-token-store.ts
+│   │   └── stateless-token-store.ts
+│   └── index.ts
+├── sql
+│   └── postgres.sql
+└── tests
+```
+
+- **`src/core/`** validates input, signs and verifies access tokens, rotates refresh tokens, and defines the storage and provider contracts.
+- **`src/providers/`** adapts PEM keys, remote JWKS, and an external RS256 signer.
+- **`src/stores/`** provides process local, stateless, Redis, and PostgreSQL implementations.
+- **`src/adapters/`** maps the token service to framework routes and HTTP errors.
+- **`sql/postgres.sql`** creates the refresh token and revoked JTI tables.
+- **`tests/`** covers core behavior, adapters, and store contracts.
+
+## Installation
+
+<Tabs items={["CLI", "Manual"]}>
+  <Tab value="CLI">
+```bash
+pnpm dlx blockend-cli add token-service
+```
+
+<Steps>
+  <Step>
+    ### Detect project
+
+    Blockend detects your project and selects the framework adapter.
+
+  </Step>
+  <Step>
+    ### Install dependencies
+
+    The CLI installs `jose` and `zod`, plus the selected framework package.
+
+  </Step>
+  <Step>
+    ### Generate files
+
+    The service, selected adapter, tests, and PostgreSQL schema are copied into your blocks directory.
+
+  </Step>
+</Steps>
+  </Tab>
+
+  <Tab value="Manual">
+Copy the source files into `blocks/token-service` and install the dependencies used by your chosen adapter.
+
+### Runtime dependencies
+
+| Package   | Required for                               |
+| --------- | ------------------------------------------ |
+| `jose`    | JWT signing, verification, and remote JWKS |
+| `zod`     | Startup and input validation               |
+| `express` | Express adapter only                       |
+| `fastify` | Fastify adapter only                       |
+| `hono`    | Hono adapter only                          |
+
+### Core files
+
+`index.ts` exports the service, provider, store, and public types.
+
+<SourceCode file="token-service/src/index.ts" />
+
+`core/crypto.ts` creates opaque tokens, IDs, hashes, and claim size measurements.
+
+<SourceCode file="token-service/src/core/crypto.ts" />
+
+`core/errors.ts` defines stable token error codes.
+
+<SourceCode file="token-service/src/core/errors.ts" />
+
+`core/token-service.ts` implements issue, verify, refresh, and revoke operations.
+
+<SourceCode file="token-service/src/core/token-service.ts" />
+
+`core/types.ts` defines service, event, key provider, and token store contracts.
+
+<SourceCode file="token-service/src/core/types.ts" />
+
+`core/validation.ts` validates options, issue input, revocation targets, and allowed algorithms.
+
+<SourceCode file="token-service/src/core/validation.ts" />
+
+### Key providers
+
+`providers/kms-rsa-key-provider.ts` adapts an external RS256 signing operation.
+
+<SourceCode file="token-service/src/providers/kms-rsa-key-provider.ts" />
+
+`providers/local-key-provider.ts` loads PEM signing and verification keys and publishes their public JWKS.
+
+<SourceCode file="token-service/src/providers/local-key-provider.ts" />
+
+`providers/remote-jwks-provider.ts` resolves verification keys from an HTTPS JWKS endpoint.
+
+<SourceCode file="token-service/src/providers/remote-jwks-provider.ts" />
+
+### Token stores
+
+`stores/memory-token-store.ts` is intended for tests and single process development.
+
+<SourceCode file="token-service/src/stores/memory-token-store.ts" />
+
+`stores/postgres-token-store.ts` uses a caller supplied transaction interface.
+
+<SourceCode file="token-service/src/stores/postgres-token-store.ts" />
+
+`stores/redis-token-store.ts` uses Lua scripts for refresh rotation and revocation.
+
+<SourceCode file="token-service/src/stores/redis-token-store.ts" />
+
+`stores/stateless-token-store.ts` rejects refresh and server side revocation operations.
+
+<SourceCode file="token-service/src/stores/stateless-token-store.ts" />
+
+### Framework adapters
+
+`adapters/http.ts` maps token errors to HTTP responses and defines protected actions.
+
+<SourceCode file="token-service/src/adapters/http.ts" />
+
+`adapters/express.ts` provides an Express router.
+
+<SourceCode file="token-service/src/adapters/express.ts" />
+
+`adapters/fastify.ts` provides a Fastify plugin.
+
+<SourceCode file="token-service/src/adapters/fastify.ts" />
+
+`adapters/hono.ts` creates a Hono route group.
+
+<SourceCode file="token-service/src/adapters/hono.ts" />
+
+### PostgreSQL schema
+
+Apply this migration once before using `PostgresTokenStore`.
+
+```sql
+CREATE TABLE IF NOT EXISTS blockend_refresh_tokens (
+  token_hash text PRIMARY KEY,
+  family_id uuid NOT NULL,
+  subject text NOT NULL,
+  expires_at timestamptz NOT NULL,
+  status text NOT NULL CHECK (status IN ('active', 'used', 'revoked')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  used_at timestamptz,
+  metadata jsonb
+);
+CREATE INDEX IF NOT EXISTS blockend_refresh_family_idx ON blockend_refresh_tokens (family_id);
+CREATE INDEX IF NOT EXISTS blockend_refresh_subject_idx ON blockend_refresh_tokens (subject);
+CREATE INDEX IF NOT EXISTS blockend_refresh_expiry_idx ON blockend_refresh_tokens (expires_at);
+CREATE TABLE IF NOT EXISTS blockend_revoked_jtis (
+  jti text PRIMARY KEY,
+  expires_at timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS blockend_revoked_jti_expiry_idx ON blockend_revoked_jtis (expires_at);
+```
+
+  </Tab>
+</Tabs>
+
+## Configuration
+
+### `TokenServiceOptions`
+
+| Option                   | Type                                                                                            | Default                            | Description                                                                                        |
+| ------------------------ | ----------------------------------------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `deploymentMode`         | `"development" \| "production"`                                                                 | `"production"`                     | Development permits localhost HTTP and an omitted audience.                                        |
+| `issuer`                 | `string`                                                                                        | Required                           | Issuer claim. Production requires an HTTPS URL or URN.                                             |
+| `audience`               | `string \| string[]`                                                                            | Required in production             | Allowed audience values. A token requested with another audience is rejected.                      |
+| `accessTokenTtlSeconds`  | `number`                                                                                        | `900`                              | Clamped to 60 through 3600 seconds.                                                                |
+| `refreshTokenTtlSeconds` | `number`                                                                                        | `604800`                           | Clamped to 3600 through 2592000 seconds.                                                           |
+| `clockSkewSeconds`       | `number`                                                                                        | `30`                               | JWT clock tolerance, capped at 300 seconds.                                                        |
+| `algorithms`             | `SigningAlgorithm[]`                                                                            | `["RS256", "ES256"]`               | Accepted signing algorithms. Production rejects all `HS*` algorithms.                              |
+| `keyProvider`            | `KeyProvider`                                                                                   | Required                           | Supplies signing and verification keys.                                                            |
+| `tokenStore`             | `TokenStore`                                                                                    | Required                           | Stores refresh token state and may store revoked JTIs.                                             |
+| `maxClaimsBytes`         | `number`                                                                                        | `4096`                             | Maximum serialized custom claims size, clamped to 256 through 16384 bytes.                         |
+| `forbiddenClaimKeys`     | `string[]`                                                                                      | Built in secret and reserved names | Additional names rejected recursively in custom claims. Supplying this replaces the built in list. |
+| `onEvent`                | `(event: TokenEvent) => void`                                                                   | —                                  | Receives token lifecycle events. Synchronous telemetry errors are ignored.                         |
+| `resolveRefreshContext`  | `(sub: string) => Promise<{ claims?: Record<string, unknown>; audience?: string \| string[] }>` | —                                  | Reloads current authorization claims during refresh.                                               |
+| `now`                    | `() => Date`                                                                                    | `() => new Date()`                 | Clock injection for tests and controlled environments.                                             |
+
+### `issue()` input
+
+| Field                    | Type                      | Default         | Description                                                               |
+| ------------------------ | ------------------------- | --------------- | ------------------------------------------------------------------------- |
+| `sub`                    | `string`                  | Required        | Subject, trimmed, 1 to 512 characters.                                    |
+| `claims`                 | `Record<string, unknown>` | `{}`            | Custom JSON claims. Reserved and configured forbidden names are rejected. |
+| `tokens.access`          | `boolean`                 | `true`          | Whether to issue an access token.                                         |
+| `tokens.refresh`         | `boolean`                 | `true`          | Whether to issue a refresh token. At least one token must be requested.   |
+| `accessTokenTtlSeconds`  | `number`                  | Service setting | Per-token access lifetime, clamped to 60 through 3600 seconds.            |
+| `refreshTokenTtlSeconds` | `number`                  | Service setting | Per-token refresh lifetime, clamped to 3600 through 2592000 seconds.      |
+| `audience`               | `string \| string[]`      | Service setting | Must be contained in the configured allowed audience.                     |
+
+### Adapter options
+
+Each adapter accepts the following options. `refresh` is always mounted. Other endpoints default to disabled.
+
+| Option         | Type                                                                    | Default | Description                                                               |
+| -------------- | ----------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------- |
+| `authorize`    | `(action: "issue" \| "revoke", request) => boolean \| Promise<boolean>` | —       | Required to allow exposed issue or revoke routes. Return `false` to deny. |
+| `exposeIssue`  | `boolean`                                                               | `false` | Mount `POST /issue`.                                                      |
+| `exposeVerify` | `boolean`                                                               | `false` | Mount `POST /verify`.                                                     |
+| `exposeRevoke` | `boolean`                                                               | `false` | Mount `POST /revoke`.                                                     |
+
+## Architecture
+
+```text
+createTokenService(options)
+  └─ validate configuration once
+
+issue(input)
+  ├─ validate subject, audience, and custom claims
+  ├─ sign a short lived JWT using the active kid
+  └─ store only the hash of a random refresh token
+
+verify(accessToken)
+  ├─ pin alg and kid to configured verification keys
+  ├─ validate iss, aud, exp, iat, jti, and type
+  └─ check the optional JTI denylist
+
+refresh(refreshToken)
+  ├─ atomically consume the old hash and store a replacement hash
+  ├─ revoke the family if an already used token appears again
+  ├─ reload current claims when resolveRefreshContext is configured
+  └─ sign and return the new access token and opaque refresh token
+```
+
+`createTokenService()` validates configuration at startup. Every operation validates its input and emits a sanitized `TokenEvent`. PostgreSQL locks the current refresh row with `SELECT ... FOR UPDATE`; Redis performs consumption in one Lua script. Keep each Redis store's keys in a writable cluster hash slot. Neither implementation can guarantee immediate revocation when writes go to eventually consistent replicas.
+
+## Production setup
+
+### Use shared state for refresh tokens
+
+Apply `sql/postgres.sql`, then provide a `PgLike` wrapper whose `transaction()` method runs all callback queries in the same database transaction. `PostgresTokenStore` does not open or manage a pool itself. A normal `pg` pool needs a transaction wrapper that checks out one client, runs `BEGIN`, commits on success, rolls back on error, and releases the client.
+
+For Redis, use a client that implements `get`, `set(key, value, { PX })`, and `eval(script, { keys, arguments })`. The default prefix contains the `{blockend}` cluster hash tag. Keep that tag in any custom prefix so the keys used by rotation stay in one Redis Cluster slot.
+
+### Rotate signing keys
+
+Keep old public keys in the provider while they can still verify unexpired access tokens. Switch `signingKid` to the new key, wait at least the maximum access lifetime plus clock tolerance, then remove the old key. For a remote JWKS provider, publish the new public key before signing with it.
+
+### Protect browser refresh flows
+
+Store browser refresh tokens in `Secure`, `HttpOnly`, `SameSite` cookies. Add CSRF protection to cookie authenticated refresh and revoke requests, and restrict CORS. Do not put refresh tokens in URLs or local storage.
+
+### Keep authorization current
+
+The service stores no roles or permissions in refresh records. Configure `resolveRefreshContext` to reload current authorization data on refresh. If an account has been disabled or deleted, throw from that callback and handle the failed refresh in your application.
+
+### Retain and monitor state
+
+Delete expired and used refresh rows after your audit window, and remove expired JTI records on a schedule. Alert on `token.reuse_detected`, store and key failures, and unusual refresh volume. Events include subject, JTI, family ID, and error code when available, never raw tokens.
+
+## Usage
+
+### Service setup with local keys
+
+Use a secret manager to supply the PEM values. Local PEM keys are useful when your runtime can protect the private key; use a KMS or HSM provider when private key material must remain outside the process.
+
+```ts
+import {
+  createTokenService,
+  LocalKeyProvider,
+  PostgresTokenStore
+} from "@/blocks/token-service/src";
+import { database } from "./database";
+
+export const tokens = createTokenService({
+  issuer: "https://auth.example.com",
+  audience: ["https://api.example.com"],
+  algorithms: ["RS256"],
+  accessTokenTtlSeconds: 600,
+  keyProvider: new LocalKeyProvider({
+    signingKid: "rsa-2026-09",
+    keys: [
+      {
+        kid: "rsa-2026-09",
+        alg: "RS256",
+        privateKeyPem: process.env.JWT_PRIVATE_KEY_PEM!,
+        publicKeyPem: process.env.JWT_PUBLIC_KEY_PEM!
+      }
+    ]
+  }),
+  tokenStore: new PostgresTokenStore(database),
+  resolveRefreshContext: async (sub) => {
+    const user = await database.users.findAuthorizationContext(sub);
+    if (!user || user.disabled) throw new Error("User is unavailable");
+    return { claims: { role: user.role, permissions: user.permissions } };
+  }
+});
+```
+
+The `database` value must implement `PgLike`, including a transaction wrapper around the same connection for every rotation query.
+
+### Express
+
+```ts
+import express from "express";
+import { createExpressTokenRouter } from "@/blocks/token-service/src/adapters/express";
+import { tokens } from "./tokens";
+
+const app = express();
+app.use(express.json({ limit: "8kb" }));
+app.use(
+  "/auth/tokens",
+  createExpressTokenRouter(tokens, {
+    exposeIssue: true,
+    exposeRevoke: true,
+    authorize: (_action, request) => request.auth?.service === "identity-api"
+  })
+);
+```
+
+Install your authentication middleware before the router when exposing issue or revoke.
+
+### Fastify
+
+```ts
+import Fastify from "fastify";
+import { createFastifyTokenPlugin } from "@/blocks/token-service/src/adapters/fastify";
+import { tokens } from "./tokens";
+
+const app = Fastify({ bodyLimit: 8 * 1024 });
+await app.register(
+  createFastifyTokenPlugin(tokens, {
+    exposeIssue: true,
+    authorize: (_action, request) => request.user?.service === "identity-api"
+  }),
+  { prefix: "/auth/tokens" }
+);
+```
+
+Fastify's body limit applies before these routes run.
+
+### Hono
+
+```ts
+import { Hono } from "hono";
+import { createHonoTokenRoutes } from "@/blocks/token-service/src/adapters/hono";
+import { tokens } from "./tokens";
+
+const app = new Hono();
+app.route(
+  "/auth/tokens",
+  createHonoTokenRoutes(tokens, {
+    exposeRevoke: true,
+    authorize: (_action, context) => context.get("service") === "identity-api"
+  })
+);
+```
+
+Mount the route group behind your application's authentication and request size middleware.
+
+### Access-token-only service
+
+```ts
+import {
+  createTokenService,
+  LocalKeyProvider,
+  StatelessTokenStore
+} from "@/blocks/token-service/src";
+
+const tokens = createTokenService({
+  issuer: "https://internal.example.com",
+  audience: "https://worker.example.com",
+  keyProvider,
+  tokenStore: new StatelessTokenStore()
+});
+
+const access = await tokens.issue({ sub: "worker-17", tokens: { refresh: false } });
+```
+
+Do not call `refresh()` or server side revoke operations with `StatelessTokenStore`; they return `UNSUPPORTED_OPERATION`.
+
+## API reference
+
+### `createTokenService`
+
+```ts
+function createTokenService(options: TokenServiceOptions): TokenService;
+```
+
+Creates an isolated service and validates its configuration immediately. Invalid configuration throws `TokenError` with code `INVALID_INPUT`.
+
+### `TokenService`
+
+| Method                  | Input                                                             | Result                  |
+| ----------------------- | ----------------------------------------------------------------- | ----------------------- |
+| `issue(input)`          | Subject, optional claims, token selection, lifetime, and audience | `Promise<TokenPair>`    |
+| `verify(accessToken)`   | Encoded access token                                              | `Promise<VerifyResult>` |
+| `refresh(refreshToken)` | Opaque refresh token                                              | `Promise<TokenPair>`    |
+| `revoke(input)`         | Exactly one refresh token, JTI, subject, or family ID             | `Promise<void>`         |
+
+`verify()` accepts access tokens only. Refresh tokens are opaque random values and cannot be used as bearer access credentials.
+
+### Token result types
+
+```ts
+interface TokenPair {
+  accessToken?: string;
+  refreshToken?: string;
+  tokenType: "Bearer";
+  expiresIn?: number;
+  refreshExpiresIn?: number;
+  issuedAt: number;
+}
+
+interface AccessTokenClaims {
+  sub: string;
+  iss: string;
+  aud?: string | string[];
+  exp: number;
+  iat: number;
+  jti: string;
+  type: "access";
+  [key: string]: unknown;
+}
+
+interface VerifyResult {
+  valid: true;
+  claims: AccessTokenClaims;
+}
+
+type RevokeInput =
+  | { refreshToken: string }
+  | { jti: string }
+  | { sub: string }
+  | { familyId: string };
+```
+
+### Key provider types
+
+`SigningAlgorithm` is one of `RS256`, `RS384`, `RS512`, `PS256`, `PS384`, `PS512`, `ES256`, `ES384`, `ES512`, `EdDSA`, `HS256`, `HS384`, or `HS512`. Production configuration rejects the symmetric `HS*` algorithms.
+
+`KeyProvider` can expose `getSigningKey()`, `signJwt()`, and `getVerificationKey({ kid, alg })`. A verification only provider may expose just `getVerificationKey()`. `getPublicJwks()` is optional.
+
+`LocalKey` contains `kid`, `alg`, `privateKeyPem`, and `publicKeyPem`. `KmsRsaSigner` implements `sign(data: Uint8Array): Promise<Uint8Array>` and returns an RSASSA-PKCS1-v1_5 SHA-256 signature.
+
+### Store types
+
+`TokenStore` provides `getRefreshToken(tokenHash)` so the service can resolve current claims and sign a replacement access token before it atomically consumes the old refresh token. `rotateRefreshToken()` must coordinate across all service instances and revoke a family when an already used token appears again. The store can implement `revokeByJti()` and `isJtiRevoked()` for access-token revocation. `MemoryTokenStore`, `RedisTokenStore`, `PostgresTokenStore`, and `StatelessTokenStore` are included.
+
+`RedisLike` requires `get(key)`, `set(key, value, options)`, and `eval(script, { keys, arguments })`. `PgLike` requires `query(sql, values)` and `transaction(work)`. The transaction callback receives a `PgTransaction` with `query()`.
+
+### Events and errors
+
+Events use the names `token.issued`, `token.verified`, `token.refreshed`, `token.revoked`, `token.reuse_detected`, and `token.failed`. They carry an ISO timestamp and optional identifiers or error code. A synchronous exception from `onEvent` does not change token behavior.
+
+| Error code              | Meaning                                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| `INVALID_INPUT`         | Configuration or operation input failed validation.                                           |
+| `INVALID_TOKEN`         | Token is malformed, invalid, or does not match the configured issuer, audience, or algorithm. |
+| `TOKEN_EXPIRED`         | Access or refresh token has expired.                                                          |
+| `TOKEN_REVOKED`         | Token state is revoked.                                                                       |
+| `REFRESH_REUSED`        | A used refresh token appeared again and its family was revoked.                               |
+| `CLAIMS_TOO_LARGE`      | Custom claims exceed the configured byte limit.                                               |
+| `FORBIDDEN_CLAIM`       | Custom claims contain reserved or forbidden data.                                             |
+| `KEY_UNAVAILABLE`       | A signing or verification key could not be used.                                              |
+| `STORE_UNAVAILABLE`     | A token store operation failed.                                                               |
+| `UNSUPPORTED_OPERATION` | The selected provider or store does not support the operation.                                |
+
+## HTTP routes
+
+| Route           | Default  | Authorization                        | Success                   |
+| --------------- | -------- | ------------------------------------ | ------------------------- |
+| `POST /refresh` | Enabled  | Application policy and rate limiting | Rotated token pair        |
+| `POST /issue`   | Disabled | Required callback when enabled       | Token pair                |
+| `POST /verify`  | Disabled | Application policy when enabled      | `{ valid: true, claims }` |
+| `POST /revoke`  | Disabled | Required callback when enabled       | `{ revoked: true }`       |
+
+Errors use `{ error: { code, message } }`. Invalid input maps to 400, store/key failures to 503, unsupported operations to 501, and other token errors to 401. A failed protected action returns 403.
+
+The adapter does not add authentication, CSRF, CORS, or rate limiting. Set body size limits in your framework before mounting these routes. Exposing `/issue` directly to the public internet lets callers mint tokens, so authorize it with your own trusted identity or service credential.
+
+## When to use
+
+- You need one signing and verification policy shared by several services.
+- You need refresh rotation with reuse detection and family revocation.
+- You want to keep key management and refresh token persistence behind replaceable interfaces.
+- You need Express, Fastify, or Hono routes for token operations.
+
+## When not to use
+
+- You need a complete identity provider, login flow, OAuth/OIDC server, account recovery, or authorization policy. This block does not implement those systems.
+- You need refresh state to survive restarts or coordinate across instances but can only use `MemoryTokenStore`.
+- You need multi region refresh consistency without a shared strongly consistent store. Eventual replicas can accept replayed refresh state.
+
+## Testing
+
+The block tests signing and verification, audience checks, expiry, forbidden claims, rotation, replay revocation, concurrency, and each framework adapter. Store tests verify transaction query construction and Redis script behavior. The PostgreSQL integration test applies the real migration in a temporary schema and exercises concurrent refresh rotation, family replay revocation, subject revocation, and the JTI denylist against a live server.
+
+Set `TOKEN_SERVICE_POSTGRES_URL` to a dedicated test database before running the integration test. It creates and drops a unique schema, so the configured database role needs permission to create schemas.
+
+Install `pg` and `@types/pg` as development dependencies to run this integration test outside the Blockend workspace. They are test-only; the store itself accepts the `PgLike` interface and does not depend on a PostgreSQL driver.
+
+```bash
+pnpm exec vitest run blocks/token-service
+pnpm typecheck:blocks
+```
+
+CI starts PostgreSQL 17 and Redis 7 for the full test suite. Without `TOKEN_SERVICE_POSTGRES_URL`, the PostgreSQL integration suite skips.
+
+## Related blocks
+
+- **Password Hashing** — Hash user credentials before an application authenticates a user and asks this service to issue tokens.
+- **Rate Limiter** — Limit refresh and privileged issue requests before they reach token storage or signing infrastructure.
+- **Environment Configuration** — Validate issuer, audience, and key reference settings before the service starts.
+
+## FAQ
+
+**Does this block authenticate a user?**
+
+No. Call `issue()` only after your application has authenticated the subject. The block does not look up users or decide permissions.
+
+**Does it store refresh tokens in plain text?**
+
+No. It returns a random 256 bit token once and stores only its SHA-256 hash. Treat the returned value as a credential and send it only over TLS.
+
+**What happens if a refresh token is reused?**
+
+The store marks the token family revoked and the service throws `REFRESH_REUSED`. The client must authenticate again through your application.
+
+**Can I use `MemoryTokenStore` in production?**
+
+Only for a single process when losing all refresh and revocation state on restart is acceptable. It does not coordinate across processes or hosts.
+
+**Can I expose `/issue` or `/revoke`?**
+
+Yes, but the adapter requires an `authorize` callback to return `true`. Keep the route behind your application's identity checks and rate limits.
+
+**How do I revoke access tokens immediately?**
+
+Use a store with `revokeByJti()` and `isJtiRevoked()`, then call `revoke({ jti })`. This makes each verification consult shared state. Otherwise use short access lifetimes and revoke refresh tokens to stop future access token issuance.
+
+**Does a JWKS provider sign tokens?**
+
+`RemoteJwksKeyProvider` is verification only. Configure a local or KMS signer in the issuing service and use the remote JWKS provider in resource services.

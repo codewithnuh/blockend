@@ -11,7 +11,8 @@ export type BlockKey =
   | "health-check"
   | "graceful-shutdown"
   | "idempotency"
-  | "password-hash";
+  | "password-hash"
+  | "token-service";
 
 export type RegistryData = {
   $schema: "./registry-schema.json";
@@ -1179,6 +1180,161 @@ export type RegistryData = {
                 {
                   source: "blocks/password-hash/core.test.ts";
                   target: "core.test.ts";
+                }
+              ];
+            };
+          };
+        };
+      };
+    };
+    "token-service": {
+      name: "Token Service";
+      description: "JWT access tokens and rotating opaque refresh tokens with pinned keys and shared stores.";
+      version: "1.0.0";
+      releasedAt: "2026-09-27";
+      runtimes: {
+        node: ">=20";
+      };
+      related: ["password-hash", "rate-limiter", "env-config"];
+      frameworks: ["*"];
+      dependencies: ["jose@^6.1.0", "zod@^4.4.3"];
+      devDependencies: ["vitest@^4.1.11", "@types/node@^26.2.0", "pg@^8.23.0", "@types/pg@^8.23.1"];
+      baseFiles: [
+        {
+          source: "blocks/token-service/src/index.ts";
+          target: "src/index.ts";
+        },
+        {
+          source: "blocks/token-service/src/core/crypto.ts";
+          target: "src/core/crypto.ts";
+        },
+        {
+          source: "blocks/token-service/src/core/errors.ts";
+          target: "src/core/errors.ts";
+        },
+        {
+          source: "blocks/token-service/src/core/token-service.ts";
+          target: "src/core/token-service.ts";
+        },
+        {
+          source: "blocks/token-service/src/core/types.ts";
+          target: "src/core/types.ts";
+        },
+        {
+          source: "blocks/token-service/src/core/validation.ts";
+          target: "src/core/validation.ts";
+        },
+        {
+          source: "blocks/token-service/src/providers/kms-rsa-key-provider.ts";
+          target: "src/providers/kms-rsa-key-provider.ts";
+        },
+        {
+          source: "blocks/token-service/src/providers/local-key-provider.ts";
+          target: "src/providers/local-key-provider.ts";
+        },
+        {
+          source: "blocks/token-service/src/providers/remote-jwks-provider.ts";
+          target: "src/providers/remote-jwks-provider.ts";
+        },
+        {
+          source: "blocks/token-service/src/stores/memory-token-store.ts";
+          target: "src/stores/memory-token-store.ts";
+        },
+        {
+          source: "blocks/token-service/src/stores/postgres-token-store.ts";
+          target: "src/stores/postgres-token-store.ts";
+        },
+        {
+          source: "blocks/token-service/src/stores/redis-token-store.ts";
+          target: "src/stores/redis-token-store.ts";
+        },
+        {
+          source: "blocks/token-service/src/stores/stateless-token-store.ts";
+          target: "src/stores/stateless-token-store.ts";
+        },
+        {
+          source: "blocks/token-service/tests/core/token-service.test.ts";
+          target: "tests/core/token-service.test.ts";
+        },
+        {
+          source: "blocks/token-service/tests/stores/postgres-token-store.test.ts";
+          target: "tests/stores/postgres-token-store.test.ts";
+        },
+        {
+          source: "blocks/token-service/tests/stores/postgres-token-store.integration.test.ts";
+          target: "tests/stores/postgres-token-store.integration.test.ts";
+        },
+        {
+          source: "blocks/token-service/tests/stores/redis-token-store.test.ts";
+          target: "tests/stores/redis-token-store.test.ts";
+        },
+        {
+          source: "blocks/token-service/sql/postgres.sql";
+          target: "sql/postgres.sql";
+        }
+      ];
+      adapters: {
+        express: {
+          dependencies: ["express@^5.2.1"];
+          devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/token-service/src/adapters/http.ts";
+                  target: "src/adapters/http.ts";
+                },
+                {
+                  source: "blocks/token-service/src/adapters/express.ts";
+                  target: "src/adapters/express.ts";
+                },
+                {
+                  source: "blocks/token-service/tests/adapters/express.test.ts";
+                  target: "tests/adapters/express.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        fastify: {
+          dependencies: ["fastify@^5.12.1"];
+          devDependencies: ["vitest@^4.1.11"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/token-service/src/adapters/http.ts";
+                  target: "src/adapters/http.ts";
+                },
+                {
+                  source: "blocks/token-service/src/adapters/fastify.ts";
+                  target: "src/adapters/fastify.ts";
+                },
+                {
+                  source: "blocks/token-service/tests/adapters/fastify.test.ts";
+                  target: "tests/adapters/fastify.test.ts";
+                }
+              ];
+            };
+          };
+        };
+        hono: {
+          dependencies: ["hono@^4.13.5"];
+          devDependencies: ["vitest@^4.1.11"];
+          variants: {
+            default: {
+              files: [
+                {
+                  source: "blocks/token-service/src/adapters/http.ts";
+                  target: "src/adapters/http.ts";
+                },
+                {
+                  source: "blocks/token-service/src/adapters/hono.ts";
+                  target: "src/adapters/hono.ts";
+                },
+                {
+                  source: "blocks/token-service/tests/adapters/hono.test.ts";
+                  target: "tests/adapters/hono.test.ts";
                 }
               ];
             };
