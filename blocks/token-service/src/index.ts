@@ -9,6 +9,6 @@ export type { KmsRsaSigner } from "./providers/kms-rsa-key-provider.js";
 export { MemoryTokenStore } from "./stores/memory-token-store.js";
 export { StatelessTokenStore } from "./stores/stateless-token-store.js";
 export { RedisTokenStore } from "./stores/redis-token-store.js";
-export type { RedisLike } from "./stores/redis-token-store.js";
+export type { RedisLike, RedisTokenStoreOptions } from "./stores/redis-token-store.js";
 export { PostgresTokenStore } from "./stores/postgres-token-store.js";
 export type { PgLike, PgTransaction, QueryResult } from "./stores/postgres-token-store.js";

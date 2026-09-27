@@ -68,6 +68,25 @@ describe("TokenService", () => {
     });
   });
 
+  it("enforces an absolute refresh-family lifetime and rotation ceiling", async () => {
+    const clock = { value: new Date("2026-01-01T00:00:00Z") };
+    const { service } = setup({
+      now: () => clock.value,
+      maxRefreshFamilyLifetimeSeconds: 3600,
+      maxRefreshRotations: 1
+    });
+    const issued = await service.issue({ sub: "bounded-family" });
+    const rotated = await service.refresh(issued.refreshToken!);
+    await expect(service.refresh(rotated.refreshToken!)).rejects.toMatchObject({
+      code: "REFRESH_LIMIT"
+    });
+
+    clock.value = new Date(clock.value.getTime() + 3601 * 1000);
+    await expect(service.refresh(rotated.refreshToken!)).rejects.toMatchObject({
+      code: "TOKEN_EXPIRED"
+    });
+  });
+
   it("leaves the current refresh token active when signing fails before rotation", async () => {
     const store = new MemoryTokenStore();
     const issuer = createTokenService({
@@ -94,6 +113,42 @@ describe("TokenService", () => {
 
     await expect(service.refresh(issued.refreshToken!)).rejects.toMatchObject({
       code: "KEY_UNAVAILABLE"
+    });
+    const record = await store.getRefreshToken(hashToken(issued.refreshToken!));
+    expect(record?.status).toBe("active");
+  });
+
+  it("does not rotate a refresh token that expires during context resolution", async () => {
+    const clock = { value: new Date("2026-01-01T00:00:00Z") };
+    const store = new MemoryTokenStore();
+    const issuer = createTokenService({
+      issuer: "https://auth.example.com",
+      audience: "api.example.com",
+      algorithms: ["RS256"],
+      keyProvider: provider,
+      tokenStore: store,
+      now: () => clock.value
+    });
+    const issued = await issuer.issue({
+      sub: "slow-context",
+      tokens: { access: false },
+      refreshTokenTtlSeconds: 3600
+    });
+    const service = createTokenService({
+      issuer: "https://auth.example.com",
+      audience: "api.example.com",
+      algorithms: ["RS256"],
+      keyProvider: provider,
+      tokenStore: store,
+      now: () => clock.value,
+      resolveRefreshContext: async () => {
+        clock.value = new Date(clock.value.getTime() + 3601 * 1000);
+        return {};
+      }
+    });
+
+    await expect(service.refresh(issued.refreshToken!)).rejects.toMatchObject({
+      code: "TOKEN_EXPIRED"
     });
     const record = await store.getRefreshToken(hashToken(issued.refreshToken!));
     expect(record?.status).toBe("active");
@@ -207,7 +262,10 @@ describe("TokenService", () => {
     expect(() => setup({ tokenStore: {} })).toThrow(TokenError);
     expect(() =>
       setup({
-        keyProvider: { getVerificationKey: provider.getVerificationKey.bind(provider) }
+        keyProvider: {
+          getVerificationKey: async () => ({}),
+          signJwt: async () => "token"
+        }
       })
     ).toThrow(TokenError);
     expect(() =>
@@ -218,6 +276,36 @@ describe("TokenService", () => {
         }
       })
     ).toThrow(TokenError);
+    expect(() =>
+      setup({
+        tokenStore: {
+          saveRefreshToken: async () => undefined,
+          getRefreshToken: async () => undefined,
+          rotateRefreshToken: async () => ({ status: "missing" }),
+          revokeByHash: async () => undefined,
+          revokeByFamily: async () => undefined,
+          revokeBySub: async () => undefined,
+          revokeByJti: async () => undefined
+        }
+      })
+    ).toThrow(TokenError);
+  });
+
+  it("accepts verification-only key providers", async () => {
+    const signingService = setup().service;
+    const issued = await signingService.issue({ sub: "verify-only", tokens: { refresh: false } });
+    const verificationOnlyProvider = {
+      getVerificationKey: provider.getVerificationKey.bind(provider)
+    };
+    const verifier = createTokenService({
+      issuer: "https://auth.example.com",
+      audience: "api.example.com",
+      algorithms: ["RS256"],
+      keyProvider: verificationOnlyProvider,
+      tokenStore: new MemoryTokenStore()
+    });
+
+    expect((await verifier.verify(issued.accessToken!)).claims.sub).toBe("verify-only");
   });
 
   it("supports individual token selection and minimum TTL clamping", async () => {

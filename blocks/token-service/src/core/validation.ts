@@ -40,6 +40,8 @@ const optionsSchema = z
     audience: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).optional(),
     accessTokenTtlSeconds: z.number().int().positive().optional(),
     refreshTokenTtlSeconds: z.number().int().positive().optional(),
+    maxRefreshFamilyLifetimeSeconds: z.number().int().min(3600).max(31_536_000).optional(),
+    maxRefreshRotations: z.number().int().min(1).max(1_000_000).optional(),
     clockSkewSeconds: z.number().int().min(0).max(300).optional(),
     algorithms: z.array(z.enum(algorithms)).min(1).optional(),
     keyProvider: z.custom<object>((v) => typeof v === "object" && v !== null),
@@ -79,9 +81,16 @@ const optionsSchema = z
     validateMethods(
       value.keyProvider,
       "keyProvider",
-      ["getSigningKey", "getVerificationKey"],
-      ["signJwt", "getPublicJwks"]
+      ["getVerificationKey"],
+      ["getSigningKey", "signJwt", "getPublicJwks"]
     );
+    const provider = value.keyProvider as Record<string, unknown>;
+    if (typeof provider.signJwt === "function" && typeof provider.getSigningKey !== "function")
+      ctx.addIssue({
+        code: "custom",
+        path: ["keyProvider", "getSigningKey"],
+        message: "keyProvider.getSigningKey is required when keyProvider.signJwt is provided"
+      });
     validateMethods(
       value.tokenStore,
       "tokenStore",
@@ -95,6 +104,13 @@ const optionsSchema = z
       ],
       ["revokeByJti", "isJtiRevoked"]
     );
+    const store = value.tokenStore as Record<string, unknown>;
+    if ((typeof store.revokeByJti === "function") !== (typeof store.isJtiRevoked === "function"))
+      ctx.addIssue({
+        code: "custom",
+        path: ["tokenStore"],
+        message: "tokenStore must implement revokeByJti and isJtiRevoked together"
+      });
     if ((value.deploymentMode ?? "production") === "production") {
       if (!value.audience)
         ctx.addIssue({

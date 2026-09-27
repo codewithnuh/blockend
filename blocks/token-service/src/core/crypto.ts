@@ -1,8 +1,29 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { TokenError } from "./errors.js";
 
-export function newOpaqueToken(): string {
-  return randomBytes(32).toString("base64url");
+export function newOpaqueToken(familyId: string): string {
+  return `rt1.${Buffer.from(familyId, "utf8").toString("base64url")}.${randomBytes(32).toString("base64url")}`;
+}
+export function familyIdFromOpaqueToken(token: string): string | undefined {
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== "rt1" || !/^[A-Za-z0-9_-]{43}$/.test(parts[2]!))
+    return undefined;
+  try {
+    const secret = Buffer.from(parts[2]!, "base64url");
+    if (secret.byteLength !== 32 || secret.toString("base64url") !== parts[2]) return undefined;
+    const encoded = parts[1]!;
+    const familyId = Buffer.from(encoded, "base64url").toString("utf8");
+    if (Buffer.from(familyId, "utf8").toString("base64url") !== encoded) return undefined;
+    if (
+      !/^(?:[A-Za-z0-9_-]{43}\.)?[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        familyId
+      )
+    )
+      return undefined;
+    return familyId;
+  } catch {
+    return undefined;
+  }
 }
 export function newId(): string {
   return crypto.randomUUID();

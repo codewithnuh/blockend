@@ -6,7 +6,14 @@ import {
   type JWTPayload
 } from "jose";
 import { TokenError, isTokenError } from "./errors.js";
-import { clamp, hashToken, jsonByteLength, newId, newOpaqueToken } from "./crypto.js";
+import {
+  clamp,
+  familyIdFromOpaqueToken,
+  hashToken,
+  jsonByteLength,
+  newId,
+  newOpaqueToken
+} from "./crypto.js";
 import {
   assertAllowedAlgorithm,
   parseIssue,
@@ -32,6 +39,11 @@ const ACCESS_DEFAULT = 900,
 const REFRESH_DEFAULT = 604_800,
   REFRESH_MIN = 3600,
   REFRESH_MAX = 2_592_000;
+const FAMILY_MAX_DEFAULT = 7_776_000,
+  FAMILY_MAX_MIN = 3600,
+  FAMILY_MAX_MAX = 31_536_000,
+  FAMILY_ROTATIONS_DEFAULT = 10_000,
+  FAMILY_ROTATIONS_MAX = 1_000_000;
 const DEFAULT_FORBIDDEN = [
   "password",
   "password_hash",
@@ -53,6 +65,8 @@ class DefaultTokenService implements TokenService {
   private readonly forbidden: Set<string>;
   private readonly accessTtl: number;
   private readonly refreshTtl: number;
+  private readonly familyMaxLifetime: number;
+  private readonly familyMaxRotations: number;
 
   constructor(options: TokenServiceOptions) {
     this.options = parseOptions(options);
@@ -66,6 +80,18 @@ class DefaultTokenService implements TokenService {
       REFRESH_DEFAULT,
       REFRESH_MIN,
       REFRESH_MAX
+    );
+    this.familyMaxLifetime = clamp(
+      options.maxRefreshFamilyLifetimeSeconds,
+      FAMILY_MAX_DEFAULT,
+      FAMILY_MAX_MIN,
+      FAMILY_MAX_MAX
+    );
+    this.familyMaxRotations = clamp(
+      options.maxRefreshRotations,
+      FAMILY_ROTATIONS_DEFAULT,
+      1,
+      FAMILY_ROTATIONS_MAX
     );
   }
 
@@ -93,11 +119,25 @@ class DefaultTokenService implements TokenService {
       }
       if (refresh) {
         const ttl = clamp(input.refreshTokenTtlSeconds, this.refreshTtl, REFRESH_MIN, REFRESH_MAX);
-        const token = newOpaqueToken();
-        const record = this.refreshRecord(token, input.sub, newId(), ttl, now);
+        const familyId = this.options.tokenStore.createFamilyId?.(input.sub) ?? newId();
+        const familyExpiresAt = new Date((now + this.familyMaxLifetime) * 1000);
+        const token = newOpaqueToken(familyId);
+        const record = this.refreshRecord(
+          token,
+          input.sub,
+          familyId,
+          ttl,
+          now,
+          familyExpiresAt,
+          0,
+          this.familyMaxRotations
+        );
         await this.store(() => this.options.tokenStore.saveRefreshToken(record));
         pair.refreshToken = token;
-        pair.refreshExpiresIn = ttl;
+        pair.refreshExpiresIn = Math.max(
+          0,
+          Math.floor((record.expiresAt.getTime() - now * 1000) / 1000)
+        );
       }
       this.emit({
         name: "token.issued",
@@ -155,15 +195,28 @@ class DefaultTokenService implements TokenService {
     try {
       if (typeof refreshToken !== "string" || refreshToken.length < 32 || refreshToken.length > 512)
         throw new TokenError("INVALID_TOKEN", "Invalid refresh token");
+      const tokenFamilyId = familyIdFromOpaqueToken(refreshToken);
+      if (!tokenFamilyId) throw new TokenError("INVALID_TOKEN", "Invalid refresh token");
       const nowDate = this.now();
       const now = Math.floor(nowDate.getTime() / 1000);
       const currentHash = hashToken(refreshToken);
-      const current = await this.store(() => this.options.tokenStore.getRefreshToken(currentHash));
+      const current = await this.store(() =>
+        this.options.tokenStore.getRefreshToken(currentHash, tokenFamilyId)
+      );
       if (!current) throw new TokenError("INVALID_TOKEN", "Unknown refresh token");
+      if (current.familyId !== tokenFamilyId)
+        throw new TokenError("INVALID_TOKEN", "Invalid refresh token");
       if (current.status === "revoked")
         throw new TokenError("TOKEN_REVOKED", "Refresh token revoked");
       if (current.status === "active" && current.expiresAt.getTime() <= nowDate.getTime())
         throw new TokenError("TOKEN_EXPIRED", "Refresh token expired");
+      if (current.status === "active" && current.familyExpiresAt.getTime() <= nowDate.getTime())
+        throw new TokenError("TOKEN_EXPIRED", "Refresh family expired");
+      if (
+        current.status === "active" &&
+        current.rotationCount >= Math.min(current.rotationLimit, this.familyMaxRotations)
+      )
+        throw new TokenError("REFRESH_LIMIT", "Refresh family reached its rotation limit");
 
       // Complete fallible identity lookups and signing before consuming the current token.
       // The store still performs the final status check and rotation atomically.
@@ -181,26 +234,38 @@ class DefaultTokenService implements TokenService {
           now
         );
       }
-      const replacementToken = newOpaqueToken();
-      // The subject/family are filled by transactional stores from the current record.
+      // Context resolution and key signing can be slow. Recheck expiration at
+      // the rotation boundary instead of letting an earlier timestamp extend
+      // an expired credential's authority.
+      const rotationDate = this.now();
+      const rotationNow = Math.floor(rotationDate.getTime() / 1000);
+      if (current.status === "active" && current.expiresAt.getTime() <= rotationDate.getTime())
+        throw new TokenError("TOKEN_EXPIRED", "Refresh token expired");
+      const replacementToken = newOpaqueToken(current.familyId);
       const placeholder = this.refreshRecord(
         replacementToken,
-        "__from_current__",
-        "__from_current__",
+        current.sub,
+        current.familyId,
         this.refreshTtl,
-        now
+        rotationNow,
+        current.familyExpiresAt,
+        current.rotationCount + 1,
+        current.rotationLimit
       );
       const result = await this.store(() =>
         this.options.tokenStore.rotateRefreshToken({
           currentHash,
           replacement: placeholder,
-          now: nowDate
+          now: rotationDate,
+          maxRotations: this.familyMaxRotations
         })
       );
       if (result.status === "missing")
         throw new TokenError("INVALID_TOKEN", "Unknown refresh token");
       if (result.status === "expired")
         throw new TokenError("TOKEN_EXPIRED", "Refresh token expired");
+      if (result.status === "limit")
+        throw new TokenError("REFRESH_LIMIT", "Refresh family reached its rotation limit");
       if (result.status === "revoked")
         throw new TokenError("TOKEN_REVOKED", "Refresh token revoked");
       if (result.status === "reused") {
@@ -230,7 +295,10 @@ class DefaultTokenService implements TokenService {
         refreshToken: replacementToken,
         tokenType: "Bearer",
         expiresIn: this.accessTtl,
-        refreshExpiresIn: this.refreshTtl,
+        refreshExpiresIn: Math.max(
+          0,
+          Math.floor((result.record.expiresAt.getTime() - rotationDate.getTime()) / 1000)
+        ),
         issuedAt: now
       };
     } catch (error) {
@@ -242,9 +310,13 @@ class DefaultTokenService implements TokenService {
     try {
       const input = parseRevoke(raw);
       const nowDate = this.now();
-      if ("refreshToken" in input)
-        await this.store(() => this.options.tokenStore.revokeByHash(hashToken(input.refreshToken)));
-      else if ("familyId" in input)
+      if ("refreshToken" in input) {
+        const familyId = familyIdFromOpaqueToken(input.refreshToken);
+        if (!familyId) throw new TokenError("INVALID_INPUT", "Invalid refresh token");
+        await this.store(() =>
+          this.options.tokenStore.revokeByHash(hashToken(input.refreshToken), familyId)
+        );
+      } else if ("familyId" in input)
         await this.store(() => this.options.tokenStore.revokeByFamily(input.familyId));
       else if ("sub" in input)
         await this.store(() => this.options.tokenStore.revokeBySub(input.sub));
@@ -348,15 +420,22 @@ class DefaultTokenService implements TokenService {
     sub: string,
     familyId: string,
     ttl: number,
-    now: number
+    now: number,
+    familyExpiresAt: Date,
+    rotationCount: number,
+    rotationLimit: number
   ): RefreshTokenRecord {
+    const expiresAt = new Date(Math.min((now + ttl) * 1000, familyExpiresAt.getTime()));
     return {
       tokenHash: hashToken(token),
       sub,
       familyId,
       status: "active",
       createdAt: new Date(now * 1000),
-      expiresAt: new Date((now + ttl) * 1000)
+      expiresAt,
+      familyExpiresAt,
+      rotationCount,
+      rotationLimit
     };
   }
   private toAccessClaims(payload: JWTPayload): AccessTokenClaims {

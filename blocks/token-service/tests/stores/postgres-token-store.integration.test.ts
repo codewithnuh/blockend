@@ -15,6 +15,7 @@ let storePool: Pool | undefined;
 let schema: string | undefined;
 let tokens: ReturnType<typeof createTokenService>;
 let postgresStore: PostgresTokenStore;
+let keyProvider: LocalKeyProvider;
 
 async function queryRows<Row>(
   client: Pool | PoolClient,
@@ -39,7 +40,7 @@ postgresIntegration("PostgresTokenStore integration", () => {
     await storePool.query(migration);
 
     const pair = await generateKeyPair("RS256", { extractable: true });
-    const keyProvider = new LocalKeyProvider({
+    keyProvider = new LocalKeyProvider({
       signingKid: "ci-2026",
       keys: [
         {
@@ -121,6 +122,34 @@ postgresIntegration("PostgresTokenStore integration", () => {
     await tokens.revoke({ sub: "postgres-revocation-user" });
     await expect(tokens.refresh(issued.refreshToken!)).rejects.toMatchObject({
       code: "TOKEN_REVOKED"
+    });
+  });
+
+  it("revokes a family when an older refresh token is explicitly revoked", async () => {
+    const issued = await tokens.issue({ sub: "postgres-refresh-revoke-user" });
+    const rotated = await tokens.refresh(issued.refreshToken!);
+
+    await tokens.revoke({ refreshToken: issued.refreshToken! });
+
+    await expect(tokens.refresh(rotated.refreshToken!)).rejects.toMatchObject({
+      code: "TOKEN_REVOKED"
+    });
+  });
+
+  it("enforces a persisted refresh-family rotation limit", async () => {
+    const limited = createTokenService({
+      issuer: "https://auth.example.com",
+      audience: "api.example.com",
+      algorithms: ["RS256"],
+      keyProvider,
+      tokenStore: postgresStore,
+      maxRefreshRotations: 1
+    });
+    const issued = await limited.issue({ sub: "postgres-rotation-limit" });
+    const rotated = await limited.refresh(issued.refreshToken!);
+
+    await expect(limited.refresh(rotated.refreshToken!)).rejects.toMatchObject({
+      code: "REFRESH_LIMIT"
     });
   });
 

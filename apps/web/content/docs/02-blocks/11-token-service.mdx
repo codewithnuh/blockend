@@ -19,7 +19,8 @@ Your application still owns login, authorization policy, browser cookie settings
 
 - Production configuration requires an HTTPS or URN issuer, an audience, and asymmetric JWT algorithms.
 - Access token lifetime defaults to 15 minutes and is capped at one hour.
-- Refresh tokens contain 256 bits of randomness. Stores keep only their SHA-256 hashes.
+- Refresh tokens contain a versioned family identifier and a 256-bit random secret. Stores keep only their SHA-256 hashes.
+- Refresh families have a 90-day absolute lifetime and a 10,000-rotation ceiling by default. Both limits are configurable and stored with each family, bounding retained replay state.
 - Refresh rotation is atomic in the supplied Redis and PostgreSQL stores. Reuse revokes the token family.
 - Key IDs (`kid`) support signing key rotation while old public keys remain available for verification.
 - Local PEM, remote JWKS, and vendor neutral KMS signing providers are included.
@@ -30,6 +31,19 @@ Your application still owns login, authorization policy, browser cookie settings
   `MemoryTokenStore` is process local and loses state on restart. Use PostgreSQL or Redis for
   refresh tokens in a multi instance production service. Use `StatelessTokenStore` only when you
   issue access tokens without refresh or server side revocation.
+</Callout>
+
+<Callout type="warn">
+  This release changes the refresh-token format. Existing refresh tokens must be invalidated and
+  clients must authenticate again. Redis also moves to the `blockend:v2:` namespace. Roll issuer
+  instances together; do not run old and new token-service versions against one active session set.
+</Callout>
+
+<Callout type="warn">
+  Run Redis token state with `maxmemory-policy noeviction` in a dedicated deployment. Redis must
+  reject writes rather than evict family or JTI state. Redis Cluster replication is asynchronous and
+  can lose acknowledged writes during failover; choose PostgreSQL if your threat model requires
+  strict revocation durability across failover.
 </Callout>
 
 ## File structure
@@ -191,28 +205,12 @@ Copy the source files into `blocks/token-service` and install the dependencies u
 
 ### PostgreSQL schema
 
-Apply this migration once before using `PostgresTokenStore`.
+Apply the complete idempotent schema at [`sql/postgres.sql`](./sql/postgres.sql) before using
+`PostgresTokenStore`. It upgrades older tables with absolute family expiry and rotation limits.
+Existing families receive a 90-day cap from their first recorded issue; families older than that
+cap must authenticate again.
 
-```sql
-CREATE TABLE IF NOT EXISTS blockend_refresh_tokens (
-  token_hash text PRIMARY KEY,
-  family_id uuid NOT NULL,
-  subject text NOT NULL,
-  expires_at timestamptz NOT NULL,
-  status text NOT NULL CHECK (status IN ('active', 'used', 'revoked')),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  used_at timestamptz,
-  metadata jsonb
-);
-CREATE INDEX IF NOT EXISTS blockend_refresh_family_idx ON blockend_refresh_tokens (family_id);
-CREATE INDEX IF NOT EXISTS blockend_refresh_subject_idx ON blockend_refresh_tokens (subject);
-CREATE INDEX IF NOT EXISTS blockend_refresh_expiry_idx ON blockend_refresh_tokens (expires_at);
-CREATE TABLE IF NOT EXISTS blockend_revoked_jtis (
-  jti text PRIMARY KEY,
-  expires_at timestamptz NOT NULL
-);
-CREATE INDEX IF NOT EXISTS blockend_revoked_jti_expiry_idx ON blockend_revoked_jtis (expires_at);
-```
+<SourceCode file="token-service/sql/postgres.sql" />
 
   </Tab>
 </Tabs>
@@ -221,22 +219,24 @@ CREATE INDEX IF NOT EXISTS blockend_revoked_jti_expiry_idx ON blockend_revoked_j
 
 ### `TokenServiceOptions`
 
-| Option                   | Type                                                                                            | Default                            | Description                                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `deploymentMode`         | `"development" \| "production"`                                                                 | `"production"`                     | Development permits localhost HTTP and an omitted audience.                                        |
-| `issuer`                 | `string`                                                                                        | Required                           | Issuer claim. Production requires an HTTPS URL or URN.                                             |
-| `audience`               | `string \| string[]`                                                                            | Required in production             | Allowed audience values. A token requested with another audience is rejected.                      |
-| `accessTokenTtlSeconds`  | `number`                                                                                        | `900`                              | Clamped to 60 through 3600 seconds.                                                                |
-| `refreshTokenTtlSeconds` | `number`                                                                                        | `604800`                           | Clamped to 3600 through 2592000 seconds.                                                           |
-| `clockSkewSeconds`       | `number`                                                                                        | `30`                               | JWT clock tolerance, capped at 300 seconds.                                                        |
-| `algorithms`             | `SigningAlgorithm[]`                                                                            | `["RS256", "ES256"]`               | Accepted signing algorithms. Production rejects all `HS*` algorithms.                              |
-| `keyProvider`            | `KeyProvider`                                                                                   | Required                           | Supplies signing and verification keys.                                                            |
-| `tokenStore`             | `TokenStore`                                                                                    | Required                           | Stores refresh token state and may store revoked JTIs.                                             |
-| `maxClaimsBytes`         | `number`                                                                                        | `4096`                             | Maximum serialized custom claims size, clamped to 256 through 16384 bytes.                         |
-| `forbiddenClaimKeys`     | `string[]`                                                                                      | Built in secret and reserved names | Additional names rejected recursively in custom claims. Supplying this replaces the built in list. |
-| `onEvent`                | `(event: TokenEvent) => void`                                                                   | —                                  | Receives token lifecycle events. Synchronous telemetry errors are ignored.                         |
-| `resolveRefreshContext`  | `(sub: string) => Promise<{ claims?: Record<string, unknown>; audience?: string \| string[] }>` | —                                  | Reloads current authorization claims during refresh.                                               |
-| `now`                    | `() => Date`                                                                                    | `() => new Date()`                 | Clock injection for tests and controlled environments.                                             |
+| Option                            | Type                                                                                            | Default                            | Description                                                                                        |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `deploymentMode`                  | `"development" \| "production"`                                                                 | `"production"`                     | Development permits localhost HTTP and an omitted audience.                                        |
+| `issuer`                          | `string`                                                                                        | Required                           | Issuer claim. Production requires an HTTPS URL or URN.                                             |
+| `audience`                        | `string \| string[]`                                                                            | Required in production             | Allowed audience values. A token requested with another audience is rejected.                      |
+| `accessTokenTtlSeconds`           | `number`                                                                                        | `900`                              | Clamped to 60 through 3600 seconds.                                                                |
+| `refreshTokenTtlSeconds`          | `number`                                                                                        | `604800`                           | Clamped to 3600 through 2592000 seconds.                                                           |
+| `maxRefreshFamilyLifetimeSeconds` | `number`                                                                                        | `7776000`                          | Absolute family lifetime, from 3600 through 31536000 seconds.                                      |
+| `maxRefreshRotations`             | `number`                                                                                        | `10000`                            | Maximum successful rotations per family, from 1 through 1000000.                                   |
+| `clockSkewSeconds`                | `number`                                                                                        | `30`                               | JWT clock tolerance, capped at 300 seconds.                                                        |
+| `algorithms`                      | `SigningAlgorithm[]`                                                                            | `["RS256", "ES256"]`               | Accepted signing algorithms. Production rejects all `HS*` algorithms.                              |
+| `keyProvider`                     | `KeyProvider`                                                                                   | Required                           | Supplies signing and verification keys.                                                            |
+| `tokenStore`                      | `TokenStore`                                                                                    | Required                           | Stores refresh token state and may store revoked JTIs.                                             |
+| `maxClaimsBytes`                  | `number`                                                                                        | `4096`                             | Maximum serialized custom claims size, clamped to 256 through 16384 bytes.                         |
+| `forbiddenClaimKeys`              | `string[]`                                                                                      | Built in secret and reserved names | Additional names rejected recursively in custom claims. Supplying this replaces the built in list. |
+| `onEvent`                         | `(event: TokenEvent) => void`                                                                   | —                                  | Receives token lifecycle events. Synchronous telemetry errors are ignored.                         |
+| `resolveRefreshContext`           | `(sub: string) => Promise<{ claims?: Record<string, unknown>; audience?: string \| string[] }>` | —                                  | Reloads current authorization claims during refresh.                                               |
+| `now`                             | `() => Date`                                                                                    | `() => new Date()`                 | Clock injection for tests and controlled environments.                                             |
 
 ### `issue()` input
 
@@ -278,13 +278,15 @@ verify(accessToken)
   └─ check the optional JTI denylist
 
 refresh(refreshToken)
-  ├─ atomically consume the old hash and store a replacement hash
+  ├─ resolve the versioned token's family identifier
+  ├─ reload claims and sign before the atomic store operation
+  ├─ consume the old hash and store a replacement hash within lifetime and rotation caps
   ├─ revoke the family if an already used token appears again
   ├─ reload current claims when resolveRefreshContext is configured
   └─ sign and return the new access token and opaque refresh token
 ```
 
-`createTokenService()` validates configuration at startup. Every operation validates its input and emits a sanitized `TokenEvent`. PostgreSQL locks the current refresh row with `SELECT ... FOR UPDATE`; Redis performs consumption in one Lua script. Keep each Redis store's keys in a writable cluster hash slot. Neither implementation can guarantee immediate revocation when writes go to eventually consistent replicas.
+`createTokenService()` validates configuration at startup. Every operation validates its input and emits a sanitized `TokenEvent`. PostgreSQL explicitly uses `READ COMMITTED`, locks the subject, and locks the current refresh row with `SELECT ... FOR UPDATE`. Redis places a subject's generation counter and family hashes under one HMAC-derived cluster hash tag. Its Lua scripts receive every key explicitly and do O(1) rotation, reuse detection, and family invalidation. Keep the Redis routing key stable and identical across issuer instances. A Redis subject maps to one slot, while separate subjects distribute across the cluster. Do not read refresh or revocation state from replicas.
 
 ## Production setup
 
@@ -292,7 +294,16 @@ refresh(refreshToken)
 
 Apply `sql/postgres.sql`, then provide a `PgLike` wrapper whose `transaction()` method runs all callback queries in the same database transaction. `PostgresTokenStore` does not open or manage a pool itself. A normal `pg` pool needs a transaction wrapper that checks out one client, runs `BEGIN`, commits on success, rolls back on error, and releases the client.
 
-For Redis, use a client that implements `get`, `set(key, value, { PX })`, and `eval(script, { keys, arguments })`. The default prefix contains the `{blockend}` cluster hash tag. Keep that tag in any custom prefix so the keys used by rotation stay in one Redis Cluster slot.
+For Redis, use a client adapter that implements `get`, `hget`, `set(key, value, { PX })`, and `eval(script, { keys, arguments })`. The default prefix is `blockend:v2:`. Configure `RedisTokenStore` with a stable base64url-encoded subject routing key containing at least 32 decoded bytes and an optional prefix without braces. The key must match on every instance and must not be rotated until all families created with it expire or are revoked; otherwise `revokeBySub()` cannot reach older sessions.
+
+```ts
+const redisStore = new RedisTokenStore(redisAdapter, {
+  prefix: "company-auth:v2:",
+  subjectRoutingKey: Buffer.from(process.env.TOKEN_REDIS_SUBJECT_KEY!, "base64url")
+});
+```
+
+PostgreSQL transactions set `READ COMMITTED` before taking advisory locks. Its `transaction()` callback must use one connection and run no statements before the store's callback statements. Schedule bounded cleanup of rows where `family_expires_at <= NOW()` and expired JTI rows.
 
 ### Rotate signing keys
 
@@ -447,10 +458,10 @@ Creates an isolated service and validates its configuration immediately. Invalid
 | ----------------------- | ----------------------------------------------------------------- | ----------------------- |
 | `issue(input)`          | Subject, optional claims, token selection, lifetime, and audience | `Promise<TokenPair>`    |
 | `verify(accessToken)`   | Encoded access token                                              | `Promise<VerifyResult>` |
-| `refresh(refreshToken)` | Opaque refresh token                                              | `Promise<TokenPair>`    |
+| `refresh(refreshToken)` | Versioned opaque refresh token                                    | `Promise<TokenPair>`    |
 | `revoke(input)`         | Exactly one refresh token, JTI, subject, or family ID             | `Promise<void>`         |
 
-`verify()` accepts access tokens only. Refresh tokens are opaque random values and cannot be used as bearer access credentials.
+`verify()` accepts access tokens only. Refresh tokens are versioned opaque bearer credentials and cannot be used as access tokens. Their embedded family-routing hint is not secret; the 256-bit random component is the credential.
 
 ### Token result types
 
@@ -497,9 +508,9 @@ type RevokeInput =
 
 ### Store types
 
-`TokenStore` provides `getRefreshToken(tokenHash)` so the service can resolve current claims and sign a replacement access token before it atomically consumes the old refresh token. `rotateRefreshToken()` must coordinate across all service instances and revoke a family when an already used token appears again. The store can implement `revokeByJti()` and `isJtiRevoked()` for access-token revocation. `MemoryTokenStore`, `RedisTokenStore`, `PostgresTokenStore`, and `StatelessTokenStore` are included.
+`TokenStore` provides `createFamilyId?(sub)`, `getRefreshToken(tokenHash, familyId?)`, and atomic `rotateRefreshToken()`. Rotation checks the family deadline and rotation ceiling, consumes the old hash, and persists its replacement. Reuse revokes the complete family. Revoking by refresh token also revokes its complete family. The store can implement `revokeByJti()` and `isJtiRevoked()` for access-token revocation. `MemoryTokenStore`, `RedisTokenStore`, `PostgresTokenStore`, and `StatelessTokenStore` are included.
 
-`RedisLike` requires `get(key)`, `set(key, value, options)`, and `eval(script, { keys, arguments })`. `PgLike` requires `query(sql, values)` and `transaction(work)`. The transaction callback receives a `PgTransaction` with `query()`.
+`RedisTokenStoreOptions` requires `subjectRoutingKey` as a `Uint8Array` or base64url string with at least 32 decoded bytes. All issuer instances must share the same key and prefix. `RedisLike` requires `get(key)`, `hget(key, field)`, `set(key, value, options)`, and `eval(script, { keys, arguments })`. `PgLike` requires `query(sql, values)` and `transaction(work)`. The transaction callback receives a `PgTransaction` with `query()`; the store sets `READ COMMITTED` before issuing its locking statements.
 
 ### Events and errors
 
@@ -512,6 +523,7 @@ Events use the names `token.issued`, `token.verified`, `token.refreshed`, `token
 | `TOKEN_EXPIRED`         | Access or refresh token has expired.                                                          |
 | `TOKEN_REVOKED`         | Token state is revoked.                                                                       |
 | `REFRESH_REUSED`        | A used refresh token appeared again and its family was revoked.                               |
+| `REFRESH_LIMIT`         | The refresh family reached its configured rotation ceiling.                                   |
 | `CLAIMS_TOO_LARGE`      | Custom claims exceed the configured byte limit.                                               |
 | `FORBIDDEN_CLAIM`       | Custom claims contain reserved or forbidden data.                                             |
 | `KEY_UNAVAILABLE`       | A signing or verification key could not be used.                                              |
@@ -546,9 +558,9 @@ The adapter does not add authentication, CSRF, CORS, or rate limiting. Set body 
 
 ## Testing
 
-The block tests signing and verification, audience checks, expiry, forbidden claims, rotation, replay revocation, concurrency, and each framework adapter. Store tests verify transaction query construction and Redis script behavior. The PostgreSQL integration test applies the real migration in a temporary schema and exercises concurrent refresh rotation, family replay revocation, subject revocation, and the JTI denylist against a live server.
+The block tests signing and verification, audience checks, access and family expiry, forbidden claims, rotation limits, replay revocation, concurrency, and each framework adapter. Store tests verify transaction query construction and that Redis Lua scripts use bounded state and explicit keys. Live standalone Redis, six-node Redis Cluster, and PostgreSQL integration tests cover concurrent reuse, subject/family revocation, family limits, and JTI revocation.
 
-Set `TOKEN_SERVICE_POSTGRES_URL` to a dedicated test database before running the integration test. It creates and drops a unique schema, so the configured database role needs permission to create schemas.
+Set `REDIS_URL` for standalone Redis, `REDIS_CLUSTER_NODES` to comma-separated `host:port` cluster nodes, and `TOKEN_SERVICE_POSTGRES_URL` to a dedicated test database. The PostgreSQL suite creates and drops a unique schema, so its database role needs schema creation permission. Tests skip a backend when its environment variable is absent.
 
 Install `pg` and `@types/pg` as development dependencies to run this integration test outside the Blockend workspace. They are test-only; the store itself accepts the `PgLike` interface and does not depend on a PostgreSQL driver.
 
@@ -557,7 +569,7 @@ pnpm exec vitest run blocks/token-service
 pnpm typecheck:blocks
 ```
 
-CI starts PostgreSQL 17 and Redis 7 for the full test suite. Without `TOKEN_SERVICE_POSTGRES_URL`, the PostgreSQL integration suite skips.
+CI starts PostgreSQL 17, standalone Redis 7, and a six-node Redis 7 Cluster for the full test suite.
 
 ## Related blocks
 
@@ -573,11 +585,11 @@ No. Call `issue()` only after your application has authenticated the subject. Th
 
 **Does it store refresh tokens in plain text?**
 
-No. It returns a random 256 bit token once and stores only its SHA-256 hash. Treat the returned value as a credential and send it only over TLS.
+No. It returns a versioned token with a 256-bit random secret and stores only its SHA-256 hash. The public routing hint contains no subject value. Treat the whole returned value as a credential and send it only over TLS.
 
 **What happens if a refresh token is reused?**
 
-The store marks the token family revoked and the service throws `REFRESH_REUSED`. The client must authenticate again through your application.
+The store marks the token family revoked and the service throws `REFRESH_REUSED`. The client must authenticate again through your application. Already issued access tokens remain valid until expiry unless their JTIs are also revoked.
 
 **Can I use `MemoryTokenStore` in production?**
 

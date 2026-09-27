@@ -16,6 +16,7 @@ export class MemoryTokenStore implements TokenStore {
     currentHash: string;
     replacement: RefreshTokenRecord;
     now: Date;
+    maxRotations: number;
   }): Promise<RotateResult> {
     const current = this.refresh.get(input.currentHash);
     if (!current) return { status: "missing" };
@@ -27,15 +28,29 @@ export class MemoryTokenStore implements TokenStore {
     if (current.status === "revoked") return { status: "revoked", record: { ...current } };
     if (current.expiresAt.getTime() <= input.now.getTime())
       return { status: "expired", record: { ...current } };
+    if (current.familyExpiresAt.getTime() <= input.now.getTime())
+      return { status: "expired", record: { ...current } };
+    if (current.rotationCount >= input.maxRotations)
+      return { status: "limit", record: { ...current } };
     current.status = "used";
     current.usedAt = input.now;
-    const replacement = { ...input.replacement, sub: current.sub, familyId: current.familyId };
+    const replacement = {
+      ...input.replacement,
+      sub: current.sub,
+      familyId: current.familyId,
+      familyExpiresAt: current.familyExpiresAt,
+      rotationCount: current.rotationCount + 1,
+      rotationLimit: Math.min(current.rotationLimit, input.maxRotations),
+      expiresAt: new Date(
+        Math.min(input.replacement.expiresAt.getTime(), current.familyExpiresAt.getTime())
+      )
+    };
     this.refresh.set(replacement.tokenHash, replacement);
     return { status: "rotated", record: { ...replacement } };
   }
-  async revokeByHash(hash: string): Promise<void> {
+  async revokeByHash(hash: string, _familyId?: string): Promise<void> {
     const item = this.refresh.get(hash);
-    if (item) item.status = "revoked";
+    if (item) await this.revokeByFamily(item.familyId);
   }
   async revokeByFamily(familyId: string): Promise<void> {
     for (const item of this.refresh.values())

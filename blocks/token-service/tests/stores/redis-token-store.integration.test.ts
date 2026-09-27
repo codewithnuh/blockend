@@ -3,7 +3,7 @@ import { Redis } from "ioredis";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { exportPKCS8, exportSPKI, generateKeyPair } from "jose";
 import { createTokenService, LocalKeyProvider } from "../../src/index.js";
-import { hashToken } from "../../src/core/crypto.js";
+import { familyIdFromOpaqueToken, hashToken, newOpaqueToken } from "../../src/core/crypto.js";
 import { RedisTokenStore, type RedisLike } from "../../src/stores/redis-token-store.js";
 
 const redisUrl = process.env.REDIS_URL;
@@ -15,6 +15,7 @@ let activePrefix: string | undefined;
 function redisAdapter(): RedisLike {
   return {
     get: (key) => client.get(key),
+    hget: (key, field) => client.hget(key, field),
     set: (key, value, options) => {
       if (options?.PX !== undefined && options.NX)
         return client.set(key, value, "PX", options.PX, "NX");
@@ -27,14 +28,18 @@ function redisAdapter(): RedisLike {
   };
 }
 
-function createService(prefix: string, now?: () => Date) {
-  const store = new RedisTokenStore(redisAdapter(), prefix);
+function createService(prefix: string, now?: () => Date, overrides: Record<string, unknown> = {}) {
+  const store = new RedisTokenStore(redisAdapter(), {
+    prefix,
+    subjectRoutingKey: Buffer.alloc(32, 7)
+  });
   const service = createTokenService({
     issuer: "https://auth.example.com",
     audience: "api.example.com",
     algorithms: ["RS256"],
     keyProvider,
     tokenStore: store,
+    ...overrides,
     ...(now ? { now } : {})
   });
   return { service, store };
@@ -78,7 +83,7 @@ redisIntegration("RedisTokenStore integration", () => {
   });
 
   function prefixForTest(): string {
-    activePrefix = `token:{token-service-it-${randomUUID()}}:`;
+    activePrefix = `token-service-it-${randomUUID()}:`;
     return activePrefix;
   }
 
@@ -102,24 +107,70 @@ redisIntegration("RedisTokenStore integration", () => {
     });
   });
 
-  it("keeps consumed-token reuse detection through a sliding refresh-family expiry", async () => {
+  it("keeps bounded family state for reuse detection and revokes the family atomically", async () => {
     const clock = { value: new Date() };
     const { service } = createService(prefixForTest(), () => clock.value);
     const issued = await service.issue({ sub: "redis-sliding-user" });
-
-    clock.value = new Date(clock.value.getTime() + 6 * 24 * 60 * 60 * 1000);
     const second = await service.refresh(issued.refreshToken!);
-    const consumedKey = `${activePrefix}refresh:${hashToken(issued.refreshToken!)}`;
-    await client.pexpire(consumedKey, 50);
-    clock.value = new Date(clock.value.getTime() + 2 * 24 * 60 * 60 * 1000);
-    const third = await service.refresh(second.refreshToken!);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    const familyId = familyIdFromOpaqueToken(issued.refreshToken!)!;
+    const [route, id] = familyId.split(".");
+    const familyKey = `${activePrefix}family:{${route}}:${id}`;
+    const consumed = await client.hget(familyKey, hashToken(issued.refreshToken!));
+    expect(JSON.parse(consumed!).status).toBe("used");
+    expect(await client.pttl(familyKey)).toBeGreaterThan(80 * 24 * 60 * 60 * 1000);
 
     await expect(service.refresh(issued.refreshToken!)).rejects.toMatchObject({
       code: "REFRESH_REUSED"
     });
-    await expect(service.refresh(third.refreshToken!)).rejects.toMatchObject({
+    await expect(service.refresh(second.refreshToken!)).rejects.toMatchObject({
       code: "TOKEN_REVOKED"
+    });
+  });
+
+  it("invalidates all refresh families for a subject without scanning token keys", async () => {
+    const { service } = createService(prefixForTest());
+    const first = await service.issue({ sub: "redis-subject-revocation" });
+    const second = await service.issue({ sub: "redis-subject-revocation" });
+    await service.revoke({ sub: "redis-subject-revocation" });
+
+    await expect(service.refresh(first.refreshToken!)).rejects.toMatchObject({
+      code: "TOKEN_REVOKED"
+    });
+    await expect(service.refresh(second.refreshToken!)).rejects.toMatchObject({
+      code: "TOKEN_REVOKED"
+    });
+  });
+
+  it("revokes a refresh family when any one of its refresh tokens is revoked", async () => {
+    const { service } = createService(prefixForTest());
+    const first = await service.issue({ sub: "redis-family-revocation" });
+    const second = await service.refresh(first.refreshToken!);
+    await service.revoke({ refreshToken: first.refreshToken! });
+
+    await expect(service.refresh(second.refreshToken!)).rejects.toMatchObject({
+      code: "TOKEN_REVOKED"
+    });
+  });
+
+  it("does not let a forged token with a copied routing hint revoke a family", async () => {
+    const { service } = createService(prefixForTest());
+    const issued = await service.issue({ sub: "redis-forged-revoke" });
+    const familyId = familyIdFromOpaqueToken(issued.refreshToken!)!;
+
+    await service.revoke({ refreshToken: newOpaqueToken(familyId) });
+
+    await expect(service.refresh(issued.refreshToken!)).resolves.toMatchObject({
+      tokenType: "Bearer"
+    });
+  });
+
+  it("enforces the configured family rotation limit atomically", async () => {
+    const { service } = createService(prefixForTest(), undefined, { maxRefreshRotations: 1 });
+    const issued = await service.issue({ sub: "redis-rotation-limit" });
+    const rotated = await service.refresh(issued.refreshToken!);
+
+    await expect(service.refresh(rotated.refreshToken!)).rejects.toMatchObject({
+      code: "REFRESH_LIMIT"
     });
   });
 
@@ -137,27 +188,37 @@ redisIntegration("RedisTokenStore integration", () => {
       code: "TOKEN_EXPIRED"
     });
 
-    await store.saveRefreshToken({
-      tokenHash: "short-lived-hash",
-      familyId: "short-lived-family",
+    const familyId = store.createFamilyId("redis-expiry-user");
+    const shortToken = newOpaqueToken(familyId);
+    const shortRecord = {
+      tokenHash: hashToken(shortToken),
+      familyId,
       sub: "redis-expiry-user",
       status: "active",
       createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 150)
-    });
+      expiresAt: new Date(Date.now() + 150),
+      familyExpiresAt: new Date(Date.now() + 150),
+      rotationCount: 0,
+      rotationLimit: 10
+    } as const;
+    await store.saveRefreshToken(shortRecord);
     await new Promise((resolve) => setTimeout(resolve, 250));
-    expect(await store.getRefreshToken("short-lived-hash")).toBeUndefined();
+    expect(await store.getRefreshToken(shortRecord.tokenHash, familyId)).toBeUndefined();
     const rotation = await store.rotateRefreshToken({
-      currentHash: "short-lived-hash",
+      currentHash: shortRecord.tokenHash,
       replacement: {
-        tokenHash: "unused-replacement",
-        familyId: "short-lived-family",
+        tokenHash: hashToken(newOpaqueToken(familyId)),
+        familyId,
         sub: "redis-expiry-user",
         status: "active",
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 1000)
+        expiresAt: new Date(Date.now() + 1000),
+        familyExpiresAt: shortRecord.familyExpiresAt,
+        rotationCount: 1,
+        rotationLimit: 10
       },
-      now: new Date()
+      now: new Date(),
+      maxRotations: 10
     });
     expect(rotation.status).toBe("missing");
   });
