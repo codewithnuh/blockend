@@ -7,6 +7,7 @@ export const NAV_LINKS = [
   { url: "#philosophy", text: "Philosophy" },
   { url: "#security", text: "Security" },
   { url: "#faq", text: "FAQ" },
+  { url: "/recipes", text: "Recipes", active: "nested-url" },
   { url: "/docs", text: "Documentation", active: "nested-url" }
 ];
 

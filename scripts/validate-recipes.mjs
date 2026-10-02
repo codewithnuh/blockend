@@ -64,6 +64,16 @@ const RecipeSchema = z
         })
         .strict()
     ),
+    alternatives: z
+      .array(
+        z
+          .object({
+            title: nonEmptyString,
+            description: nonEmptyString
+          })
+          .strict()
+      )
+      .optional(),
     failureBehavior: z.array(
       z
         .object({

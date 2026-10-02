@@ -162,6 +162,25 @@
             "additionalProperties": false
           }
         },
+        "alternatives": {
+          "type": "array",
+          "description": "Alternative approaches a developer could choose instead of this recipe.",
+          "items": {
+            "type": "object",
+            "required": ["title", "description"],
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
         "failureBehavior": {
           "type": "array",
           "items": {
