@@ -1,6 +1,7 @@
 /* oxlint-disable no-console */
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
@@ -144,6 +145,7 @@ export function checkRecipeRelationships(collection, registry) {
     const allBlocks = new Set([...included, ...optional]);
     const order = recipe.integrationOrder ?? [];
     const orderIndex = new Map(order.map((slug, index) => [slug, index]));
+    const reportedConflictPairs = new Set();
 
     for (const slug of optional) {
       if (included.has(slug)) {
@@ -192,6 +194,22 @@ export function checkRecipeRelationships(collection, registry) {
     for (const slug of allBlocks) {
       const block = blocks[slug];
       if (!block) continue;
+
+      for (const conflictingSlug of block.conflicts ?? []) {
+        if (!allBlocks.has(conflictingSlug)) continue;
+
+        const conflictPair = [slug, conflictingSlug].sort().join("\0");
+        if (reportedConflictPairs.has(conflictPair)) continue;
+
+        reportedConflictPairs.add(conflictPair);
+        errors.push(
+          new ValidationError(
+            recipe.slug,
+            "includedBlocks",
+            `Conflicting blocks "${slug}" and "${conflictingSlug}" cannot be included together`
+          )
+        );
+      }
 
       for (const requiredSlug of block.requires ?? []) {
         if (!included.has(requiredSlug)) {
@@ -289,4 +307,5 @@ async function main() {
   process.exitCode = 1;
 }
 
-main();
+const invokedScript = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : null;
+if (invokedScript === import.meta.url) main();
