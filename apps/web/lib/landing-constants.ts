@@ -1,12 +1,13 @@
 export const NAV_LINKS = [
-  { url: "#how-it-works", text: "How it works" },
-  { url: "#catalog", text: "Catalog" },
-  { url: "#features", text: "Features" },
-  { url: "#mcp", text: "MCP" },
-  { url: "#roadmap", text: "Roadmap" },
-  { url: "#philosophy", text: "Philosophy" },
-  { url: "#security", text: "Security" },
-  { url: "#faq", text: "FAQ" },
+  { url: "/#how-it-works", text: "How it works" },
+  { url: "/#catalog", text: "Catalog" },
+  { url: "/#features", text: "Features" },
+  { url: "/#mcp", text: "MCP" },
+  { url: "/#roadmap", text: "Roadmap" },
+  { url: "/#philosophy", text: "Philosophy" },
+  { url: "/#security", text: "Security" },
+  { url: "/#faq", text: "FAQ" },
+  { url: "/recipes", text: "Recipes", active: "nested-url" },
   { url: "/docs", text: "Documentation", active: "nested-url" }
 ];
 

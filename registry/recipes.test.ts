@@ -28,6 +28,7 @@ interface MutableRecipe {
     default?: string;
   }>;
   tradeoffs: Array<{ choice: string; tradeoff: string }>;
+  alternatives?: Array<{ title: string; description: string }>;
   failureBehavior: Array<{ scenario: string; behavior: string }>;
   commands: Array<{ label: string; command: string }>;
   relatedContent: Array<{ title: string; href: string }>;
@@ -96,6 +97,7 @@ function makeValidCollection(): RecipeCollection {
         assumptions: [],
         configuration: [],
         tradeoffs: [],
+        alternatives: [],
         failureBehavior: [],
         commands: [],
         relatedContent: []
@@ -121,6 +123,29 @@ describe("recipe validation", () => {
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("1 recipe(s) verified");
+  });
+
+  it("accepts valid recipe alternatives", async () => {
+    const collection = makeValidCollection();
+    collection.recipes[0].alternatives = [
+      {
+        title: "Use a managed platform",
+        description: "Delegate service operation to a managed backend platform."
+      }
+    ];
+    const result = await runValidator(collection, makeRegistry());
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("1 recipe(s) verified");
+  });
+
+  it("rejects malformed recipe alternatives", async () => {
+    const collection = makeValidCollection();
+    collection.recipes[0].alternatives = [{ title: "", description: "A non-empty description." }];
+    const result = await runValidator(collection, makeRegistry());
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("alternatives.0.title");
   });
 
   it("rejects invalid recipe fields", async () => {
