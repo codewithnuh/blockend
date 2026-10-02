@@ -1,0 +1,223 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://blockend.noorulhassan.com/recipe-schema.json",
+  "title": "BlockendRecipeCollection",
+  "type": "object",
+  "required": ["version", "recipes"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Version of the recipe collection format."
+    },
+    "recipes": {
+      "type": "array",
+      "description": "Production-ready backend recipes published by Blockend.",
+      "items": {
+        "$ref": "#/definitions/recipe"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "blockSlug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "recipe": {
+      "type": "object",
+      "required": [
+        "slug",
+        "title",
+        "outcome",
+        "includedBlocks",
+        "optionalBlocks",
+        "integrationOrder",
+        "architecture",
+        "assumptions",
+        "configuration",
+        "tradeoffs",
+        "failureBehavior",
+        "commands",
+        "relatedContent"
+      ],
+      "properties": {
+        "slug": {
+          "$ref": "#/definitions/blockSlug",
+          "description": "Stable URL-safe recipe identifier."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outcome": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What a developer will have after following the recipe."
+        },
+        "includedBlocks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/blockSlug"
+          }
+        },
+        "optionalBlocks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/blockSlug"
+          }
+        },
+        "integrationOrder": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/blockSlug"
+          },
+          "description": "A complete ordering of included and optional blocks, respecting their registry requirements."
+        },
+        "architecture": {
+          "type": "object",
+          "required": ["overview", "components"],
+          "properties": {
+            "overview": {
+              "type": "string",
+              "minLength": 1
+            },
+            "components": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "description"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "block": {
+                    "$ref": "#/definitions/blockSlug"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "configuration": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "description", "required"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "default": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "tradeoffs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["choice", "tradeoff"],
+            "properties": {
+              "choice": {
+                "type": "string",
+                "minLength": 1
+              },
+              "tradeoff": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "failureBehavior": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["scenario", "behavior"],
+            "properties": {
+              "scenario": {
+                "type": "string",
+                "minLength": 1
+              },
+              "behavior": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "command"],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "command": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "relatedContent": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "href"],
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "href": {
+                "type": "string",
+                "pattern": "^(https://|/)"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

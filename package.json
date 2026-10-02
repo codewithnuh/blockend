@@ -15,8 +15,9 @@
     "typecheck": "turbo run typecheck",
     "typecheck:blocks": "tsc --noEmit -p blocks/tsconfig.json",
     "validate:registry": "node scripts/validate-registry.mjs",
+    "validate:recipes": "node scripts/validate-recipes.mjs",
     "generate:registry-types": "node scripts/generate-registry-types.mjs",
-    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm typecheck:blocks && pnpm validate:registry && pnpm test",
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm typecheck:blocks && pnpm validate:registry && pnpm validate:recipes && pnpm test",
     "prepare": "husky"
   },
   "keywords": [
