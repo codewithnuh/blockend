@@ -32,10 +32,18 @@ interface RecipeCollection {
 }
 
 export async function loadRecipes(): Promise<Recipe[]> {
-  const recipesPath = path.resolve(process.cwd(), "../../registry/recipes.json");
-  const raw = await fs.readFile(recipesPath, "utf-8");
-  const collection = JSON.parse(raw) as RecipeCollection;
-  return collection.recipes;
+  try {
+    const recipesPath = path.resolve(process.cwd(), "../../registry/recipes.json");
+    const raw = await fs.readFile(recipesPath, "utf-8");
+    const collection = JSON.parse(raw) as RecipeCollection;
+    if (!Array.isArray(collection.recipes)) {
+      throw new Error('Recipe collection must contain a "recipes" array');
+    }
+    return collection.recipes;
+  } catch (error) {
+    console.error("Recipe load failed:", error);
+    return [];
+  }
 }
 
 export async function getRecipe(slug: string): Promise<Recipe | undefined> {
