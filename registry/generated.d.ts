@@ -21,7 +21,7 @@ export type RegistryData = {
     "rate-limiter": {
       name: "Rate Limiter";
       description: "IP-based rate limiting middleware with pluggable storage strategies";
-      version: "1.0.1";
+      version: "1.0.2";
       releasedAt: "2026-06-27";
       runtimes: {
         node: ">=20";
@@ -44,7 +44,7 @@ export type RegistryData = {
       ];
       adapters: {
         express: {
-          dependencies: ["express@^5.2.1"];
+          dependencies: ["express@^5.3.0"];
           devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
           variants: {
             memory: {
@@ -101,7 +101,7 @@ export type RegistryData = {
           };
         };
         fastify: {
-          dependencies: ["fastify@^5.12.1"];
+          dependencies: ["fastify@^5.12.7"];
           variants: {
             memory: {
               devDependencies: ["vitest@^4.1.11"];
@@ -287,7 +287,7 @@ export type RegistryData = {
     "error-handler": {
       name: "Error Boundary";
       description: "Framework-agnostic error normalization, safe serialization, and optional reporting with HTTP adapters.";
-      version: "2.0.0";
+      version: "2.0.1";
       releasedAt: "2026-06-29";
       runtimes: {
         node: ">=20";
@@ -346,7 +346,7 @@ export type RegistryData = {
       ];
       adapters: {
         express: {
-          dependencies: ["express@^5.2.1"];
+          dependencies: ["express@^5.3.0"];
           devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
           variants: {
             default: {
@@ -408,7 +408,7 @@ export type RegistryData = {
           };
         };
         fastify: {
-          dependencies: ["fastify@^5.12.1"];
+          dependencies: ["fastify@^5.12.7"];
           variants: {
             default: {
               files: [
@@ -446,7 +446,7 @@ export type RegistryData = {
     logger: {
       name: "Structured Context Logger";
       description: "Framework-agnostic context logging engine.";
-      version: "1.0.0";
+      version: "1.0.1";
       releasedAt: "2026-07-01";
       runtimes: {
         node: ">=20";
@@ -466,7 +466,7 @@ export type RegistryData = {
       ];
       adapters: {
         express: {
-          dependencies: ["express@^5.2.1"];
+          dependencies: ["express@^5.3.0"];
           devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
           variants: {
             default: {
@@ -484,7 +484,7 @@ export type RegistryData = {
           };
         };
         fastify: {
-          dependencies: ["fastify@^5.12.1", "fastify-plugin@^6.0.0"];
+          dependencies: ["fastify@^5.12.7", "fastify-plugin@^6.0.0"];
           variants: {
             default: {
               files: [
@@ -522,7 +522,7 @@ export type RegistryData = {
     "request-validator": {
       name: "Request Validator";
       description: "Framework-agnostic request validation powered by Zod.";
-      version: "1.0.0";
+      version: "1.0.1";
       releasedAt: "2026-07-03";
       runtimes: {
         node: ">=20";
@@ -546,7 +546,7 @@ export type RegistryData = {
       ];
       adapters: {
         express: {
-          dependencies: ["express@^5.2.1"];
+          dependencies: ["express@^5.3.0"];
           devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
           variants: {
             default: {
@@ -582,7 +582,7 @@ export type RegistryData = {
           };
         };
         fastify: {
-          dependencies: ["fastify@^5.12.1"];
+          dependencies: ["fastify@^5.12.7"];
           devDependencies: ["vitest@^4.1.11"];
           variants: {
             default: {
@@ -604,7 +604,7 @@ export type RegistryData = {
     "response-formatter": {
       name: "Response Formatter";
       description: "Framework-agnostic API response formatting.";
-      version: "1.0.0";
+      version: "1.0.1";
       releasedAt: "2026-07-07";
       runtimes: {
         node: ">=20";
@@ -627,7 +627,7 @@ export type RegistryData = {
       ];
       adapters: {
         express: {
-          dependencies: ["express@^5.2.1"];
+          dependencies: ["express@^5.3.0"];
           devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
           variants: {
             default: {
@@ -663,7 +663,7 @@ export type RegistryData = {
           };
         };
         fastify: {
-          dependencies: ["fastify@^5.12.1"];
+          dependencies: ["fastify@^5.12.7"];
           devDependencies: ["vitest@^4.1.11"];
           variants: {
             default: {
@@ -716,7 +716,7 @@ export type RegistryData = {
     "health-check": {
       name: "System Health Check Monitoring";
       description: "Framework-agnostic health assessment suite.";
-      version: "1.0.0";
+      version: "1.0.1";
       releasedAt: "2026-07-20";
       runtimes: {
         node: ">=20";
@@ -775,7 +775,7 @@ export type RegistryData = {
       ];
       adapters: {
         express: {
-          dependencies: ["express@^5.2.1"];
+          dependencies: ["express@^5.3.0"];
           devDependencies: ["@types/express@^5.0.6"];
           variants: {
             default: {
@@ -793,7 +793,7 @@ export type RegistryData = {
           };
         };
         fastify: {
-          dependencies: ["fastify@^5.12.1"];
+          dependencies: ["fastify@^5.12.7"];
           variants: {
             default: {
               files: [
@@ -831,7 +831,7 @@ export type RegistryData = {
     "graceful-shutdown": {
       name: "Graceful Shutdown";
       description: "Dependency-free graceful shutdown with in-flight request draining and per-framework adapters";
-      version: "1.0.0";
+      version: "1.0.1";
       releasedAt: "2026-08-07";
       runtimes: {
         node: ">=20";
@@ -898,7 +898,7 @@ export type RegistryData = {
       ];
       adapters: {
         express: {
-          dependencies: ["express@^5.2.1"];
+          dependencies: ["express@^5.3.0"];
           devDependencies: ["@types/express@^5.0.6"];
           variants: {
             default: {
@@ -916,7 +916,7 @@ export type RegistryData = {
           };
         };
         fastify: {
-          dependencies: ["fastify@^5.12.1"];
+          dependencies: ["fastify@^5.12.7"];
           variants: {
             default: {
               files: [
@@ -954,7 +954,7 @@ export type RegistryData = {
     idempotency: {
       name: "Idempotency";
       description: "Exactly-once request execution with pluggable stores and cache, plus an Express adapter";
-      version: "1.0.0";
+      version: "1.0.1";
       releasedAt: "2026-08-16";
       runtimes: {
         node: ">=20";
@@ -1065,7 +1065,7 @@ export type RegistryData = {
       ];
       adapters: {
         express: {
-          dependencies: ["express@^5.2.1"];
+          dependencies: ["express@^5.3.0"];
           devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
           variants: {
             default: {
@@ -1091,7 +1091,7 @@ export type RegistryData = {
           };
         };
         fastify: {
-          dependencies: ["fastify@^5.12.1"];
+          dependencies: ["fastify@^5.12.7"];
           devDependencies: ["vitest@^4.1.11"];
           variants: {
             default: {
@@ -1190,7 +1190,7 @@ export type RegistryData = {
     "token-service": {
       name: "Token Service";
       description: "JWT access tokens and rotating opaque refresh tokens with pinned keys and shared stores.";
-      version: "1.0.0";
+      version: "1.0.1";
       releasedAt: "2026-09-27";
       runtimes: {
         node: ">=20";
@@ -1285,7 +1285,7 @@ export type RegistryData = {
       ];
       adapters: {
         express: {
-          dependencies: ["express@^5.2.1"];
+          dependencies: ["express@^5.3.0"];
           devDependencies: ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"];
           variants: {
             default: {
@@ -1307,7 +1307,7 @@ export type RegistryData = {
           };
         };
         fastify: {
-          dependencies: ["fastify@^5.12.1"];
+          dependencies: ["fastify@^5.12.7"];
           devDependencies: ["vitest@^4.1.11"];
           variants: {
             default: {

@@ -17,6 +17,40 @@ The **Error Boundary** block turns thrown values into consistent HTTP errors wit
 
 Its dependency-free core classifies errors, adds request context, redacts sensitive fields, calls optional observability hooks, and produces the same error envelope as the Response Formatter block.
 
+## Quick start
+
+Add the block to your project (skip `init` if it already has a `blockend.json`):
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add error-handler
+```
+
+Create the boundary once, then register its Express handler after your routes:
+
+```ts
+import express from "express";
+import { AppError, createErrorBoundary } from "@/blocks/error-handler";
+import { createExpressErrorHandler } from "@/blocks/error-handler/adapters/express";
+
+const app = express();
+const boundary = createErrorBoundary();
+
+app.get("/users/:id", (_req, _res, next) => {
+  next(
+    new AppError({
+      code: "USER_NOT_FOUND",
+      message: "User not found",
+      category: "NOT_FOUND"
+    })
+  );
+});
+
+app.use(createExpressErrorHandler(boundary));
+```
+
+The error handler must come after the routes so it can format errors they pass to Express.
+
 ## Features
 
 - Framework-neutral error normalization and classification

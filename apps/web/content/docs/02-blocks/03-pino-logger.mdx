@@ -14,6 +14,32 @@ Every log created during a request automatically includes the same request ID, m
 
 ---
 
+## Quick start
+
+Add the block to your project (skip `init` if it already has a `blockend.json`):
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add logger
+```
+
+Use the Express adapter to log each request, then use the logger in your code:
+
+```ts
+import express from "express";
+import { expressLoggerAdapter } from "@/blocks/logger/adapters/express";
+import { logger } from "@/blocks/logger/core";
+
+const app = express();
+app.use(expressLoggerAdapter);
+app.get("/", (_req, res) => {
+  logger.info("Handling request");
+  res.json({ ok: true });
+});
+```
+
+---
+
 ## Features
 
 - Shared logger instance for your entire application

@@ -18,6 +18,39 @@ When a deploy or signal arrives, three things must happen in sequence: stop acce
   so load balancers and Kubernetes stop routing traffic the moment shutdown begins.
 </Callout>
 
+## Quick start
+
+Add the block to your project (skip `init` if it already has a `blockend.json`):
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add graceful-shutdown
+```
+
+Track requests before listening, reject new requests during shutdown, and close the server as a shutdown task:
+
+```ts
+import { createServer } from "node:http";
+import express from "express";
+import { GracefulShutdown } from "@/blocks/graceful-shutdown";
+import {
+  createExpressShutdownTask,
+  createExpressTracker,
+  createShutdownMiddleware
+} from "@/blocks/graceful-shutdown/adapters/express";
+
+const app = express();
+const server = createServer(app);
+const tracker = createExpressTracker(server);
+const shutdown = new GracefulShutdown({ connectionTracker: tracker });
+
+app.use(createShutdownMiddleware(shutdown)); // Register before routes
+shutdown.addTask(createExpressShutdownTask(server));
+server.listen(3000);
+```
+
+Add a shutdown task for each resource your app must close, such as its database pool. See the production guide for readiness checks and signal handling details.
+
 ---
 
 ## Features

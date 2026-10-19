@@ -14,6 +14,29 @@ It separates response formatting from your web framework by exposing a framework
 
 ---
 
+## Quick start
+
+Add the block to your project (skip `init` if it already has a `blockend.json`):
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add response-formatter
+```
+
+Use `ExpressResponse` in a route to return the standard success shape:
+
+```ts
+import express from "express";
+import { ExpressResponse } from "@/blocks/response-formatter/adapters/express";
+
+const app = express();
+app.get("/users/:id", (req, res) =>
+  ExpressResponse.success(res, { id: req.params.id }, "User found")
+);
+```
+
+---
+
 ## Features
 
 - Framework-agnostic response formatter

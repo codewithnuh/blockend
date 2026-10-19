@@ -1,25 +1,29 @@
 ---
 title: Production Health Checks & Graceful Shutdown
-description: End-to-end guide for combining the Health Check and Graceful Shutdown blocks so load balancers and Kubernetes stop routing traffic before your process drains and exits cleanly.
+description: Set up liveness and readiness checks, drain requests, and close resources safely during deploys.
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 
-The **Health Check** and **Graceful Shutdown** blocks solve different halves of the same production problem.
+The **Health Check** and **Graceful Shutdown** blocks handle two parts of a safe deploy.
 
 - **Health Check** tells the platform whether your instance can accept traffic right now.
 - **Graceful Shutdown** stops new traffic, drains in-flight requests, and closes resources in a controlled order when the process is terminating.
 
-Used together they give you near-zero dropped requests during deploys, scale-downs, and node drains. Used separately they leave gaps.
-
-This guide shows the complete production pattern.
+Use health checks to tell your platform when an instance can accept traffic. Use graceful shutdown to stop new traffic, finish active requests, and close resources. This guide builds that flow step by step.
 
 <Callout type="info">
   You need both blocks installed. See [Health Check](/docs/02-blocks/07-health-check) and [Graceful
   Shutdown](/docs/02-blocks/08-graceful-shutdown) for installation and API details.
 </Callout>
+
+## Start here
+
+Keep liveness and readiness separate. Liveness should only report whether the process is alive. Readiness should return `503` when shutdown starts or a required dependency check fails. During shutdown, stop traffic first, let active requests finish, then close resources.
+
+The sections below explain the failure cases, endpoint rules, framework setup, and Kubernetes timing. Read them before copying the example into production.
 
 ---
 

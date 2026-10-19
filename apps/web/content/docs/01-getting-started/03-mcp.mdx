@@ -1,18 +1,30 @@
 ---
 title: MCP Server
-description: Connect Blockend to your AI coding assistant through the Model Context Protocol (MCP) to discover, analyze, and install backend blocks directly into your projects.
+description: Connect an AI coding assistant to the Blockend CLI to browse and add backend blocks from your project.
 ---
 
-# MCP Server
+Blockend includes a **Model Context Protocol (MCP)** server. It lets a supported AI coding assistant call Blockend CLI tools from your project.
 
-Blockend includes a built-in **Model Context Protocol (MCP)** server that allows AI coding assistants to interact with the Blockend CLI directly.
-
-Instead of manually searching for blocks or running CLI commands yourself, your AI assistant can:
+The assistant can:
 
 - Discover available Blockend blocks
 - Analyze your current project
 - Install production-ready backend blocks
 - Automate backend scaffolding without leaving your editor
+
+## Quick start
+
+Create the MCP settings for your client:
+
+```bash
+pnpm dlx blockend-cli mcp init --client cursor
+```
+
+Replace `cursor` with `claude`, `vscode`, `codex`, or `windsurf` if you use another supported client. Restart the client, open your project, and ask it to list or add a Blockend block.
+
+Adding a block writes files to your project and may install packages. Review the proposed changes and dependency prompts as you would for a CLI run.
+
+For a preview, use `pnpm dlx blockend-cli mcp init --dry-run`. Continue below for the server tools, configuration files, and all setup options.
 
 ---
 
@@ -58,7 +70,7 @@ Initialize MCP for your preferred client.
 ### Interactive setup
 
 ```bash
-npx blockend-cli mcp init
+pnpm dlx blockend-cli mcp init
 ```
 
 You'll be prompted to choose your AI client.
@@ -68,7 +80,7 @@ You'll be prompted to choose your AI client.
 ### Configure a specific client
 
 ```bash
-npx blockend-cli mcp init --client cursor
+pnpm dlx blockend-cli mcp init --client cursor
 ```
 
 Supported values:
@@ -86,7 +98,7 @@ windsurf
 ### Skip confirmation prompts
 
 ```bash
-npx blockend-cli mcp init --client cursor --yes
+pnpm dlx blockend-cli mcp init --client cursor --yes
 ```
 
 ---
@@ -94,7 +106,7 @@ npx blockend-cli mcp init --client cursor --yes
 ### Overwrite existing configuration
 
 ```bash
-npx blockend-cli mcp init --client cursor --force
+pnpm dlx blockend-cli mcp init --client cursor --force
 ```
 
 ---
@@ -102,7 +114,7 @@ npx blockend-cli mcp init --client cursor --force
 ### Preview without writing files
 
 ```bash
-npx blockend-cli mcp init --dry-run
+pnpm dlx blockend-cli mcp init --dry-run
 ```
 
 This prints the generated configuration without modifying your project.
@@ -131,7 +143,7 @@ Returns every Blockend block available for installation.
 
 Example prompts:
 
-- "Show all available authentication blocks."
+- "Which blocks can help protect API routes?"
 - "List all logging-related blocks."
 - "Find caching blocks."
 
@@ -169,7 +181,7 @@ Example prompts:
 The server internally executes the equivalent of:
 
 ```bash
-npx blockend-cli add <block-name>
+pnpm dlx blockend-cli add <block-name>
 ```
 
 ---
@@ -189,7 +201,7 @@ The assistant calls `detect_project`.
 ---
 
 ```
-What authentication blocks are available?
+Which blocks can help protect API routes?
 ```
 
 ↓
@@ -242,31 +254,31 @@ args = ["-y", "blockend-cli", "mcp"]
 ### Initialize MCP
 
 ```bash
-npx blockend-cli mcp init
+pnpm dlx blockend-cli mcp init
 ```
 
 ### Initialize for a specific client
 
 ```bash
-npx blockend-cli mcp init --client cursor
+pnpm dlx blockend-cli mcp init --client cursor
 ```
 
 ### Preview configuration
 
 ```bash
-npx blockend-cli mcp init --dry-run
+pnpm dlx blockend-cli mcp init --dry-run
 ```
 
 ### Force overwrite
 
 ```bash
-npx blockend-cli mcp init --force
+pnpm dlx blockend-cli mcp init --force
 ```
 
 ### Skip prompts
 
 ```bash
-npx blockend-cli mcp init --yes
+pnpm dlx blockend-cli mcp init --yes
 ```
 
 ---

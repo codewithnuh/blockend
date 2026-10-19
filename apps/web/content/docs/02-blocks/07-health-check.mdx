@@ -14,6 +14,43 @@ Instead of scattering health checks across your codebase, define all your checks
 
 ---
 
+## Quick start
+
+Add the block to your project (skip `init` if it already has a `blockend.json`):
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add health-check
+```
+
+Register a health route with a check for a dependency your app needs:
+
+```ts
+import express from "express";
+import { createHealth } from "@/blocks/health-check";
+import { registerExpressHealthRoute } from "@/blocks/health-check/adapters/express";
+
+const app = express();
+const health = createHealth({
+  checks: [
+    {
+      name: "database",
+      critical: true,
+      timeoutMs: 5_000,
+      async run() {
+        await db.ping();
+      }
+    }
+  ]
+});
+
+registerExpressHealthRoute(app, health); // GET /health
+```
+
+Replace `db.ping()` with your database client's ping call. Keep dependency checks on a readiness route; see the production guide before using health checks for liveness.
+
+---
+
 ## Features
 
 - Concurrent execution for fast health checks

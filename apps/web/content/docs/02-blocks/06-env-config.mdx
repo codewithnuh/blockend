@@ -15,6 +15,34 @@ Instead of accessing `process.env` throughout your application, define your envi
 
 ---
 
+## Quick start
+
+Add the block to your project (skip `init` if it already has a `blockend.json`):
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add env-config
+```
+
+Describe the values your app needs and parse them once at startup:
+
+```ts
+import { z } from "zod";
+import { parseEnv } from "@/blocks/env-config";
+
+const env = parseEnv(
+  z.object({
+    PORT: z.coerce.number().default(3000)
+  })
+);
+
+console.log(env.PORT); // A number
+```
+
+If a required value is missing or invalid, parsing throws an error so the app cannot start with bad configuration.
+
+---
+
 ## Features
 
 - Runtime validation powered by Zod

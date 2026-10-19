@@ -1,16 +1,27 @@
 ---
 title: CLI Reference
-description: Complete reference for the Blockend CLI — all commands, options, and usage.
+description: Commands and options for setting up Blockend, adding blocks, and checking updates.
 ---
 
-The Blockend CLI (`blockend-cli`) is the primary interface for initializing projects, discovering and installing backend blocks, and integrating with AI coding assistants via MCP.
+Use the Blockend CLI to set up a project, add block files, and manage installed blocks. The package is named `blockend-cli`; its executable is named `blockend`.
+
+## Quick start
+
+Run these commands from your project folder:
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add rate-limiter
+```
+
+Use the rest of this page when you need a specific command or option. For setup help, see [Initialize Blockend](/docs/01-getting-started/01-intialization) and [Add blocks](/docs/01-getting-started/02-adding-new-block).
 
 ## Installation
 
-No global installation required. Run commands directly with `npx`:
+You do not need to install the CLI globally. Run it with `pnpm dlx`:
 
 ```bash
-npx blockend-cli <command> [options]
+pnpm dlx blockend-cli <command> [options]
 ```
 
 ---
@@ -20,7 +31,7 @@ npx blockend-cli <command> [options]
 Initialize a `blockend.json` configuration for your project.
 
 ```
-npx blockend-cli init [options]
+pnpm dlx blockend-cli init [options]
 ```
 
 The `init` command scans your project, detects your framework and package manager, and generates a `blockend.json` file.
@@ -71,7 +82,7 @@ The `installed` array is populated automatically when you add blocks and tracks 
 Download and install a backend block into your project.
 
 ```
-npx blockend-cli add [block] [options]
+pnpm dlx blockend-cli add [block] [options]
 ```
 
 If no block name is provided, an interactive selector shows all blocks compatible with your project's framework.
@@ -90,7 +101,7 @@ If no block name is provided, an interactive selector shows all blocks compatibl
 Use `--multi` to select and add multiple blocks in one session:
 
 ```bash
-npx blockend-cli add --multi
+pnpm dlx blockend-cli add --multi
 ```
 
 This presents a multiselect prompt where you can:
@@ -133,7 +144,7 @@ The CLI checks whether a block supports your target framework using its `framewo
 List available blocks for your project's framework.
 
 ```
-npx blockend-cli list [options]
+pnpm dlx blockend-cli list [options]
 ```
 
 ### Options
@@ -165,7 +176,7 @@ Available backend blocks for express:
 Scan the current project directory and report detected configuration.
 
 ```
-npx blockend-cli detect [options]
+pnpm dlx blockend-cli detect [options]
 ```
 
 ### Options
@@ -194,7 +205,7 @@ npx blockend-cli detect [options]
 Preview what files a block would generate without writing to disk.
 
 ```
-npx blockend-cli diff <block> [options]
+pnpm dlx blockend-cli diff <block> [options]
 ```
 
 ### Options
@@ -227,7 +238,7 @@ Shows each file's status (new, modified, unchanged) with line-level diffs for mo
 Detect configuration and project issues that could affect Blockend.
 
 ```
-npx blockend-cli doctor [options]
+pnpm dlx blockend-cli doctor [options]
 ```
 
 ### Options
@@ -254,7 +265,7 @@ Exits with code `1` if any errors are found.
 Compare installed blocks with registry versions and optionally apply updates.
 
 ```
-npx blockend-cli update [options]
+pnpm dlx blockend-cli update [options]
 ```
 
 ### Options
@@ -267,7 +278,7 @@ npx blockend-cli update [options]
 
 ### Version Tracking
 
-The update command reads the `installed` array from `blockend.json` to know which blocks are installed and their versions. When you run `blockend add`, each block is recorded with:
+The update command reads the `installed` array in `blockend.json` to find installed blocks and their versions. The `add` command records these details for each block:
 
 - `name` — block identifier
 - `version` — registry version at install time
@@ -301,7 +312,7 @@ Without `--apply`, the command compares versions and shows diffs:
 With `--apply`, a multiselect prompt lets you choose which blocks to update:
 
 ```bash
-npx blockend-cli update --apply
+pnpm dlx blockend-cli update --apply
 ```
 
 This will:
@@ -319,7 +330,7 @@ This will:
 Start the MCP server or initialize MCP client configuration.
 
 ```
-npx blockend-cli mcp [command] [options]
+pnpm dlx blockend-cli mcp [command] [options]
 ```
 
 ### `blockend-cli mcp`
@@ -344,7 +355,7 @@ When the MCP server is running, AI clients can call these tools:
 Generate MCP configuration files for supported AI clients.
 
 ```
-npx blockend-cli mcp init [options]
+pnpm dlx blockend-cli mcp init [options]
 ```
 
 ### Options
@@ -365,24 +376,6 @@ npx blockend-cli mcp init [options]
 | VS Code     | `.vscode/settings.json` | JSON   |
 | Codex CLI   | `.codex/config.toml`    | TOML   |
 | Windsurf    | `.windsurf/mcp.json`    | JSON   |
-
----
-
-## Using `blockend-cli` as a Package
-
-Blockend CLI is also importable as a library:
-
-```ts
-import { addCommand } from "blockend-cli";
-import { initCommand } from "blockend-cli";
-import { listCommand } from "blockend-cli";
-import { detectCommand } from "blockend-cli";
-import { diffCommand } from "blockend-cli";
-import { doctorCommand } from "blockend-cli";
-import { updateCommand } from "blockend-cli";
-```
-
-Each command accepts options in the same format as the CLI flags.
 
 ---
 

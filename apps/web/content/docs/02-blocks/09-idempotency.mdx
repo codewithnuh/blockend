@@ -19,6 +19,35 @@ It wraps a piece of business logic in an atomic lock keyed by `(userId, operatio
   replay another client's stored response.
 </Callout>
 
+## Quick start
+
+Add the block to your project (skip `init` if it already has a `blockend.json`):
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add idempotency
+```
+
+First provide an `IdempotencyStore` for your database. The block does not include a store; yours must create keys atomically and keep records across app restarts. Then wrap a state-changing route:
+
+```ts
+import { IdempotencyHandler } from "@/blocks/idempotency";
+import { idempotent } from "@/blocks/idempotency/adapters/express";
+
+const handler = new IdempotencyHandler(store); // store implements IdempotencyStore
+
+app.post(
+  "/payments",
+  idempotent(handler, async (req) => createCharge(req.body), {
+    requireKey: true,
+    getUserId: (req) => req.user.id,
+    getOperation: () => "payments:create"
+  })
+);
+```
+
+Register authentication before this route so `req.user.id` is set. The full guide explains the store methods, key scope, retries, and production rules.
+
 ---
 
 ## Features

@@ -5,7 +5,7 @@
     "rate-limiter": {
       "name": "Rate Limiter",
       "description": "IP-based rate limiting middleware with pluggable storage strategies",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "releasedAt": "2026-06-27",
       "runtimes": { "node": ">=20" },
       "related": ["idempotency", "logger", "error-handler"],
@@ -17,7 +17,7 @@
       ],
       "adapters": {
         "express": {
-          "dependencies": ["express@^5.2.1"],
+          "dependencies": ["express@^5.3.0"],
           "devDependencies": [
             "@types/express@^5.0.6",
             "supertest@^7.2.2",
@@ -78,7 +78,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.1"],
+          "dependencies": ["fastify@^5.12.7"],
           "variants": {
             "memory": {
               "devDependencies": ["vitest@^4.1.11"],
@@ -255,7 +255,7 @@
     "error-handler": {
       "name": "Error Boundary",
       "description": "Framework-agnostic error normalization, safe serialization, and optional reporting with HTTP adapters.",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "releasedAt": "2026-06-29",
       "runtimes": { "node": ">=20" },
       "related": ["logger", "request-validator", "response-formatter"],
@@ -306,7 +306,7 @@
       ],
       "adapters": {
         "express": {
-          "dependencies": ["express@^5.2.1"],
+          "dependencies": ["express@^5.3.0"],
           "devDependencies": [
             "@types/express@^5.0.6",
             "supertest@^7.2.2",
@@ -369,7 +369,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.1"],
+          "dependencies": ["fastify@^5.12.7"],
           "variants": {
             "default": {
               "files": [
@@ -407,7 +407,7 @@
     "logger": {
       "name": "Structured Context Logger",
       "description": "Framework-agnostic context logging engine.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "releasedAt": "2026-07-01",
       "runtimes": { "node": ">=20" },
       "related": ["error-handler", "health-check", "graceful-shutdown", "idempotency"],
@@ -419,7 +419,7 @@
       ],
       "adapters": {
         "express": {
-          "dependencies": ["express@^5.2.1"],
+          "dependencies": ["express@^5.3.0"],
           "devDependencies": [
             "@types/express@^5.0.6",
             "supertest@^7.2.2",
@@ -438,7 +438,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.1", "fastify-plugin@^6.0.0"],
+          "dependencies": ["fastify@^5.12.7", "fastify-plugin@^6.0.0"],
           "variants": {
             "default": {
               "files": [
@@ -470,7 +470,7 @@
     "request-validator": {
       "name": "Request Validator",
       "description": "Framework-agnostic request validation powered by Zod.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "releasedAt": "2026-07-03",
       "runtimes": { "node": ">=20" },
       "related": ["error-handler", "response-formatter"],
@@ -483,7 +483,7 @@
       ],
       "adapters": {
         "express": {
-          "dependencies": ["express@^5.2.1"],
+          "dependencies": ["express@^5.3.0"],
           "devDependencies": [
             "@types/express@^5.0.6",
             "supertest@^7.2.2",
@@ -523,7 +523,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.1"],
+          "dependencies": ["fastify@^5.12.7"],
           "devDependencies": ["vitest@^4.1.11"],
           "variants": {
             "default": {
@@ -545,7 +545,7 @@
     "response-formatter": {
       "name": "Response Formatter",
       "description": "Framework-agnostic API response formatting.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "releasedAt": "2026-07-07",
       "runtimes": { "node": ">=20" },
       "related": ["error-handler", "request-validator"],
@@ -557,7 +557,7 @@
       ],
       "adapters": {
         "express": {
-          "dependencies": ["express@^5.2.1"],
+          "dependencies": ["express@^5.3.0"],
           "devDependencies": [
             "@types/express@^5.0.6",
             "supertest@^7.2.2",
@@ -597,7 +597,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.1"],
+          "dependencies": ["fastify@^5.12.7"],
           "devDependencies": ["vitest@^4.1.11"],
           "variants": {
             "default": {
@@ -642,7 +642,7 @@
     "health-check": {
       "name": "System Health Check Monitoring",
       "description": "Framework-agnostic health assessment suite.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "releasedAt": "2026-07-20",
       "runtimes": { "node": ">=20" },
       "related": ["graceful-shutdown", "logger"],
@@ -687,7 +687,7 @@
       ],
       "adapters": {
         "express": {
-          "dependencies": ["express@^5.2.1"],
+          "dependencies": ["express@^5.3.0"],
           "devDependencies": ["@types/express@^5.0.6"],
           "variants": {
             "default": {
@@ -705,7 +705,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.1"],
+          "dependencies": ["fastify@^5.12.7"],
           "variants": {
             "default": {
               "files": [
@@ -740,7 +740,7 @@
     "graceful-shutdown": {
       "name": "Graceful Shutdown",
       "description": "Dependency-free graceful shutdown with in-flight request draining and per-framework adapters",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "releasedAt": "2026-08-07",
       "runtimes": { "node": ">=20" },
       "related": ["health-check", "logger"],
@@ -781,7 +781,7 @@
       ],
       "adapters": {
         "express": {
-          "dependencies": ["express@^5.2.1"],
+          "dependencies": ["express@^5.3.0"],
           "devDependencies": ["@types/express@^5.0.6"],
           "variants": {
             "default": {
@@ -799,7 +799,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.1"],
+          "dependencies": ["fastify@^5.12.7"],
           "variants": {
             "default": {
               "files": [
@@ -837,7 +837,7 @@
     "idempotency": {
       "name": "Idempotency",
       "description": "Exactly-once request execution with pluggable stores and cache, plus an Express adapter",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "releasedAt": "2026-08-16",
       "runtimes": { "node": ">=20" },
       "related": ["rate-limiter", "error-handler", "logger"],
@@ -919,7 +919,7 @@
       ],
       "adapters": {
         "express": {
-          "dependencies": ["express@^5.2.1"],
+          "dependencies": ["express@^5.3.0"],
           "devDependencies": [
             "@types/express@^5.0.6",
             "supertest@^7.2.2",
@@ -949,7 +949,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.1"],
+          "dependencies": ["fastify@^5.12.7"],
           "devDependencies": ["vitest@^4.1.11"],
           "variants": {
             "default": {
@@ -1022,7 +1022,7 @@
     "token-service": {
       "name": "Token Service",
       "description": "JWT access tokens and rotating opaque refresh tokens with pinned keys and shared stores.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "releasedAt": "2026-09-27",
       "runtimes": { "node": ">=20" },
       "related": ["password-hash", "rate-limiter", "env-config"],
@@ -1100,7 +1100,7 @@
       ],
       "adapters": {
         "express": {
-          "dependencies": ["express@^5.2.1"],
+          "dependencies": ["express@^5.3.0"],
           "devDependencies": [
             "@types/express@^5.0.6",
             "supertest@^7.2.2",
@@ -1126,7 +1126,7 @@
           }
         },
         "fastify": {
-          "dependencies": ["fastify@^5.12.1"],
+          "dependencies": ["fastify@^5.12.7"],
           "devDependencies": ["vitest@^4.1.11"],
           "variants": {
             "default": {

@@ -15,6 +15,39 @@ It provides a framework-agnostic validation core powered by Zod and lightweight 
 
 ---
 
+## Quick start
+
+Add the block to your project (skip `init` if it already has a `blockend.json`):
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add request-validator
+```
+
+Define a schema, add the validator to a route, and read the parsed body:
+
+```ts
+import express from "express";
+import { z } from "zod";
+import { expressValidator } from "@/blocks/request-validator/adapters/express";
+
+const app = express();
+app.use(express.json());
+
+const validateUser = expressValidator({
+  body: z.object({ email: z.string().email() })
+});
+
+app.post("/users", validateUser, (req, res) => {
+  const { body } = validateUser.validated(req);
+  res.json({ email: body.email });
+});
+```
+
+Invalid input gets a `400` response by default. See the options below if you need validation errors to reach your own error handler.
+
+---
+
 ## Features
 
 - Framework-agnostic validation core

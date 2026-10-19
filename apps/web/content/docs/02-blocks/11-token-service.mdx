@@ -1,6 +1,6 @@
 ---
 title: Token Service
-description: Issue and verify JWT access tokens, rotate opaque refresh tokens, and connect key and token storage to your production infrastructure.
+description: Issue and check access tokens, rotate refresh tokens, and connect your own key and storage systems.
 status: new
 ---
 
@@ -9,23 +9,23 @@ import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 import { SourceCode } from "../../../components/source-code";
 
-The **Token Service** block issues short lived JWT access tokens and one time opaque refresh tokens. It validates issuer, audience, algorithm, token type, and revocation state before returning trusted claims.
+The **Token Service** block issues short-lived JWT access tokens and single-use refresh tokens. Before it returns a token's claims, it checks the signature, issuer, audience, expiry, token type, and revocation state.
 
-Your application still owns login, authorization policy, browser cookie settings, CSRF protection, and account recovery.
+Your app still signs users in and decides what they can do. It also handles browser cookies, CSRF protection, and account recovery.
 
 ---
 
 ## Features
 
-- Production configuration requires an HTTPS or URN issuer, an audience, and asymmetric JWT algorithms.
-- Access token lifetime defaults to 15 minutes and is capped at one hour.
-- Refresh tokens contain a versioned family identifier and a 256-bit random secret. Stores keep only their SHA-256 hashes.
-- Refresh families have a 90-day absolute lifetime and a 10,000-rotation ceiling by default. Both limits are configurable and stored with each family, bounding retained replay state.
-- Refresh rotation is atomic in the supplied Redis and PostgreSQL stores. Reuse revokes the token family.
-- Key IDs (`kid`) support signing key rotation while old public keys remain available for verification.
-- Local PEM, remote JWKS, and vendor neutral KMS signing providers are included.
-- Express, Fastify, and Hono adapters expose refresh by default. Issue and revoke routes require an authorization callback.
-- Claims are size limited and reject reserved token fields and common secret field names.
+- Production settings require an HTTPS URL or URN for `issuer`, an `audience`, and an asymmetric signing algorithm.
+- Access tokens last 15 minutes by default, with a maximum of one hour.
+- Each refresh token has a family ID and a random 256-bit secret. Stores save only the secret's SHA-256 hash.
+- A refresh-token family expires after 90 days or 10,000 successful rotations by default. You can change both limits.
+- The Redis and PostgreSQL stores rotate refresh tokens atomically. Reusing a token revokes its whole family.
+- The `kid` field identifies a signing key. Keep old public keys available while tokens signed with them can still be valid.
+- Key providers support local PEM files, remote JWKS, and external KMS or HSM signers.
+- Express, Fastify, and Hono adapters enable refresh by default. Enabling issue or revoke routes requires an authorization callback.
+- Custom claims have a size limit. Reserved token fields and common secret fields are rejected.
 
 <Callout type="warn">
   `MemoryTokenStore` is process local and loses state on restart. Use PostgreSQL or Redis for
@@ -45,6 +45,62 @@ Your application still owns login, authorization policy, browser cookie settings
   can lose acknowledged writes during failover; choose PostgreSQL if your threat model requires
   strict revocation durability across failover.
 </Callout>
+
+## Quick start
+
+This local example issues and verifies an access token. It does not use refresh tokens or save revocation state.
+
+First initialize Blockend and add the block. Skip `init` if this project already has a `blockend.json` file.
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add token-service
+```
+
+Then create a temporary key pair and use the service:
+
+```ts
+import { generateKeyPairSync } from "node:crypto";
+import {
+  createTokenService,
+  LocalKeyProvider,
+  StatelessTokenStore
+} from "@/blocks/token-service/src";
+
+async function main() {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+
+  const tokens = createTokenService({
+    deploymentMode: "development",
+    issuer: "http://localhost:3000",
+    algorithms: ["RS256"],
+    keyProvider: new LocalKeyProvider({
+      signingKid: "local-dev",
+      keys: [
+        {
+          kid: "local-dev",
+          alg: "RS256",
+          privateKeyPem: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+          publicKeyPem: publicKey.export({ type: "spki", format: "pem" }).toString()
+        }
+      ]
+    }),
+    tokenStore: new StatelessTokenStore()
+  });
+
+  const pair = await tokens.issue({
+    sub: "user-123",
+    tokens: { access: true, refresh: false }
+  });
+  const result = await tokens.verify(pair.accessToken!);
+
+  console.log(result.claims.sub); // "user-123"
+}
+
+main().catch(console.error);
+```
+
+This example makes new keys each time the process starts, so tokens from an earlier run will not verify. `StatelessTokenStore` supports access tokens only. Do not use this setup in production. For persistent refresh tokens and revocation state, continue to [Production setup](#production-setup).
 
 ## File structure
 
