@@ -1,17 +1,28 @@
 ---
 title: Initialize Blockend
-description: Automatically configure Blockend for your project.
+description: Create blockend.json so the Blockend CLI knows your framework and where to add blocks.
 ---
 
-The `init` command bootstraps Blockend by analyzing your project and generating a `blockend.json` configuration file tailored to your application's structure.
+The `init` command checks your project and creates `blockend.json`. Blockend uses this file to choose compatible blocks and place their files in the right folder.
 
 Run the following command from the root of your project:
 
 ```bash
-npx blockend init
+pnpm dlx blockend-cli init
 ```
 
-The initialization process is interactive and only needs to be completed once.
+The setup asks a few questions. You usually run it once per project.
+
+## Quick start
+
+Run the command from your project root and answer the prompts. Then add a block:
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add rate-limiter
+```
+
+The CLI creates `blockend.json` and adds the block files to the folder shown in that config. Read [Add blocks](/docs/01-getting-started/02-adding-new-block) for variant choices, dependency prompts, and file conflicts.
 
 ---
 
@@ -26,7 +37,7 @@ During initialization, Blockend automatically:
 - Configures where generated blocks will be placed
 - Creates a `blockend.json` configuration file
 
-This eliminates manual configuration and ensures generated blocks follow your project's conventions.
+These settings help the CLI generate files that fit your project.
 
 ---
 
@@ -43,7 +54,7 @@ Supported frameworks include:
 - Next.js (App Router)
 - Hono
 
-If detection is correct, simply press **Enter**. Otherwise, choose the appropriate framework.
+If the detected framework is correct, press **Enter**. Otherwise, choose the framework your app uses.
 
 ---
 
@@ -76,7 +87,7 @@ Redis detected.
 Enable Redis-backed block variants automatically?
 ```
 
-Choosing **Yes** enables Redis integrations for supported blocks.
+Choose **Yes** to enable Redis variants for blocks that offer them. This does not create or configure a Redis server.
 
 ---
 
@@ -88,7 +99,7 @@ Example:
 
 ```json
 {
-  "$schema": "https://blockend.dev/schema.json",
+  "$schema": "https://blockend.noorulhassan.com/schema.json",
   "environment": "express",
   "language": "typescript",
   "includeRedis": true,
@@ -169,10 +180,10 @@ Available options:
 
 ---
 
-## Example
+## Example setup
 
 ```text
-$ npx blockend init
+$ pnpm dlx blockend-cli init
 
 ✔ Project structure detected
 ✔ Detected Express environment
@@ -191,31 +202,31 @@ Enable Redis-backed block variants automatically?
 ✔ blockend.json ready
 
 Blockend initialized successfully.
-Run: npx blockend add <block>
+Run: pnpm dlx blockend-cli add <block>
 ```
 
 ---
 
 ## Next Steps
 
-Once initialization is complete, you can start generating backend blocks.
+After setup, add a block by its key. For example:
 
 ```bash
-npx blockend add <block>
+pnpm dlx blockend-cli add <block>
 ```
 
 For example:
 
 ```bash
-npx blockend add auth
+pnpm dlx blockend-cli add rate-limiter
 ```
 
 ```bash
-npx blockend add pagination
+pnpm dlx blockend-cli add health-check
 ```
 
 ```bash
-npx blockend add upload
+pnpm dlx blockend-cli add env-config
 ```
 
 ---
@@ -223,6 +234,6 @@ npx blockend add upload
 ## Related Commands
 
 <Cards>
-  <Card title="Add Blocks" href="/docs/commands/add" />
-  <Card title="Configuration" href="/docs/reference/configuration" />
+  <Card title="Add blocks" href="/docs/01-getting-started/02-adding-new-block" />
+  <Card title="CLI reference" href="/docs/cli-reference" />
 </Cards>

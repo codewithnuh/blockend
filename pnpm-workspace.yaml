@@ -11,7 +11,7 @@ minimumReleaseAgeExclude:
   - postcss@8.5.31
   - shadcn@4.22.1
 overrides:
-  "@hono/node-server@^1.0.0": 1.19.15
+  "@hono/node-server@^1.0.0": 1.19.17
   brace-expansion: 5.0.12
   dompurify: 3.4.17
   esbuild: 0.28.2

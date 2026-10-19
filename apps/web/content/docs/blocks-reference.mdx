@@ -1,13 +1,13 @@
 ---
 title: Blocks Reference
-description: Browse all available backend blocks.
+description: Browse Blockend blocks and open a page for setup, examples, API details, and production notes.
 ---
 
 import { BlocksList } from "@/components/blocks-list";
 
-Browse the complete catalog of Blockend backend blocks. Each block is production-ready, type-safe, and framework-agnostic.
+Choose a block from the catalog. Its page starts with what the block does, then covers setup, examples, API details, and production notes.
 
-Select a block below to view detailed documentation, installation instructions, API reference, and usage examples.
+If you are new to Blockend, start with the [quick start](/docs).
 
 <BlocksList />
 
@@ -18,11 +18,11 @@ Select a block below to view detailed documentation, installation instructions, 
 To install any of these blocks into your project:
 
 ```bash
-npx blockend-cli add <block-key>
+pnpm dlx blockend-cli add <block-key>
 ```
 
 First make sure your project is initialized:
 
 ```bash
-npx blockend-cli init
+pnpm dlx blockend-cli init
 ```

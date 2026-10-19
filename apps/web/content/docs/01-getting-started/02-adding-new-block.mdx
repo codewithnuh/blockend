@@ -1,33 +1,25 @@
 ---
 title: Add Blocks
-description: Add production-ready backend blocks to your project.
+description: Choose a backend block and add its source files to your project.
 ---
 
-The `add` command downloads a backend block from the Blockend registry and installs it directly into your project.
+The `add` command downloads a block from the Blockend registry and writes its source files into your project.
 
 Each block is framework-aware, TypeScript-first, and follows your project's existing configuration defined in `blockend.json`.
 
-```bash
-npx blockend-cli add <block>
-```
+## Quick start
 
-For example:
+If you have not set up Blockend yet, run `pnpm dlx blockend-cli init` first. Then add a block by its key:
 
 ```bash
-npx blockend-cli add auth
+pnpm dlx blockend-cli add rate-limiter
 ```
 
-If no block name is provided, Blockend launches an interactive block picker.
+The CLI checks your framework, asks you to choose a storage variant when needed, and writes the selected files into the folder in `blockend.json`. You own those files and can change them.
 
-```bash
-npx blockend-cli add
-```
+## What the CLI does
 
----
-
-## How It Works
-
-When you run the command, Blockend performs several steps automatically.
+When you run the command, Blockend:
 
 1. Finds your `blockend.json` configuration.
 2. Connects to the Blockend Registry.
@@ -38,7 +30,7 @@ When you run the command, Blockend performs several steps automatically.
 7. Downloads the block source code.
 8. Writes the files into your configured blocks directory.
 
-Everything happens automatically—no copying files or manually installing packages.
+The CLI shows prompts before it installs dependencies or replaces files.
 
 ---
 
@@ -47,7 +39,7 @@ Everything happens automatically—no copying files or manually installing packa
 Running the command without a block name opens an interactive selector.
 
 ```bash
-npx blockend-cli add
+pnpm dlx blockend-cli add
 ```
 
 Example:
@@ -55,18 +47,17 @@ Example:
 ```text
 ? Which backend block would you like to inject?
 
-❯ auth
-  pagination
-  upload
-  cache
+❯ rate-limiter
   logger
+  health-check
+  env-config
 ```
 
 Only blocks compatible with your configured framework are displayed.
 
 ---
 
-## Framework Aware
+## Framework support
 
 Every block is generated specifically for your backend framework.
 
@@ -145,9 +136,14 @@ Example:
 ```text
 src/
 └── blocks/
-    └── auth/
-        ├── auth.ts
-        └── store-redis.ts
+    └── rate-limiter/
+        ├── adapters/
+        │   └── express.ts
+        ├── core/
+        │   └── core.ts
+        └── variants/
+            └── memory-store.ts
+        ...
 ```
 
 Simple blocks may generate a single file.
@@ -155,7 +151,8 @@ Simple blocks may generate a single file.
 ```text
 src/
 └── blocks/
-    └── pagination.ts
+    └── env-config/
+        └── index.ts
 ```
 
 ---
@@ -180,28 +177,28 @@ Selecting **No** safely aborts the operation and preserves your code.
 
 ## Examples
 
-Generate an rate limiter block:
+Add the rate limiter block:
 
 ```bash
-npx blockend-cli add rate-limiter
+pnpm dlx blockend-cli add rate-limiter
 ```
 
-Generate a env-config block:
+Add the environment config block:
 
 ```bash
-npx blockend add env-config
+pnpm dlx blockend-cli add env-config
 ```
 
-Generate an upload block:
+Add the token service block:
 
 ```bash
-npx blockend-cli add upload
+pnpm dlx blockend-cli add token-service
 ```
 
 Open the interactive selector:
 
 ```bash
-npx blockend-cli add
+pnpm dlx blockend-cli add
 ```
 
 ---
@@ -211,14 +208,14 @@ npx blockend-cli add
 Before using the `add` command, make sure your project has been initialized.
 
 ```bash
-npx blockend-cli init
+pnpm dlx blockend-cli init
 ```
 
 Blockend also requires:
 
 - A valid `blockend.json`
-- A TypeScript project
 - A supported backend framework
+- Node.js 20 or newer
 - Internet access to download blocks from the Blockend Registry
 
 ---
@@ -229,13 +226,13 @@ Blockend also requires:
 
 ```text
 blockend.json not found.
-Run 'npx blockend-cli init' first.
+Run 'pnpm dlx blockend-cli init' first.
 ```
 
 Initialize your project before adding blocks.
 
 ```bash
-npx blockend-cli init
+pnpm dlx blockend-cli init
 ```
 
 ---
@@ -243,7 +240,7 @@ npx blockend-cli init
 ### Block not found
 
 ```text
-Block "auth" does not exist.
+Block "unknown-block" does not exist.
 ```
 
 The requested block either doesn't exist or hasn't been published yet.
@@ -251,7 +248,7 @@ The requested block either doesn't exist or hasn't been published yet.
 Run the interactive command to see all available blocks.
 
 ```bash
-npx blockend-cli list
+pnpm dlx blockend-cli list
 ```
 
 ---
@@ -259,7 +256,7 @@ npx blockend-cli list
 ### Unsupported Framework
 
 ```text
-The block "upload" does not support your environment.
+The selected block does not support your configured framework.
 ```
 
 Some blocks are framework-specific and may not be available for every backend.
@@ -285,6 +282,7 @@ Every generated block is fully owned by you—there are no runtime dependencies 
 ---
 
 <Cards>
-  <Card title="Initialize Blockend" href="/docs/commands/init" />
-  <Card title="Available Blocks" href="/docs/blocks" />
+  <Card title="Initialize Blockend" href="/docs/01-getting-started/01-intialization" />
+  <Card title="Available blocks" href="/docs/blocks-reference" />
+  <Card title="CLI reference" href="/docs/cli-reference" />
 </Cards>

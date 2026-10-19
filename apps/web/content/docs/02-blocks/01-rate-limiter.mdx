@@ -15,6 +15,34 @@ Instead of coupling rate limiting to a single framework or opaque npm dependency
 
 ---
 
+## Quick start
+
+Add the block to your project (skip `init` if it already has a `blockend.json`):
+
+```bash
+pnpm dlx blockend-cli init
+pnpm dlx blockend-cli add rate-limiter
+```
+
+Add the limiter before your routes:
+
+```ts
+import express from "express";
+import { expressRateLimit } from "@/blocks/rate-limiter/adapters/express";
+import { MemoryStore } from "@/blocks/rate-limiter/variants/memory-store";
+
+const app = express();
+app.use("/api", expressRateLimit({ windowMs: 60_000, max: 100, store: new MemoryStore() }));
+```
+
+<Callout type="warn">
+  `MemoryStore` keeps counts in one process. Use a shared store such as Redis when your app runs on
+  multiple instances. If the app is behind a proxy, only trust client IP headers from a proxy you
+  control.
+</Callout>
+
+---
+
 ## Features
 
 - Framework-agnostic core engine shared across Express, Fastify, and Hono

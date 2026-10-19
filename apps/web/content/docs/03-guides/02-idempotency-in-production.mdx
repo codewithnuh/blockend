@@ -1,14 +1,12 @@
 ---
 title: Idempotency in Production
-description: End-to-end guide for running the Idempotency block in production — keys, stores, error classification, observability with the Logger block, background jobs, and what happens when things go wrong.
+description: Configure idempotency keys, shared storage, retries, recovery jobs, and monitoring for production.
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 import { Callout } from "fumadocs-ui/components/callout";
 
-The **Idempotency** block gives you exactly-once execution, but "exactly-once" is a _system property_, not a library property. It only holds when the store is correct, the key is generated correctly, errors are classified correctly, and the background jobs actually run.
-
-This guide covers the decisions that turn the block into a production guarantee — and the failure modes you must design for anyway.
+The **Idempotency** block can stop the same operation from running twice when a client retries. That guarantee depends on your storage, key scope, retry rules, and recovery jobs. This guide covers each part and what can fail.
 
 <Callout type="info">
   You need the block installed first. See [Idempotency](/docs/02-blocks/09-idempotency) for
@@ -16,6 +14,18 @@ This guide covers the decisions that turn the block into a production guarantee 
   [Error Handler](/docs/02-blocks/02-global-error-handler) blocks for the observability and error
   sections.
 </Callout>
+
+## Start here
+
+Before using idempotency on a production route, make sure you have:
+
+- A shared store whose `create` operation is atomic for each user, operation, and key.
+- A real authenticated user ID. Do not use the default `"anonymous"` value.
+- A client rule to reuse the same key and payload for each retry.
+- Scheduled jobs for stuck-record recovery and expired-record cleanup.
+- An explicit choice about which errors are safe to retry, plus logs and metrics to see what happens.
+
+The sections below explain why each item matters, show storage patterns, and list failure cases. Keep the [Idempotency block reference](/docs/02-blocks/09-idempotency) open for the API details.
 
 ---
 
