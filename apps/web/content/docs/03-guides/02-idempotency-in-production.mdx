@@ -67,10 +67,12 @@ ON CONFLICT (operation, user_id, key) DO UPDATE
       updated_at = now()
   WHERE idempotency_records.expires_at <= now()
     AND idempotency_records.status IN ('SUCCESS', 'FAILED')
-RETURNING operation;
+RETURNING operation, (xmax <> 0) AS replaced;
 ```
 
-If a row comes back, delete the matching retry counter in the same transaction and return `{ status: "CREATED" }`. Otherwise return `{ status: "DUPLICATE" }`, and the handler reads the existing row. Without the counter cleanup, a new logical operation with the same key inherits the old attempt count.
+A returned row means the scope was free or an expired terminal record was replaced. `xmax` is zero for a fresh insert and nonzero when the conflict path updated the expired record.
+
+If `replaced` is true, delete the matching retry counter in the same transaction and return `{ status: "CREATED" }`. If `replaced` is false, keep the counter and return `{ status: "CREATED" }`. Otherwise return `{ status: "DUPLICATE" }`, and the handler reads the existing row. Do not clear the counter for every returned row: a retry after a transient failure inserts a new record, and clearing the counter would reset the attempt count before it reaches three.
 
 Treat an expired `SUCCESS` or `FAILED` row as absent in both `find` and `create`. The handler checks the request hash and record status, but not `expiresAt`. If `find` returns an expired success, the old response is replayed. If `create` cannot replace the expired row, the handler either replays that record or returns `RECORD_NOT_FOUND`; cleanup eventually removes it. Do not treat an expired `PROCESSING` row as free, because the original operation may still be running. Let recovery mark abandoned locks `FAILED`.
 
