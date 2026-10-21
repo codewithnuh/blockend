@@ -276,7 +276,20 @@ export class GracefulShutdown extends EventEmitter implements ShutdownStateProvi
 /**
  * Pre-built singleton for apps that need a single shutdown manager.
  *
- * Note: a singleton carries global state. Prefer creating a fresh
- * `GracefulShutdown` per process so tests and workers stay isolated.
+ * Created on first use so importing the root module does not install signal
+ * handlers as a side effect. Prefer creating a fresh `GracefulShutdown` per
+ * process so tests and workers stay isolated.
  */
-export const gracefulShutdown = new GracefulShutdown();
+let singleton: GracefulShutdown | undefined;
+
+export const gracefulShutdown: GracefulShutdown = new Proxy({} as GracefulShutdown, {
+  get(_target, property, receiver) {
+    singleton ??= new GracefulShutdown();
+    const value = Reflect.get(singleton, property, receiver);
+    return typeof value === "function" ? value.bind(singleton) : value;
+  },
+  set(_target, property, value, receiver) {
+    singleton ??= new GracefulShutdown();
+    return Reflect.set(singleton, property, value, receiver);
+  }
+});

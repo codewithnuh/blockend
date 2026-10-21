@@ -93,12 +93,19 @@ export async function listCommand(options: { json?: boolean } = {}): Promise<voi
   const blocksForEnv = Object.entries(blockMap)
     .filter(([_, block]) => {
       if (!block) return false;
-      const hasAdapter = block.adapters?.[envKey] !== undefined;
-      const hasEnvironment = block.environments?.[envKey] !== undefined;
+      if (block.frameworks?.includes("*")) return true;
+      const hasAdapter =
+        block.adapters?.[envKey] !== undefined || block.adapters?.["*"] !== undefined;
+      const hasEnvironment =
+        block.environments?.[envKey] !== undefined || block.environments?.["*"] !== undefined;
       return hasAdapter || hasEnvironment;
     })
     .map(([key, block]) => {
-      const context = block.adapters?.[envKey] ?? block.environments?.[envKey];
+      const context =
+        block.adapters?.[envKey] ??
+        block.adapters?.["*"] ??
+        block.environments?.[envKey] ??
+        block.environments?.["*"];
       return {
         name: key,
         description: block.description,

@@ -1,704 +1,188 @@
 # Blockend CLI
 
-> **shadcn/ui for your backend.**
+The Blockend CLI writes backend source blocks into a TypeScript project. It detects your framework, copies the selected files, installs missing packages, and records installed versions for updates.
 
-Generate production-ready TypeScript backend blocks — rate limiting, validation, logging, error handling, configuration, health checks, and more — directly into your project from the terminal.
+## Quick start
 
-**You own the code.**
-
-Blockend detects your framework, then copies audited, fully typed infrastructure source files directly into your repository. No runtime wrapper. No black box in `node_modules`. No lock-in.
-
----
-
-## Quick Start
-
-In any TypeScript backend project:
+From your project root:
 
 ```bash
 npx blockend-cli init
 npx blockend-cli add rate-limiter
 ```
 
-`init` detects your framework and creates a `blockend.json` configuration.
+`init` creates `blockend.json`. `add` writes the block under the configured blocks directory.
 
-`add` copies the selected block into your project.
-
-For example:
-
-```text
-src/
-└── blocks/
-    └── rate-limiter/
-        ├── core.ts
-        ├── express.ts
-        └── ...
-```
-
-Open the files. Read them. Edit them. Commit them.
-
-They're yours.
-
-Blockend does not run inside your application and does not lock your project into a runtime dependency.
-
----
-
-## Why Blockend?
-
-Backend infrastructure is repetitive, but it still needs to be reliable, typed, and easy to customize.
-
-Blockend gives you production-ready infrastructure as source code:
-
-- Rate limiting
-- Request validation
-- Error handling
-- Structured logging
-- API response formatting
-- Environment configuration
-- Health checks
-- Password hashing
-
-Instead of installing another backend framework or runtime abstraction, Blockend generates the implementation directly into your repository.
-
----
-
-## Installation
-
-You don't need to install Blockend globally.
-
-Run it directly with your package manager:
-
-```bash
-npx blockend-cli init
-```
-
-Or:
+You can also run the CLI with other package runners:
 
 ```bash
 pnpm dlx blockend-cli init
-```
-
-```bash
 yarn dlx blockend-cli init
-```
-
-```bash
 bunx blockend-cli init
 ```
 
----
+## Requirements
 
-# Commands
+- Node.js 20 or newer
+- A TypeScript project for `add`
+- Express, Fastify, Next.js App Router, or Hono
+- Network access to GitHub for registry commands
 
-## `init`
+The `add` command rejects JavaScript projects.
 
-Detect your framework and initialize Blockend.
+## Commands
 
-```bash
-npx blockend-cli init
-```
-
-This creates:
-
-```text
-blockend.json
-```
-
-Blockend uses your project structure and detected framework to determine how blocks should be generated.
-
-### Skip prompts
+### `init`
 
 ```bash
-npx blockend-cli init --yes
+npx blockend-cli init [--yes] [--json]
 ```
 
-or:
+Detects the framework, language, package manager, Redis, and import alias, then writes `blockend.json`.
+
+`--yes` accepts detected defaults and overwrites an existing config without prompting. If no framework is detected, it uses Express.
+
+### `add`
 
 ```bash
-npx blockend-cli init -y
+npx blockend-cli add [block] [options]
 ```
 
-### JSON output
+| Option    | Alias | Description                                                  |
+| --------- | ----- | ------------------------------------------------------------ |
+| `[block]` |       | Registry key, such as `rate-limiter` or `logger`.            |
+| `--yes`   | `-y`  | Skip prompts, install dependencies, and overwrite conflicts. |
+| `--json`  |       | Write machine-readable output.                               |
+| `--multi` | `-m`  | Select multiple blocks.                                      |
+
+Without a block name, the CLI opens a selector. For blocks with storage options, it asks for a variant. In interactive mode, `includeRedis: true` selects the Redis variant when one exists. With `--yes`, it selects memory when available, otherwise the first variant.
+
+`add --yes` without a block name is an error.
+
+Dependency installation runs `pnpm add` when `packageManager` is `pnpm`, and `npm install` for every other value. Yarn and bun projects should decline the install prompt and add the listed packages themselves.
+
+### `list`
 
 ```bash
-npx blockend-cli init --json
+npx blockend-cli list [--json]
 ```
 
----
+Lists blocks compatible with the framework in `blockend.json`.
 
-## `add`
-
-Generate a specific backend block into your project.
+### `detect`
 
 ```bash
-npx blockend-cli add rate-limiter
+npx blockend-cli detect [--json]
 ```
 
-Other examples:
+Reports framework, language, package manager, source directory, import rewrite strategy, and detected Redis, Prisma, and Drizzle usage. It does not require `blockend.json`.
+
+### `diff`
 
 ```bash
-npx blockend-cli add request-validator
+npx blockend-cli diff <block> [--json]
 ```
+
+Shows which files a block would add, modify, or leave unchanged. It does not write to disk.
+
+### `doctor`
 
 ```bash
-npx blockend-cli add error-handler
+npx blockend-cli doctor [--json]
 ```
+
+Checks `package.json`, `blockend.json`, `tsconfig.json`, lockfiles, framework detection, and the configured blocks directory. Text mode exits with code 1 on errors. JSON mode returns `success`, `warnings`, and `errors`.
+
+### `update`
 
 ```bash
-npx blockend-cli add logger
+npx blockend-cli update [--json] [--diff] [--apply]
 ```
 
-### Interactive mode
+Compares installed blocks in `blockend.json` with registry versions. `--apply` prompts for blocks to update, confirms before writing, downloads new files, rewrites imports, and updates the installed metadata. In JSON mode, `--apply` updates every available block without prompting.
 
-Run `add` without specifying a block:
-
-```bash
-npx blockend-cli add
-```
-
-Blockend will display compatible blocks and let you choose one interactively.
-
-### Add multiple blocks
-
-```bash
-npx blockend-cli add --multi
-```
-
-or:
-
-```bash
-npx blockend-cli add -m
-```
-
-### Skip confirmation
-
-```bash
-npx blockend-cli add rate-limiter --yes
-```
-
-or:
-
-```bash
-npx blockend-cli add rate-limiter -y
-```
-
-### JSON output
-
-```bash
-npx blockend-cli add rate-limiter --json
-```
-
-This is useful for automation and CI environments.
-
----
-
-## `list`
-
-List all available backend blocks.
-
-```bash
-npx blockend-cli list
-```
-
-Example:
-
-```text
-Available Blocks
-
-rate-limiter
-request-validator
-error-handler
-logger
-response-formatter
-env-config
-health-check
-password-hash
-```
-
-### JSON output
-
-```bash
-npx blockend-cli list --json
-```
-
----
-
-## `detect`
-
-Detect information about your current project.
-
-```bash
-npx blockend-cli detect
-```
-
-Blockend can inspect:
-
-- Framework
-- Package manager
-- TypeScript configuration
-- Project structure
-- Workspace configuration
-- Runtime environment
-- Relevant project directories
-
-### JSON output
-
-```bash
-npx blockend-cli detect --json
-```
-
----
-
-## `diff`
-
-Preview the files that a block would generate without modifying your project.
-
-```bash
-npx blockend-cli diff rate-limiter
-```
-
-This lets you inspect changes before adding a block.
-
-### JSON output
-
-```bash
-npx blockend-cli diff rate-limiter --json
-```
-
----
-
-## `doctor`
-
-Diagnose Blockend configuration and project issues.
-
-```bash
-npx blockend-cli doctor
-```
-
-Blockend checks your project for problems such as:
-
-- Missing `blockend.json`
-- Unsupported or undetected frameworks
-- Invalid configuration
-- Missing dependencies
-- Invalid generated block layouts
-- Project integration issues
-
-### JSON output
-
-```bash
-npx blockend-cli doctor --json
-```
-
----
-
-## `update`
-
-Check installed blocks for newer versions.
-
-```bash
-npx blockend-cli update
-```
-
-Blockend compares your installed blocks with newer available versions and shows their differences.
-
-### Apply updates
-
-```bash
-npx blockend-cli update --apply
-```
-
-Blockend will let you select which blocks to update.
-
-### JSON output
-
-```bash
-npx blockend-cli update --json
-```
-
-### Disable diff output
-
-```bash
-npx blockend-cli update --no-diff
-```
-
----
-
-# MCP Integration
-
-Blockend ships with an MCP server so AI assistants can use vetted, framework-native backend blocks instead of generating infrastructure from scratch.
-
-Supported clients include:
-
-- Claude
-- Cursor
-- Codex
-- VS Code
-- Windsurf
-
-## Configure MCP
-
-Run:
-
-```bash
-npx blockend-cli mcp init
-```
-
-Or target a specific client:
-
-```bash
-npx blockend-cli mcp init --client claude
-```
-
-Supported client profiles:
-
-```text
-claude
-codex
-cursor
-vscode
-windsurf
-```
-
-### Preview configuration
-
-```bash
-npx blockend-cli mcp init --dry-run
-```
-
-### Force configuration
-
-```bash
-npx blockend-cli mcp init --force
-```
-
-### Skip confirmation
-
-```bash
-npx blockend-cli mcp init --yes
-```
-
-### Start the MCP server
+### `mcp`
 
 ```bash
 npx blockend-cli mcp
+npx blockend-cli mcp init [options]
 ```
 
-Running `mcp` without a subcommand starts the Blockend MCP server.
+Starts the MCP server or writes a client config. `mcp init` supports `--client`, `--dry-run`, `--force`, and `--yes`.
 
----
+Supported clients: `claude`, `codex`, `cursor`, `vscode`, and `windsurf`.
 
-# Available Blocks
+## Config
 
-| Block                | What it solves                                             |
-| -------------------- | ---------------------------------------------------------- |
-| `rate-limiter`       | Token bucket rate limiting with pluggable storage adapters |
-| `request-validator`  | Zod-based input validation with framework adapters         |
-| `error-handler`      | Centralized error pipeline with typed errors               |
-| `logger`             | Structured request logging with async context propagation  |
-| `response-formatter` | Standard API response shapes for success/error payloads    |
-| `env-config`         | Type-safe environment validation with Zod schemas          |
-| `health-check`       | Liveness/readiness probes for app and dependency health    |
-| `password-hash`      | Argon2id password hashing with PHC-string output           |
+A generated config looks like this:
 
----
-
-# Supported Frameworks
-
-Blockend currently supports:
-
-- **Next.js**
-- **Express**
-- **Fastify**
-- **Hono**
-
-Each block ships with typed, framework-native adapters where appropriate.
-
-More frameworks are coming soon.
-
----
-
-# Example: Rate Limiter
-
-Initialize Blockend:
-
-```bash
-npx blockend-cli init
+```json
+{
+  "$schema": "https://blockend.noorulhassan.com/schema.json",
+  "environment": "express",
+  "language": "typescript",
+  "packageManager": "pnpm",
+  "importRewriteStrategy": "remove",
+  "includeRedis": false,
+  "aliases": {
+    "blocks": "@/blocks"
+  },
+  "paths": {
+    "blocks": "./src/blocks"
+  }
+}
 ```
 
-Add the rate limiter:
+`add` appends an `installed` array with block names, versions, install times, file lists, and content hashes.
 
-```bash
-npx blockend-cli add rate-limiter
-```
+## Generated structure
 
-You may get a structure similar to:
+The rate limiter with the Express adapter and memory store is written as:
 
 ```text
 src/
 └── blocks/
     └── rate-limiter/
-        ├── core.ts
-        ├── express.ts
-        ├── fastify.ts
-        └── ...
+        ├── adapters/
+        │   ├── express.ts
+        │   └── express.test.ts
+        ├── core/
+        │   └── core.ts
+        ├── utils/
+        │   ├── ip.ts
+        │   └── ip.test.ts
+        └── variants/
+            ├── memory-store.ts
+            └── memory-store.test.ts
 ```
 
-The core implementation contains the framework-agnostic rate-limiting logic, while framework adapters integrate it with your application.
-
-For example:
+Import the adapter by its actual path:
 
 ```ts
-import { rateLimiter } from "./blocks/rate-limiter/express.js";
+import { expressRateLimit } from "@/blocks/rate-limiter/adapters/express";
+import { MemoryStore } from "@/blocks/rate-limiter/variants/memory-store";
 ```
 
-The implementation lives inside your repository.
+There is no root `index.ts` for the rate limiter. Importing from `@/blocks/rate-limiter` will fail.
 
-You can modify it however you need.
+## Import paths
 
----
+Blocks are copied into `paths.blocks`. If `aliases.blocks` exists, imports use it, for example `@/blocks/logger/core`. If it does not, imports stay relative.
 
-# Source Ownership
-
-Blockend follows a simple principle:
-
-> **Generate it. Own it.**
-
-Blockend does not hide your infrastructure behind a runtime package.
-
-Instead of:
+Blocks with a root `index.ts` can be imported from the block folder, for example:
 
 ```ts
-import { rateLimiter } from "blockend";
+import { createErrorBoundary } from "@/blocks/error-handler";
 ```
 
-your application gets source code:
+Blocks without one need a file path, for example:
 
 ```ts
-import { rateLimiter } from "./blocks/rate-limiter/express.js";
+import { createHealth } from "@/blocks/health-check/core/create-health";
 ```
 
-You can:
+Each block's documentation page lists the correct paths.
 
-- Read the implementation
-- Change the implementation
-- Add your own features
-- Remove code you don't need
-- Commit it to Git
-- Review it in pull requests
-- Customize it for your architecture
+## License
 
----
-
-# Automatic Dependencies
-
-Blockend detects your package manager automatically.
-
-Supported package managers include:
-
-- npm
-- pnpm
-- yarn
-- bun
-
-When a block requires dependencies, Blockend installs the required packages using the detected package manager.
-
-For example, a block using Zod can automatically install its required dependency.
-
-You don't need to manually figure out which packages are required.
-
----
-
-# TypeScript First
-
-Blockend is designed for TypeScript backend projects.
-
-Generated blocks are:
-
-- Fully typed
-- Framework-aware
-- Production-oriented
-- Designed for direct source ownership
-- Compatible with strict TypeScript configurations
-
----
-
-# Configuration
-
-After running:
-
-```bash
-npx blockend-cli init
-```
-
-Blockend creates a project configuration file:
-
-```text
-blockend.json
-```
-
-A configuration may look like:
-
-```json
-{
-  "framework": "express",
-  "language": "typescript",
-  "blocksDir": "src/blocks"
-}
-```
-
-The exact configuration is determined from your project during initialization.
-
----
-
-# CLI Overview
-
-```text
-blockend
-│
-├── init
-│   ├── --yes
-│   └── --json
-│
-├── add [block]
-│   ├── --yes
-│   ├── --json
-│   └── --multi
-│
-├── list
-│   └── --json
-│
-├── detect
-│   └── --json
-│
-├── diff <block>
-│   └── --json
-│
-├── doctor
-│   └── --json
-│
-├── update
-│   ├── --json
-│   ├── --diff
-│   └── --apply
-│
-└── mcp
-    └── init
-        ├── --client
-        ├── --force
-        ├── --dry-run
-        └── --yes
-```
-
----
-
-# Typical Workflow
-
-### 1. Initialize
-
-```bash
-npx blockend-cli init
-```
-
-### 2. Check your project
-
-```bash
-npx blockend-cli detect
-```
-
-### 3. Browse available blocks
-
-```bash
-npx blockend-cli list
-```
-
-### 4. Preview a block
-
-```bash
-npx blockend-cli diff rate-limiter
-```
-
-### 5. Add the block
-
-```bash
-npx blockend-cli add rate-limiter
-```
-
-### 6. Check your project
-
-```bash
-npx blockend-cli doctor
-```
-
-### 7. Keep blocks updated
-
-```bash
-npx blockend-cli update
-```
-
-### 8. Connect your AI assistant
-
-```bash
-npx blockend-cli mcp init
-```
-
----
-
-# Roadmap
-
-The following blocks and capabilities are planned:
-
-- JWT authentication
-- CORS
-- Security headers
-- Idempotency
-- Webhooks
-- Additional framework adapters
-- More storage adapters
-- More AI/MCP integrations
-
----
-
-# Documentation
-
-Full documentation:
-
-[https://blockend.noorulhassan.com/docs](https://blockend.noorulhassan.com/docs)
-
----
-
-# Repository
-
-Source code, issues, block implementations, and contribution guides:
-
-[https://github.com/codewithnuh/blockend](https://github.com/codewithnuh/blockend)
-
-If Blockend saves you from rewriting backend boilerplate, consider giving the project a star.
-
----
-
-# Contributing
-
-Contributions are welcome.
-
-You can contribute by:
-
-- Adding new backend blocks
-- Improving existing blocks
-- Adding framework adapters
-- Improving documentation
-- Reporting bugs
-- Suggesting new infrastructure primitives
-- Improving the CLI
-- Improving MCP integrations
-
-See the repository for contribution guidelines.
-
----
-
-# License
-
-MIT © CodeWithNuh
-
-See the full license:
-
-[https://github.com/codewithnuh/blockend/blob/master/LICENSE](https://github.com/codewithnuh/blockend/blob/master/LICENSE)
+MIT. See the repository [LICENSE](../../LICENSE).

@@ -10,7 +10,8 @@ import type {
 /**
  * Recovers operations that got stuck in 'PROCESSING' state (e.g., a node
  * crashed mid-execution and never released its lock). Such records are marked
- * 'FAILED' so clients can safely retry or inspect the outcome.
+ * 'FAILED', so a retry with the same key returns REQUEST_FAILED. Reconcile the
+ * side effect before using a new key.
  *
  * RESILIENCE INVARIANT: a single failing `markFailed` call (e.g. a DB hiccup)
  * must not abort recovery of the remaining records — each record is processed
@@ -19,11 +20,12 @@ import type {
  * LEASE-RACE WARNING: recovery assumes a PROCESSING record whose `updatedAt` is
  * older than `timeoutInMs` is dead. If a legitimate operation runs LONGER than
  * the timeout (no heartbeat), recovery can mark it FAILED while it is still
- * executing — allowing a retry to re-run it (double execution) and/or losing
- * its result. Mitigations for long-running jobs: (1) keep a heartbeat that
- * touches `updatedAt`; (2) make the store's `markFailed` conditional
- * (`UPDATE ... WHERE status = 'PROCESSING'`) so a just-completed SUCCESS
- * record can never be flipped to FAILED.
+ * executing. That can lose its result and make the key return REQUEST_FAILED;
+ * a client can then run the operation again with a new key. Mitigations for
+ * long-running jobs: (1) keep a heartbeat that touches `updatedAt`; (2) make
+ * the store's `markFailed` conditional (`UPDATE ... WHERE status =
+ * 'PROCESSING'`) so a just-completed SUCCESS record can never be flipped to
+ * FAILED.
  */
 export async function recoverStuckRecords(
   store: IdempotencyStore,

@@ -5,22 +5,24 @@ A source-owned TypeScript token primitive for a monolith or distributed system. 
 ## Security model
 
 - Production mode is the default. It requires an HTTPS/URN issuer, audience, and asymmetric JWT algorithms.
-- Access TTL is clamped to 60–3600 seconds (default 900). Refresh TTL is clamped to 3600–2,592,000 seconds (default seven days).
+- Access TTL is clamped to 60 to 3600 seconds (default 900). Refresh TTL is clamped to 3600 to 2,592,000 seconds (default seven days).
 - Refresh values contain a versioned family-routing hint and 256 random secret bits. Stores persist only SHA-256 hashes.
 - Refresh rotation is atomic. Reuse revokes the complete token family.
 - `revoke({ refreshToken })` revokes that token's entire family, including a descendant created by a concurrent rotation. Already issued access JWTs remain valid until expiry unless their JTIs are also revoked.
 - Each refresh family expires no later than 90 days after issue and allows at most 10,000 successful rotations by default. Both limits are configurable and travel with the family, bounding retained replay state and preventing a differently configured replica from extending the family.
-- Refresh-family revocation is also triggered by subject revocation, refresh-token logout, reuse, or the rotation ceiling.
-- Callers cannot override `iss`, `sub`, `aud`, `iat`, `exp`, `jti`, or `type`.
-- `kid` and `alg` must resolve to a pinned provider key. `none` is rejected.
+- Refresh-family revocation is also triggered by subject revocation, refresh-token logout, or reuse. The rotation ceiling rejects further refreshes without revoking the family.
+- The `claims` object cannot override `iss`, `sub`, `aud`, `exp`, `nbf`, `iat`, `jti`, or `type`; use the dedicated `sub` and `audience` fields.
+- The `alg` must be allowed, and key lookup must resolve through the configured provider. `LocalKeyProvider` requires a `kid`; `none` is rejected.
 - Error responses never include internal causes or stack traces.
 
 This is token infrastructure, not a login system. Your application still owns user authentication, authorization, cookies, CSRF protection, rate limiting, session/device policy, and account recovery.
 
+The examples import from `@/blocks/token-service/src`, the path produced by `blockend add token-service` with the default alias. Adjust the alias to match `blockend.json`.
+
 ## Local development
 
 ```ts
-import { createTokenService, LocalKeyProvider, MemoryTokenStore } from "@blockend/token-service";
+import { createTokenService, LocalKeyProvider, MemoryTokenStore } from "@/blocks/token-service/src";
 
 const tokens = createTokenService({
   deploymentMode: "development",
@@ -48,7 +50,7 @@ For an access-token-only internal service, use `StatelessTokenStore` and always 
 
 ## Distributed production
 
-Use a shared store and a signing provider. `PostgresTokenStore` accepts a small database interface; wrap your existing `pg`, Prisma, or Drizzle transaction client. `RedisTokenStore` accepts a client adapter exposing `get`, `hget`, `set`, and `eval`. Apply [`sql/postgres.sql`](./sql/postgres.sql) before using PostgreSQL.
+Use a shared store and a signing provider. `PostgresTokenStore` accepts a small database interface; wrap your existing `pg`, Prisma, or Drizzle transaction client. `RedisTokenStore` accepts a client adapter exposing `get`, `hget`, `set`, and `eval`. `ioredis` needs a wrapper for those methods; the [token service docs](https://blockend.noorulhassan.com/docs/02-blocks/11-token-service#production-setup) include one. Apply [`sql/postgres.sql`](./sql/postgres.sql) before using PostgreSQL.
 
 ```ts
 const tokens = createTokenService({
@@ -151,14 +153,18 @@ WHERE revoked.ctid = expired.ctid;
 - Scope audiences narrowly. A token accepted by every service defeats audience isolation.
 - A JTI denylist makes access-token verification stateful. If immediate access revocation is unnecessary, use short access TTLs and omit JTI methods in a custom store.
 
-## Commands
+## Testing your integration
 
-```bash
-npm install
-npm run typecheck
-npm test
-npm run test:coverage
-```
+Test the flows your application depends on against the same store and key provider you deploy:
+
+- Issue an access-only token with `tokens: { refresh: false }`, and confirm refresh is rejected when you use `StatelessTokenStore`.
+- Refresh once, then retry the old refresh token and confirm `REFRESH_REUSED` revokes the family.
+- Try an expired access token, a wrong audience, a wrong issuer, and a disallowed algorithm; each must fail verification.
+- Revoke by refresh token, family, subject, and JTI where your store supports it.
+- For PostgreSQL, run two refreshes with the same token concurrently and confirm only one rotation succeeds.
+- Run cleanup jobs against a copy of production data before scheduling them.
+
+Use a real PostgreSQL or Redis instance for rotation and revocation tests. `MemoryTokenStore` does not exercise the atomic store behavior those tests depend on.
 
 ## Files
 

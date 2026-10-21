@@ -1,29 +1,34 @@
 ---
 title: Logger
-description: Structured, request-aware logging with automatic request IDs and framework adapters for Express, Fastify, and Hono.
+description: A shared Pino logger with request IDs, async context, and Express, Fastify, and Hono adapters.
 status: validated
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
-import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 import { SourceCode } from "../../../components/source-code";
 
-The **Logger** block provides a shared, structured logger for your application with automatic request context propagation using Node.js `AsyncLocalStorage`.
+The logger block gives your app one Pino instance. Each request gets an ID, log lines written during that request include the ID, and the framework adapters log the request method, path, status, and duration after the handler runs.
 
-Every log created during a request automatically includes the same request ID, making it easy to trace a request across your application without manually passing IDs between functions.
+There is no root `index.ts`. Import the shared logger from `core` and adapters from `adapters/`.
 
----
+<Callout type="warn">
+  The core uses `pino-pretty` when `NODE_ENV` is not `production`. The CLI installs `pino` but not `pino-pretty`. Add it as a dev dependency, or the logger will fail at startup outside production:
+
+```bash
+pnpm add -D pino-pretty
+```
+
+With npm, run `npm install -D pino-pretty`.
+
+</Callout>
 
 ## Quick start
-
-Add the block to your project (skip `init` if it already has a `blockend.json`):
 
 ```bash
 pnpm dlx blockend-cli init
 pnpm dlx blockend-cli add logger
 ```
-
-Use the Express adapter to log each request, then use the logger in your code:
 
 ```ts
 import express from "express";
@@ -31,45 +36,27 @@ import { expressLoggerAdapter } from "@/blocks/logger/adapters/express";
 import { logger } from "@/blocks/logger/core";
 
 const app = express();
+
 app.use(expressLoggerAdapter);
+
 app.get("/", (_req, res) => {
   logger.info("Handling request");
   res.json({ ok: true });
 });
 ```
 
----
-
-## Features
-
-- Shared logger instance for your entire application
-- Automatic request ID generation and propagation
-- Request context powered by `AsyncLocalStorage`
-- Automatic HTTP request logging
-- Express, Fastify, and Hono adapters
-- Built-in redaction for common sensitive fields
-- Pretty logs during development
-- JSON logs in production
-- TypeScript support
-
----
-
-## File Structure
+## Files
 
 ```text
-logger
-├── adapters
+logger/
+├── adapters/
 │   ├── express.ts
 │   ├── fastify.ts
 │   └── hono.ts
-├── core.ts
-└── core.test.ts
+└── core.ts
 ```
 
-- **adapters/** — Framework-specific middleware for Express, Fastify, and Hono that initialize request context and log completed requests.
-- **core.ts** — Core logger setup with Pino, `AsyncLocalStorage` context, and `runWithLoggerContext`.
-
----
+The CLI copies `core.ts` and one adapter. It does not create an `index.ts`.
 
 ## Installation
 
@@ -79,211 +66,171 @@ logger
     pnpm dlx blockend-cli add logger
     ```
 
-    <Steps>
-      <Step>
-        ### Detect Project
-
-        Blockend detects your project's framework, language, aliases and configuration.
-      </Step>
-      <Step>
-        ### Install Dependencies
-
-        The required dependencies are installed automatically.
-      </Step>
-      <Step>
-        ### Generate Files
-
-        The logger block is generated inside your configured blocks directory.
-      </Step>
-    </Steps>
+    The CLI copies the adapter for your configured framework and installs `pino`. Add `pino-pretty` yourself if you want pretty logs in development.
 
   </Tab>
+
   <Tab value="Manual">
-    Copy the files below into your project's blocks directory.
+    Copy `core.ts` and the adapter you need into `blocks/logger`. Install `pino`. For development logs, also install `pino-pretty`. With the Fastify adapter, install `fastify-plugin` as well.
 
-    ### Peer Dependencies
-
-    | Package | Required for |
-    | ------- | ------------ |
-    | `pino` | Core logger |
-    | `pino-pretty` | Dev pretty-printing |
-    | `express` | Express adapter |
-    | `fastify` | Fastify adapter |
-    | `hono` | Hono adapter |
-
-    ### `blocks/logger/core.ts`
-
-    Core logger setup with Pino, `AsyncLocalStorage` context, and utility functions.
+    ### Core
 
     <SourceCode file="logger/core.ts" />
 
-    ### `blocks/logger/adapters/express.ts`
-
-    Express middleware that initializes request context and logs completed requests.
+    ### Express adapter
 
     <SourceCode file="logger/adapters/express.ts" />
 
-    ### `blocks/logger/adapters/fastify.ts`
-
-    Fastify plugin that initializes request context and logs completed requests.
+    ### Fastify adapter
 
     <SourceCode file="logger/adapters/fastify.ts" />
 
-    ### `blocks/logger/adapters/hono.ts`
-
-    Hono middleware that initializes request context and logs completed requests.
+    ### Hono adapter
 
     <SourceCode file="logger/adapters/hono.ts" />
 
   </Tab>
 </Tabs>
 
----
-
-## Configuration
-
-| Export                   | Type                               | Description                                                             |
-| ------------------------ | ---------------------------------- | ----------------------------------------------------------------------- |
-| `logger`                 | `pino.Logger`                      | Shared logger instance used throughout your application                 |
-| `loggerContext`          | `AsyncLocalStorage<LoggerContext>` | The underlying `AsyncLocalStorage` instance                             |
-| `runWithLoggerContext()` | `<T>(incomingId, callback) => T`   | Creates a logger context with a request ID                              |
-| `getRequestId()`         | `() => string \| undefined`        | Returns the current request ID or `undefined` outside a request context |
-| `expressLoggerAdapter()` | `(req, res, next) => void`         | Express middleware                                                      |
-| `fastifyLogger`          | `FastifyPluginAsync`               | Fastify plugin                                                          |
-| `honoLoggerAdapter()`    | `() => MiddlewareHandler`          | Hono middleware                                                         |
-
----
-
-## Architecture
-
-```text
-Request
-   │
-   ▼
-Adapter (Express / Fastify / Hono)
-   │  (extracts x-request-id, calls runWithLoggerContext)
-   ▼
-AsyncLocalStorage context
-   │  (stores requestId)
-   ▼
-Route Handler
-   │  (logger.info / logger.warn / logger.error — auto-includes requestId)
-   ▼
-Response
-   │
-   ▼
-Adapter logs HTTP completion
-   │  (method, path, statusCode, durationMs)
-```
-
-The adapter extracts an optional `x-request-id` header, generates a UUID if none exists, and runs the request inside an `AsyncLocalStorage` context. Every log call during the request automatically includes the `requestId`. When the response finishes, the adapter logs the HTTP method, path, status code, and duration.
-
----
-
-## When to Use
-
-- You need structured, JSON logging across your application.
-- You want automatic request tracing without manually passing request IDs.
-- You use multiple frameworks and want a consistent logging approach.
-
-## When Not to Use
-
-- You prefer a different logging library (Winston, etc.).
-- You don't need request-scoped logging.
-- You're building a CLI tool or background worker without HTTP context.
-
----
-
-## Usage
+## Framework setup
 
 ### Express
 
 ```ts
 import express from "express";
-import { expressLoggerAdapter, logger } from "@/blocks/logger/core";
+import { expressLoggerAdapter } from "@/blocks/logger/adapters/express";
 
 const app = express();
+
 app.use(expressLoggerAdapter);
-
-app.get("/", (req, res) => {
-  logger.info("Handling request"); // auto-includes requestId
-  res.json({ ok: true });
-});
-
-app.listen(3000);
 ```
+
+The adapter sets `req.id`, generates a UUID when `x-request-id` is missing, and logs after `res` emits `finish`.
 
 ### Fastify
 
 ```ts
 import Fastify from "fastify";
-import { fastifyLogger, logger } from "@/blocks/logger/core";
+import { fastifyLogger } from "@/blocks/logger/adapters/fastify";
 
-const app = Fastify({ logger: false }); // use our logger instead
+const app = Fastify();
+
 await app.register(fastifyLogger);
-
-app.get("/", async () => {
-  logger.info("Handling request");
-  return { ok: true };
-});
-
-await app.listen({ port: 3000 });
 ```
+
+The adapter adds `request.requestId` and registers `onRequest` and `preHandler` hooks. Register it before your routes.
 
 ### Hono
 
 ```ts
 import { Hono } from "hono";
-import { honoLoggerAdapter, logger } from "@/blocks/logger/core";
+import { honoLoggerAdapter } from "@/blocks/logger/adapters/hono";
 
-const app = new Hono();
+type Variables = {
+  requestId: string;
+};
+
+const app = new Hono<{ Variables: Variables }>();
+
 app.use("*", honoLoggerAdapter());
 
 app.get("/", (c) => {
-  logger.info("Handling request");
-  return c.text("ok");
+  return c.json({ requestId: c.get("requestId") });
 });
-
-export default app;
 ```
 
-### Accessing the Request ID
+Declare the `requestId` variable in your Hono type so `c.get("requestId")` is typed.
+
+## Request context
+
+`runWithLoggerContext` creates an `AsyncLocalStorage` scope. The adapters use it for HTTP requests. Use it directly for background jobs and queue workers:
+
+```ts
+import { logger, runWithLoggerContext } from "@/blocks/logger/core";
+
+await runWithLoggerContext(null, async (requestId) => {
+  logger.info({ jobId: "job_123", requestId }, "Processing job");
+});
+```
+
+Pass an existing ID as the first argument to reuse it:
+
+```ts
+await runWithLoggerContext("job_123", async () => {
+  logger.info("Processing job");
+});
+```
+
+`getRequestId()` returns the current ID or `undefined` outside a context.
 
 ```ts
 import { getRequestId } from "@/blocks/logger/core";
 
-// Inside a request context — returns the current requestId
 const id = getRequestId();
-
-// Outside a request context — returns undefined
-const id = getRequestId(); // undefined
 ```
 
-### Background Jobs
+## Configuration
 
-The `AsyncLocalStorage` context only exists during HTTP requests. For background jobs, create a context manually:
+The logger is configured in `core.ts`, not through a factory. Edit the file to change it:
 
 ```ts
-import { runWithLoggerContext, logger } from "@/blocks/logger/core";
+const isProduction = process.env.NODE_ENV === "production";
 
-await runWithLoggerContext(null, (requestId) => {
-  logger.info({ jobId: "abc" }, "Processing job"); // requestId is auto-generated
+export const logger = pino({
+  level: isProduction ? "info" : "debug",
+  mixin() {
+    const store = loggerContext.getStore();
+    return store ? { requestId: store.requestId } : {};
+  },
+  redact: {
+    paths: ["Authorization", "*.token", "token", "*.password", "password"],
+    censor: "[REDACTED]"
+  },
+  ...(isProduction
+    ? {}
+    : {
+        transport: {
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+            translateTime: "SYS:standard",
+            ignore: "hostname,pid"
+          }
+        }
+      })
 });
 ```
 
----
+| Setting              | Value                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| Level                | `debug` outside production, `info` in production                                      |
+| Request ID field     | `requestId`                                                                           |
+| Redacted fields      | `Authorization`, `token`, `password`, and one nested level for `token` and `password` |
+| Dev transport        | `pino-pretty`                                                                         |
+| Production transport | JSON to stdout                                                                        |
 
-## API Reference
+The redaction list is narrow. Add your own paths if your app logs cookies, API keys, or other secrets.
 
-### logger
+## API reference
+
+### `logger`
+
+A configured `pino.Logger`. It writes JSON in production and pretty output in development.
 
 ```ts
-const logger: pino.Logger;
+logger.info({ userId }, "User signed in");
+logger.error({ err }, "Payment failed");
 ```
 
-Shared Pino logger instance. Use throughout your application for structured logging.
+### `getRequestId`
 
-### runWithLoggerContext
+```ts
+function getRequestId(): string | undefined;
+```
+
+Returns the request ID from the current async context.
+
+### `runWithLoggerContext`
 
 ```ts
 function runWithLoggerContext<T>(
@@ -292,98 +239,38 @@ function runWithLoggerContext<T>(
 ): T;
 ```
 
-Creates an `AsyncLocalStorage` context with a request ID. If `incomingId` is null or undefined, a UUID is generated automatically.
+Uses `incomingId` when it is a non-empty string. Otherwise it generates a UUID. The callback runs inside the new context.
 
-### getRequestId
+### `loggerContext`
 
-```ts
-function getRequestId(): string | undefined;
-```
+The `AsyncLocalStorage<LoggerContext>` instance. Use it only if you need to inspect or replace the store directly.
 
-Returns the current request ID from the active `AsyncLocalStorage` context, or `undefined` if no context exists.
+### Adapters
 
-### expressLoggerAdapter
+| Adapter | Export                 | Adds                                     |
+| ------- | ---------------------- | ---------------------------------------- |
+| Express | `expressLoggerAdapter` | `req.id`, response finish log            |
+| Fastify | `fastifyLogger`        | `request.requestId`, response finish log |
+| Hono    | `honoLoggerAdapter`    | `c.set("requestId", id)`, response log   |
 
-```ts
-function expressLoggerAdapter(req: Request, res: Response, next: NextFunction): void;
-```
+All adapters read `x-request-id` when present and generate a UUID otherwise.
 
-Express middleware. Extracts `x-request-id` header, initializes context, and logs HTTP completion on response finish.
+## Production notes
 
-### fastifyLogger
+- Keep JSON logs in production. Pretty printing costs CPU and is harder to parse.
+- Ship logs to a collector. stdout alone is not durable on most platforms.
+- The adapters log one line per request that returns normally. They do not log request bodies or headers. A request that throws past the Hono adapter does not produce a completion line.
+- The incoming `x-request-id` header is trusted. If clients can set it, validate the format before you use it for tracing.
+- Error objects logged as `{ err }` are serialized by Pino with their stack trace. Do not log secrets in error messages.
 
-```ts
-const fastifyLogger: FastifyPluginAsync;
-```
+## When not to use it
 
-Fastify plugin. Registers `onRequest` and `preHandler` hooks to initialize context and log HTTP completion.
+- You already have a configured Pino, Winston, or OpenTelemetry logger.
+- You need distributed tracing. Request IDs are not trace spans. Use OpenTelemetry for that.
+- You need audit logs with retention and tamper protection. Use a dedicated audit system.
 
-### honoLoggerAdapter
+## Related blocks
 
-```ts
-function honoLoggerAdapter(): MiddlewareHandler;
-```
-
-Hono middleware. Initializes context, sets `requestId` in Hono's context variables, and logs HTTP completion.
-
-### LoggerContext
-
-```ts
-interface LoggerContext {
-  requestId: string;
-  [key: string]: unknown;
-}
-```
-
----
-
-## Examples
-
-### Redacted Fields
-
-Sensitive fields are automatically redacted in log output:
-
-```ts
-logger.info(
-  {
-    password: "super-secret",
-    Authorization: "Bearer xyz",
-    nested: { token: "jwt" }
-  },
-  "Sensitive operation"
-);
-// password, Authorization, and nested.token are redacted to "[REDACTED]"
-```
-
-### Custom Request ID
-
-Provide your own request ID (e.g., from an API gateway):
-
-```ts
-app.use((req, res, next) => {
-  const requestId = req.headers["x-request-id"] ?? crypto.randomUUID();
-  runWithLoggerContext(requestId, () => next());
-});
-```
-
----
-
-## Related Blocks
-
-- **Error Handler** — Log unhandled errors with structured request context instead of `console.error`.
-
----
-
-## FAQ
-
-**How does the request ID propagate?**
-
-The adapter wraps the request handler in `runWithLoggerContext`, which uses Node.js `AsyncLocalStorage`. The `logger` instance's `mixin` function reads the store and includes the `requestId` in every log line.
-
-**What headers are checked for an incoming request ID?**
-
-The `x-request-id` header. If present, it is reused. If absent, a UUID is generated.
-
-**Does this work with background jobs?**
-
-No. The `AsyncLocalStorage` context only exists during an HTTP request. For background jobs, create a logger context manually using `runWithLoggerContext`.
+- [Error handler](/docs/02-blocks/02-global-error-handler) can use the same logger for structured error events.
+- [Idempotency](/docs/02-blocks/09-idempotency) accepts a logger that matches the `Logger` interface.
+- [Graceful shutdown](/docs/02-blocks/08-graceful-shutdown) can close transports during shutdown if you add a task.
