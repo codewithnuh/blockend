@@ -1,59 +1,37 @@
 ---
-title: CLI Reference
-description: Commands and options for setting up Blockend, adding blocks, and checking updates.
+title: CLI reference
+description: Commands and options for initializing Blockend, adding blocks, and checking updates.
 ---
 
-Use the Blockend CLI to set up a project, add block files, and manage installed blocks. The package is named `blockend-cli`; its executable is named `blockend`.
-
-## Quick start
-
-Run these commands from your project folder:
+The package is `blockend-cli`; the executable is `blockend`. You do not need a global install:
 
 ```bash
-pnpm dlx blockend-cli init
-pnpm dlx blockend-cli add rate-limiter
+pnpm dlx blockend-cli <command>
 ```
 
-Use the rest of this page when you need a specific command or option. For setup help, see [Initialize Blockend](/docs/01-getting-started/01-intialization) and [Add blocks](/docs/01-getting-started/02-adding-new-block).
+The npm equivalent is `npx blockend-cli <command>`. After installation, the `blockend` binary also works.
 
-## Installation
+## `init`
 
-You do not need to install the CLI globally. Run it with `pnpm dlx`:
+Create `blockend.json` in the project root.
 
 ```bash
-pnpm dlx blockend-cli <command> [options]
-```
-
----
-
-## `blockend-cli init`
-
-Initialize a `blockend.json` configuration for your project.
-
-```
 pnpm dlx blockend-cli init [options]
 ```
 
-The `init` command scans your project, detects your framework and package manager, and generates a `blockend.json` file.
+| Option   | Alias | Default | Description                                                |
+| -------- | ----- | ------- | ---------------------------------------------------------- |
+| `--yes`  | `-y`  | `false` | Accept detected defaults and overwrite an existing config. |
+| `--json` |       | `false` | Write a JSON result instead of terminal output.            |
 
-### Options
+The command detects the framework, language, package manager, Redis, and TypeScript path aliases. It prompts for:
 
-| Option   | Alias | Default | Description                                              |
-| -------- | ----- | ------- | -------------------------------------------------------- |
-| `--yes`  | `-y`  | `false` | Skip prompts and use auto-detected defaults              |
-| `--json` |       | `false` | Output machine-readable JSON instead of interactive text |
+1. Whether to keep, overwrite, or regenerate an existing config
+2. Framework, when detection fails
+3. Blocks directory, defaulting to `src/blocks` or `blocks`
+4. Redis variants, when Redis is detected
 
-### Interactive Prompts
-
-1. **Existing config handling** — keep, overwrite, or regenerate if `blockend.json` already exists
-2. **Framework selection** — auto-detected or manually chosen from Express, Fastify, Next.js, Hono
-3. **Blocks directory** — where block files will be installed (e.g. `src/blocks`)
-4. **Redis** — enable Redis-backed variants if Redis is detected in the project
-5. **Import alias** — derived from `tsconfig.json` paths automatically
-
-### Output
-
-Creates `blockend.json` in the project root:
+Generated config:
 
 ```json
 {
@@ -68,328 +46,159 @@ Creates `blockend.json` in the project root:
   },
   "paths": {
     "blocks": "./src/blocks"
-  },
-  "installed": []
+  }
 }
 ```
 
-The `installed` array is populated automatically when you add blocks and tracks which blocks are installed, their versions, and content hashes for update detection.
+`installed` is added by `add`, not by `init`. With `--yes`, an existing `blockend.json` is overwritten without a prompt.
 
----
+## `add`
 
-## `blockend-cli add <block>`
+Write a block into the project.
 
-Download and install a backend block into your project.
-
-```
+```bash
 pnpm dlx blockend-cli add [block] [options]
 ```
 
-If no block name is provided, an interactive selector shows all blocks compatible with your project's framework.
+| Option    | Alias | Default | Description                                                          |
+| --------- | ----- | ------- | -------------------------------------------------------------------- |
+| `[block]` |       |         | Registry key, such as `rate-limiter` or `logger`.                    |
+| `--yes`   | `-y`  | `false` | Skip prompts, install missing dependencies, and overwrite conflicts. |
+| `--json`  |       | `false` | Write a JSON result.                                                 |
+| `--multi` | `-m`  | `false` | Select multiple blocks in one session.                               |
 
-### Options
+Without a block name, the CLI shows a selector. With `--multi`, it shows a multiselect. Space toggles a block and Enter confirms.
 
-| Option    | Alias | Default | Description                                    |
-| --------- | ----- | ------- | ---------------------------------------------- |
-| `[block]` |       |         | Block key name (e.g. `rate-limiter`, `logger`) |
-| `--yes`   | `-y`  | `false` | Skip confirmations, auto-select first variant  |
-| `--json`  |       | `false` | Output machine-readable JSON progress          |
-| `--multi` | `-m`  | `false` | Select multiple blocks at once via multiselect |
+Behavior:
 
-### Multi-Select Mode
+- Requires a TypeScript project. JavaScript projects are rejected.
+- Filters blocks by the configured framework.
+- Asks for a storage variant when more than one exists.
+- In interactive mode, selects Redis automatically when `includeRedis` is true and a Redis variant exists. With `--yes`, it selects memory when available, otherwise the first variant.
+- Checks `package.json` for missing or conflicting dependencies. Installation uses `pnpm add` for pnpm projects and `npm install` for every other detected package manager.
+- Rewrites imports for `aliases.blocks` and `importRewriteStrategy`.
+- Records installed files in the `installed` array.
 
-Use `--multi` to select and add multiple blocks in one session:
+`--yes` does not supply a block name. `add --yes` without a block is an error.
+
+## `list`
+
+List blocks available for the configured framework.
 
 ```bash
-pnpm dlx blockend-cli add --multi
-```
-
-This presents a multiselect prompt where you can:
-
-- Press **Space** to toggle block selection
-- Press **Enter** to confirm and install all selected blocks
-
-Each block is processed sequentially with its own dependency install, conflict check, and file download.
-
-### How It Works
-
-1. Finds `blockend.json` by walking up the directory tree
-2. Fetches the registry manifest from `raw.githubusercontent.com`
-3. Filters blocks compatible with your configured environment
-4. Prompts variant selection (e.g. memory vs Redis store) when multiple exist
-5. Installs missing npm dependencies automatically
-6. Downloads source files and writes them to the configured blocks directory
-7. Rewrites import paths according to your project's alias and strategy configuration
-
-### Variant Selection
-
-Blocks with multiple storage backends present a variant picker:
-
-```text
-? Select a storage variant:
-❯ Memory
-  Redis
-```
-
-If Redis is enabled in `blockend.json` and a Redis variant exists, it is auto-selected.
-
-### Framework Detection
-
-The CLI checks whether a block supports your target framework using its `frameworks` field or adapter map. Incompatible blocks are hidden from the selector.
-
----
-
-## `blockend-cli list`
-
-List available blocks for your project's framework.
-
-```
 pnpm dlx blockend-cli list [options]
 ```
 
-### Options
+| Option   | Default | Description                                       |
+| -------- | ------- | ------------------------------------------------- |
+| `--json` | `false` | Write `{ success, environment, blocks }` as JSON. |
 
-| Option   | Default | Description                                          |
-| -------- | ------- | ---------------------------------------------------- |
-| `--json` | `false` | Output machine-readable JSON array of block metadata |
+`list` requires `blockend.json` and network access to GitHub.
 
-### Output
+## `detect`
 
-Shows block names, descriptions, and available storage variants:
+Report detected project settings.
 
-```text
-Available backend blocks for express:
-
-  rate-limiter
-    IP-based rate limiting middleware with pluggable storage strategies
-    Storage Variants: memory, redis
-
-  logger
-    Framework-agnostic context logging engine
-    Storage Variants: default
-```
-
----
-
-## `blockend-cli detect`
-
-Scan the current project directory and report detected configuration.
-
-```
+```bash
 pnpm dlx blockend-cli detect [options]
 ```
 
-### Options
+| Option   | Default | Description                              |
+| -------- | ------- | ---------------------------------------- |
+| `--json` | `false` | Write the full detection result as JSON. |
 
-| Option   | Default | Description                                   |
-| -------- | ------- | --------------------------------------------- |
-| `--json` | `false` | Output full detected context as a JSON object |
+| Field                   | Meaning                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| `framework`             | Detected backend framework, or `none`.                                                 |
+| `language`              | `typescript` or `javascript`.                                                          |
+| `packageManager`        | `npm`, `pnpm`, `yarn`, or `bun`.                                                       |
+| `srcDir`                | Detected source directory path, such as the project's `src/`, `app/`, `lib/`, or root. |
+| `importRewriteStrategy` | `rewrite` (append `.js`) or `remove` (extensionless).                                  |
+| `hasRedis`              | Redis client found in dependencies.                                                    |
+| `hasPrisma`             | Prisma found.                                                                          |
+| `hasDrizzle`            | Drizzle found.                                                                         |
 
-### Detected Fields
+`detect` does not require `blockend.json`.
 
-| Field                   | Description                                        |
-| ----------------------- | -------------------------------------------------- |
-| `framework`             | Detected backend framework                         |
-| `language`              | TypeScript or JavaScript                           |
-| `packageManager`        | Detected package manager (npm, pnpm, yarn)         |
-| `srcDir`                | Whether a `src/` directory exists                  |
-| `importRewriteStrategy` | NodeNext (`.js` append) or Bundler (extensionless) |
-| `hasRedis`              | Whether Redis is detected in dependencies          |
-| `hasPrisma`             | Whether Prisma is detected                         |
-| `hasDrizzle`            | Whether Drizzle ORM is detected                    |
+## `diff`
 
----
+Preview files a block would write, without changing the project.
 
-## `blockend-cli diff <block>`
-
-Preview what files a block would generate without writing to disk.
-
-```
+```bash
 pnpm dlx blockend-cli diff <block> [options]
 ```
 
-### Options
+| Option    | Default  | Description                 |
+| --------- | -------- | --------------------------- |
+| `[block]` | Required | Registry key to preview.    |
+| `--json`  | `false`  | Write diff results as JSON. |
 
-| Option    | Default | Description                      |
-| --------- | ------- | -------------------------------- |
-| `[block]` |         | Block name to preview (required) |
-| `--json`  | `false` | Output diff results as JSON      |
+The output marks each file as new, modified, or unchanged. Modified files include a line diff.
 
-### Output
+## `doctor`
 
-Shows each file's status (new, modified, unchanged) with line-level diffs for modified files:
+Check the project and `blockend.json` for problems.
 
-```text
-  pino-logger — default variant
-
-  + core.ts (new)
-  ~ express.ts (modified)
-    - import { pino } from 'pino';
-    + import { pino } from 'pino';
-    + export const logger = pino();
-
-  1 new | 1 modified | 0 unchanged
-```
-
----
-
-## `blockend-cli doctor`
-
-Detect configuration and project issues that could affect Blockend.
-
-```
+```bash
 pnpm dlx blockend-cli doctor [options]
 ```
 
-### Options
+| Option   | Default | Description                  |
+| -------- | ------- | ---------------------------- |
+| `--json` | `false` | Write check results as JSON. |
 
-| Option   | Default | Description                         |
-| -------- | ------- | ----------------------------------- |
-| `--json` | `false` | Output health check results as JSON |
+Checks include:
 
-### Checks Performed
-
-- `package.json` exists
-- `blockend.json` exists and is valid
-- `tsconfig.json` exists (warning if missing)
-- Lockfile detection (npm, pnpm, yarn, bun)
+- `package.json` and `blockend.json`
+- `tsconfig.json` presence
+- Lockfile for npm, pnpm, yarn, or bun
 - Framework detection
-- `blockend.json` structure validation (environment, paths, blocks directory)
+- Redis, Prisma, and Drizzle detection
+- `environment` and `paths.blocks` fields
+- Whether the blocks directory exists
 
-Exits with code `1` if any errors are found.
+In text mode, `doctor` exits with code 1 when it finds errors. In JSON mode it returns `success: false` with `warnings` and `errors` arrays.
 
----
+## `update`
 
-## `blockend-cli update`
+Compare installed blocks with registry versions.
 
-Compare installed blocks with registry versions and optionally apply updates.
-
-```
+```bash
 pnpm dlx blockend-cli update [options]
 ```
 
-### Options
+| Option    | Default | Description                              |
+| --------- | ------- | ---------------------------------------- |
+| `--json`  | `false` | Write update status as JSON.             |
+| `--diff`  | `true`  | Show line diffs for blocks with updates. |
+| `--apply` | `false` | Select blocks and apply updates.         |
 
-| Option    | Default | Description                                                      |
-| --------- | ------- | ---------------------------------------------------------------- |
-| `--json`  | `false` | Output update status as JSON                                     |
-| `--diff`  | `true`  | Show git-diff style file comparison for blocks with updates      |
-| `--apply` | `false` | Select blocks to update via multiselect and apply with rewriting |
+Updates use the `installed` entries in `blockend.json`: block name, version, install time, files, and content hash. `--apply` asks which blocks to update, confirms before overwriting, downloads the new files, rewrites imports, and updates the installed metadata. In JSON mode it applies every available update without prompting.
 
-### Version Tracking
+## `mcp`
 
-The update command reads the `installed` array in `blockend.json` to find installed blocks and their versions. The `add` command records these details for each block:
-
-- `name` — block identifier
-- `version` — registry version at install time
-- `installedAt` — ISO timestamp
-- `files` — list of installed files
-- `contentHash` — hash of the rewritten file contents
-
-### Read-Only Mode (default)
-
-Without `--apply`, the command compares versions and shows diffs:
-
-```text
-  Updates available:
-
-    ~ pino-logger 1.0.0 → 1.1.0
-
-  Change details:
-
-  ▸ pino-logger
-
-  ~ core.ts (modified)
-    3   import { pino } from 'pino';
-    4 - export const logger = pino({ level: 'info' });
-    4 + export const logger = pino({ level: 'debug' });
-
-  ✖ 1 block(s) have updates. Run with --apply to update files.
-```
-
-### Apply Mode
-
-With `--apply`, a multiselect prompt lets you choose which blocks to update:
+Start the MCP server or write a client config.
 
 ```bash
-pnpm dlx blockend-cli update --apply
-```
-
-This will:
-
-1. Show a multiselect prompt (Space to select, Enter to confirm)
-2. Confirm before overwriting files
-3. Download new versions
-4. Rewrite imports according to your project's settings (alias + strategy)
-5. Update `blockend.json` tracking with new version and content hash
-
----
-
-## `blockend-cli mcp`
-
-Start the MCP server or initialize MCP client configuration.
-
-```
-pnpm dlx blockend-cli mcp [command] [options]
-```
-
-### `blockend-cli mcp`
-
-Start the MCP server using the Stdio transport. This allows AI coding assistants to interact with Blockend directly.
-
-When the MCP server is running, AI clients can call these tools:
-
-| Tool             | Description                                                       |
-| ---------------- | ----------------------------------------------------------------- |
-| `list_blocks`    | List all available blocks with descriptions                       |
-| `add_block`      | Install a single block into a specified project                   |
-| `add_blocks`     | Install multiple blocks at once via interactive selection         |
-| `detect_project` | Analyze a project and return its configuration                    |
-| `diff_block`     | Preview what files a block would generate without writing to disk |
-| `doctor`         | Check project health and validate configuration                   |
-| `update_check`   | Check for available updates to installed blocks                   |
-| `update_apply`   | Apply updates to all installed blocks with import rewriting       |
-
-### `blockend-cli mcp init`
-
-Generate MCP configuration files for supported AI clients.
-
-```
+pnpm dlx blockend-cli mcp
 pnpm dlx blockend-cli mcp init [options]
 ```
 
-### Options
+| Option      | Default | Description                                             |
+| ----------- | ------- | ------------------------------------------------------- |
+| `--client`  | Prompt  | `claude`, `codex`, `cursor`, `vscode`, or `windsurf`.   |
+| `--dry-run` | `false` | Print the config without writing.                       |
+| `--force`   | `false` | Skip the overwrite confirmation for an existing config. |
+| `--yes`     | `false` | Skip prompts and default to Claude Code.                |
 
-| Option      | Alias | Default | Description                                                      |
-| ----------- | ----- | ------- | ---------------------------------------------------------------- |
-| `--client`  |       |         | Target client: `claude`, `codex`, `cursor`, `vscode`, `windsurf` |
-| `--force`   |       | `false` | Overwrite existing configuration files                           |
-| `--dry-run` |       | `false` | Preview changes without writing to disk                          |
-| `--yes`     |       | `false` | Skip prompts, default to Claude Code                             |
+The MCP server exposes `list_blocks`, `detect_project`, `add_block`, `add_blocks`, `diff_block`, `doctor`, `update_check`, and `update_apply`. See [MCP server](/docs/01-getting-started/03-mcp).
 
-### Supported Clients
+## Requirements
 
-| Client      | Config File             | Format |
-| ----------- | ----------------------- | ------ |
-| Claude Code | `.mcp.json`             | JSON   |
-| Cursor      | `.cursor/mcp.json`      | JSON   |
-| VS Code     | `.vscode/settings.json` | JSON   |
-| Codex CLI   | `.codex/config.toml`    | TOML   |
-| Windsurf    | `.windsurf/mcp.json`    | JSON   |
+- Node.js 20 or newer
+- TypeScript project for `add`
+- A supported framework: Express, Fastify, Next.js App Router, or Hono
+- Network access to GitHub for registry commands
+- A package manager: npm, pnpm, yarn, or bun is detected
 
----
-
-## Exit Codes
-
-| Code | Meaning                                               |
-| ---- | ----------------------------------------------------- |
-| `0`  | Success                                               |
-| `1`  | General error (config missing, network failure, etc.) |
-
----
-
-## Environment
-
-- **Node.js**: >= 20
-- **Package Manager**: npm, pnpm, or yarn
-- **Language**: TypeScript (JavaScript support is limited)
+Framework-specific blocks appear only for matching frameworks. Universal blocks such as `env-config` and `password-hash` work with every framework.

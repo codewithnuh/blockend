@@ -1,30 +1,23 @@
 ---
-title: Rate Limiter
-description: Framework-agnostic rate limiting with pluggable storage backends and RFC-compliant headers.
+title: Rate limiter
+description: Fixed-window request limits with memory and Redis stores for Express, Fastify, and Hono.
 status: validated
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
-import { Steps, Step } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 import { SourceCode } from "../../../components/source-code";
 
-The **Rate Limiter** block protects your API from abuse by capping how many requests a client can make within a configurable time window.
+The rate limiter counts requests per key in a fixed time window. When a key passes the limit, the adapter returns 429 and stops the request before it reaches your route.
 
-Instead of coupling rate limiting to a single framework or opaque npm dependency, it gives you a shared core engine with lightweight adapters for Express, Fastify, and Hono — and pluggable storage via Memory or Redis.
-
----
+The block has no root `index.ts`. Import adapters from `adapters/`, stores from `variants/`, and shared types from `core/core`.
 
 ## Quick start
-
-Add the block to your project (skip `init` if it already has a `blockend.json`):
 
 ```bash
 pnpm dlx blockend-cli init
 pnpm dlx blockend-cli add rate-limiter
 ```
-
-Add the limiter before your routes:
 
 ```ts
 import express from "express";
@@ -32,53 +25,39 @@ import { expressRateLimit } from "@/blocks/rate-limiter/adapters/express";
 import { MemoryStore } from "@/blocks/rate-limiter/variants/memory-store";
 
 const app = express();
-app.use("/api", expressRateLimit({ windowMs: 60_000, max: 100, store: new MemoryStore() }));
+const store = new MemoryStore();
+
+app.use(
+  expressRateLimit({
+    windowMs: 60_000,
+    max: 100,
+    store
+  })
+);
+
+app.get("/", (_req, res) => {
+  res.json({ ok: true });
+});
 ```
 
-<Callout type="warn">
-  `MemoryStore` keeps counts in one process. Use a shared store such as Redis when your app runs on
-  multiple instances. If the app is behind a proxy, only trust client IP headers from a proxy you
-  control.
-</Callout>
-
----
-
-## Features
-
-- Framework-agnostic core engine shared across Express, Fastify, and Hono
-- Pluggable storage: in-memory `Map` with chronological purge or Redis via atomic Lua script
-- Configurable time window, request limit, and HTTP status code
-- Custom key generation — default extracts client IP, or use any identifier
-- RFC-compliant `RateLimit-*` standard headers
-- Legacy `X-RateLimit-*` headers for backward compatibility
-- `Retry-After` header on blocked requests
-- Fail-open on store errors — a storage outage never takes down your API
-
----
-
-## File Structure
+## Files
 
 ```text
-rate-limiter
-├── adapters
+rate-limiter/
+├── adapters/
 │   ├── express.ts
 │   ├── fastify.ts
 │   └── hono.ts
-├── core
+├── core/
 │   └── core.ts
-├── utils
+├── utils/
 │   └── ip.ts
-└── variants
+└── variants/
     ├── memory-store.ts
     └── redis-store.ts
 ```
 
-- **adapters/** — Framework-specific middleware that extracts the client key, invokes the core engine, and applies response headers.
-- **core/** — The `evaluateRateLimit` engine and shared TypeScript interfaces (`RateLimitConfig`, `RateLimitStore`, `RateLimitRecord`, `RateLimitResult`).
-- **utils/** — `getClientIp` utility for extracting the client IP from proxy headers or socket address.
-- **variants/** — Storage implementations: `MemoryStore` (in-memory map with periodic incremental purge) and `RedisStore` (atomic Lua script via ioredis).
-
----
+The CLI copies the core, the IP helper, one adapter, and one store. There is no barrel file.
 
 ## Installation
 
@@ -88,188 +67,73 @@ rate-limiter
     pnpm dlx blockend-cli add rate-limiter
     ```
 
-    <Steps>
-      <Step>
-        ### Detect Project
-
-        Blockend detects your project configuration and determines the correct output location.
-      </Step>
-      <Step>
-        ### Select Adapter
-
-        ```text
-        ? Which adapter would you like?
-          ❯ Express
-            Fastify
-            Hono
-        ```
-      </Step>
-      <Step>
-        ### Select Store
-
-        ```text
-        ? Which store would you like?
-          ❯ Memory
-            Redis
-        ```
-      </Step>
-      <Step>
-        ### Install Dependencies
-
-        Required packages (e.g. `ioredis` for Redis) are installed automatically.
-      </Step>
-      <Step>
-        ### Generate Files
-
-        The selected adapter, store, and base files are generated into your project.
-      </Step>
-    </Steps>
+    The CLI uses your configured framework and asks for a store. Choose Redis if you run more than one app instance. The Redis variant installs `ioredis`.
 
   </Tab>
+
   <Tab value="Manual">
-    Copy the files below into your project's blocks directory.
+    Copy `core/core.ts`, `utils/ip.ts`, one adapter, and one store into `blocks/rate-limiter`. Keep the relative layout. Install your framework package, plus `ioredis` if you use `RedisStore`.
 
-    ### Peer Dependencies
-
-    | Package  | Required for |
-    | -------- | ------------ |
-    | `express` | Express adapter |
-    | `fastify` | Fastify adapter |
-    | `hono` | Hono adapter |
-    | `ioredis` | Redis store |
-
-    ### `blocks/rate-limiter/core/core.ts`
-
-    Core rate limiting engine and shared type definitions: `evaluateRateLimit`, `RateLimitConfig`, `RateLimitStore`, `RateLimitRecord`, and `RateLimitResult`.
+    ### Core
 
     <SourceCode file="rate-limiter/core/core.ts" />
 
-    ### `blocks/rate-limiter/utils/ip.ts`
-
-    IP extraction utility that checks `x-forwarded-for`, `x-real-ip`, then falls back to the socket remote address.
+    ### IP helper
 
     <SourceCode file="rate-limiter/utils/ip.ts" />
 
-    ### `blocks/rate-limiter/adapters/express.ts`
-
-    Express middleware factory that wraps the core engine.
-
-    <SourceCode file="rate-limiter/adapters/express.ts" />
-
-    ### `blocks/rate-limiter/adapters/fastify.ts`
-
-    Fastify `onRequest` hook factory that wraps the core engine.
-
-    <SourceCode file="rate-limiter/adapters/fastify.ts" />
-
-    ### `blocks/rate-limiter/adapters/hono.ts`
-
-    Hono middleware factory that wraps the core engine.
-
-    <SourceCode file="rate-limiter/adapters/hono.ts" />
-
-    ### `blocks/rate-limiter/variants/memory-store.ts`
-
-    In-memory store using a `Map` with a chronological expiration queue and bounded incremental purge.
+    ### Memory store
 
     <SourceCode file="rate-limiter/variants/memory-store.ts" />
 
-    ### `blocks/rate-limiter/variants/redis-store.ts`
-
-    Redis store using an atomic Lua script to increment and set expiry in one round-trip.
+    ### Redis store
 
     <SourceCode file="rate-limiter/variants/redis-store.ts" />
+
+    ### Express adapter
+
+    <SourceCode file="rate-limiter/adapters/express.ts" />
+
+    ### Fastify adapter
+
+    <SourceCode file="rate-limiter/adapters/fastify.ts" />
+
+    ### Hono adapter
+
+    <SourceCode file="rate-limiter/adapters/hono.ts" />
 
   </Tab>
 </Tabs>
 
----
-
 ## Configuration
 
-### RateLimitConfig
+Every adapter accepts the same options:
 
-| Option            | Type                                | Default                                                   | Description                                             |
-| ----------------- | ----------------------------------- | --------------------------------------------------------- | ------------------------------------------------------- |
-| `windowMs`        | `number`                            | `60000`                                                   | Time window in milliseconds                             |
-| `max`             | `number`                            | `100`                                                     | Maximum requests allowed within the window              |
-| `statusCode`      | `number`                            | `429`                                                     | HTTP status code returned when rate limited             |
-| `message`         | `string \| Record<string, unknown>` | `{ error: "Too many requests, please try again later." }` | Response body when rate limited                         |
-| `standardHeaders` | `boolean`                           | `true`                                                    | Emit RFC-compliant `RateLimit-*` headers                |
-| `legacyHeaders`   | `boolean`                           | `true`                                                    | Emit `X-RateLimit-*` headers for backward compatibility |
-
-### Adapter Options
-
-Each adapter accepts all `RateLimitConfig` fields plus:
-
-| Option         | Type              | Default                   | Description                                      |
-| -------------- | ----------------- | ------------------------- | ------------------------------------------------ |
-| `store`        | `RateLimitStore`  | Required                  | Storage backend implementation                   |
-| `keyGenerator` | `(req) => string` | Client IP (`getClientIp`) | Function that returns a unique client identifier |
-
-The `keyGenerator` parameter type varies by adapter:
-
-- **Express**: `(req: Request) => string`
-- **Fastify**: `(req: FastifyRequest) => string`
-- **Hono**: `(c: Context) => string`
-
-### RedisStore
-
-| Option        | Type                 | Default  | Description                                                                  |
-| ------------- | -------------------- | -------- | ---------------------------------------------------------------------------- |
-| `redisClient` | `RedisWithRateLimit` | Required | ioredis client instance with the `performRateLimitIncrement` command defined |
-| `keyPrefix`   | `string`             | `"rl:"`  | Prefix prepended to all Redis keys                                           |
-
-<Callout type="warn">
-  The `MemoryStore` is suitable for single-instance deployments only. Each server instance maintains
-  its own independent counter. Use `RedisStore` when you need a shared rate limit across multiple
-  instances.
-</Callout>
-
----
-
-## Architecture
-
-```text
-Request
-   │
-   ▼
-Adapter (Express / Fastify / Hono)
-   │  1. Generate client key via keyGenerator
-   │  2. Call evaluateRateLimit(key, store, config)
-   ▼
-evaluateRateLimit (core engine)
-   │  1. store.increment(key, windowMs) → { hits, resetTime }
-   │  2. Compute remaining quota and retry-after seconds
-   │  3. Build standard + legacy headers
-   │  4. Return { isBlocked, statusCode, message, headers }
-   ▼
-Adapter
-   │  1. Apply headers to response
-   │  2. If blocked → return 429 with message
-   │  3. If allowed → pass through to next handler
-   │  4. If store throws → log error, pass through (fail-open)
+```ts
+{
+  store: RateLimitStore;
+  windowMs?: number;
+  max?: number;
+  statusCode?: number;
+  message?: string | Record<string, unknown>;
+  standardHeaders?: boolean;
+  legacyHeaders?: boolean;
+  keyGenerator?: (request) => string;
+}
 ```
 
-The adapter extracts a client identifier (default: IP address), calls `evaluateRateLimit` with the key, store, and config, then applies the returned headers to the response. When the client exceeds the limit, the adapter returns a `429 Too Many Requests` response with a `Retry-After` header. If the store throws an error, the adapter logs the failure and lets the request through — a store outage never blocks legitimate traffic.
+| Option            | Default                                                   | Description                                                                 |
+| ----------------- | --------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `store`           | Required                                                  | `MemoryStore` or `RedisStore`.                                              |
+| `windowMs`        | `60000`                                                   | Window length in milliseconds.                                              |
+| `max`             | `100`                                                     | Requests allowed per key per window.                                        |
+| `statusCode`      | `429`                                                     | Status returned when the limit is exceeded.                                 |
+| `message`         | `{ error: "Too many requests, please try again later." }` | Response body.                                                              |
+| `standardHeaders` | `true`                                                    | Adds `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset`.       |
+| `legacyHeaders`   | `true`                                                    | Adds `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`. |
+| `keyGenerator`    | Client IP                                                 | Returns the key to count.                                                   |
 
-The `MemoryStore` uses an in-memory `Map` with a chronological expiration queue. Expired entries are purged incrementally every 60 seconds, stopping at the first non-expired entry for O(1) average-case cleanup. The `RedisStore` uses a single atomic Lua script (`INCR` + `PEXPIRE` + `PTTL`) to increment the counter and read the remaining TTL in one network round-trip.
-
----
-
-## When to Use
-
-- You need rate limiting across Express, Fastify, or Hono from a shared core engine.
-- You want to swap between in-memory and Redis storage without changing application code.
-- You want generated source code you own and can modify over an opaque npm dependency.
-- You need RFC-compliant `RateLimit-*` headers alongside legacy `X-RateLimit-*` headers.
-
-## When Not to Use
-
-- You only use Express and prefer a zero-config solution like `express-rate-limit`.
-- You do not need pluggable storage or cross-framework compatibility.
-
----
+`max` is the number of allowed requests. Request `max + 1` is blocked.
 
 ## Usage
 
@@ -281,22 +145,30 @@ import { expressRateLimit } from "@/blocks/rate-limiter/adapters/express";
 import { MemoryStore } from "@/blocks/rate-limiter/variants/memory-store";
 
 const app = express();
+const store = new MemoryStore();
 
-// Apply rate limiting to all /api routes — 100 requests per minute
 app.use(
-  "/api",
   expressRateLimit({
     windowMs: 60_000,
     max: 100,
-    store: new MemoryStore()
+    store
   })
 );
 ```
 
-<Callout type="warn">
-  `MemoryStore` is for single-instance deployments only. Each server instance maintains its own
-  independent counter. Use `RedisStore` for shared rate limits across multiple instances.
-</Callout>
+For a limit per authenticated user, mount the limiter after your auth middleware and use the user ID. The example assumes your auth middleware declares `req.user` on Express's request type:
+
+```ts
+app.use(
+  "/api",
+  expressRateLimit({
+    windowMs: 60_000,
+    max: 300,
+    store,
+    keyGenerator: (req) => req.user.id
+  })
+);
+```
 
 ### Fastify
 
@@ -305,17 +177,19 @@ import Fastify from "fastify";
 import { fastifyRateLimit } from "@/blocks/rate-limiter/adapters/fastify";
 import { MemoryStore } from "@/blocks/rate-limiter/variants/memory-store";
 
-const fastify = Fastify();
+const app = Fastify();
+const store = new MemoryStore();
 
-// onRequest hook runs before route handlers — 100 requests per minute
-fastify.addHook(
+app.addHook(
   "onRequest",
   fastifyRateLimit({
     windowMs: 60_000,
     max: 100,
-    store: new MemoryStore()
+    store
   })
 );
+
+await app.listen({ port: 3000 });
 ```
 
 ### Hono
@@ -326,348 +200,166 @@ import { honoRateLimit } from "@/blocks/rate-limiter/adapters/hono";
 import { MemoryStore } from "@/blocks/rate-limiter/variants/memory-store";
 
 const app = new Hono();
+const store = new MemoryStore();
 
-// Apply to all routes — 100 requests per minute
 app.use(
   "*",
   honoRateLimit({
     windowMs: 60_000,
     max: 100,
-    store: new MemoryStore()
+    store
   })
 );
+
+export default app;
 ```
 
-### Custom Key Generator
+## Stores
 
-Use the authenticated user's ID instead of IP to rate-limit per account:
+### MemoryStore
 
-```ts
-import { expressRateLimit } from "@/blocks/rate-limiter/adapters/express";
-import { MemoryStore } from "@/blocks/rate-limiter/variants/memory-store";
+`MemoryStore` keeps counters in a `Map` in the current process. It cleans expired keys on a one-minute interval. Use it for a single process, local development, or tests.
 
-app.use(
-  "/api",
-  expressRateLimit({
-    windowMs: 60_000,
-    max: 100,
-    store: new MemoryStore(),
-    // Rate limit by user ID instead of IP — prevents shared-IP false positives
-    keyGenerator(req) {
-      return req.user?.id ?? "anonymous";
-    }
-  })
-);
-```
+It does not share state between app instances. Each instance gets its own limit, so a two-instance deployment effectively doubles the allowed request count.
 
-### Production Usage with Redis
+### RedisStore
 
-Shared rate limit across multiple server instances:
+`RedisStore` uses an `ioredis` client and a Lua script. The increment and expiry setup run atomically, so multiple instances share one counter.
 
 ```ts
-import Redis from "ioredis";
-import { expressRateLimit } from "@/blocks/rate-limiter/adapters/express";
+import { Redis } from "ioredis";
 import { RedisStore } from "@/blocks/rate-limiter/variants/redis-store";
 
 const redis = new Redis(process.env.REDIS_URL!);
 
-app.use(
-  "/api",
-  expressRateLimit({
-    windowMs: 60_000,
-    max: 100,
-    // Atomic Lua script — increment + expire in one round-trip
-    store: new RedisStore(redis)
-  })
-);
+const store = new RedisStore(redis, "rl:");
 ```
 
-### Custom Store
-
-Implement the `RateLimitStore` interface to plug in any backing store:
+The constructor signature is:
 
 ```ts
-import type { RateLimitStore, RateLimitRecord } from "@/blocks/rate-limiter/core/core";
-
-class PostgresStore implements RateLimitStore {
-  async increment(key: string, windowMs: number): Promise<RateLimitRecord> {
-    const result = await db.query(
-      `INSERT INTO rate_limits (key, hits, reset_time)
-       VALUES ($1, 1, NOW() + $2::interval)
-       ON CONFLICT (key) DO UPDATE SET hits = rate_limits.hits + 1
-       RETURNING hits, reset_time`,
-      [key, `${windowMs} milliseconds`]
-    );
-    return {
-      hits: result.rows[0].hits,
-      resetTime: new Date(result.rows[0].reset_time).getTime()
-    };
-  }
-}
+new RedisStore(redisClient, (keyPrefix = "rl:"));
 ```
 
----
+`keyPrefix` separates rate limit keys from other data in the same Redis database. Use a different prefix per environment or application.
 
-## API Reference
+If Redis is unavailable, the adapter logs the error and lets the request continue. The route is unprotected during the outage. Decide whether that is acceptable for the endpoint.
 
-### evaluateRateLimit
+## Key generation
 
-Core engine that checks and increments the rate limit for a given key.
+The default key is the client IP from `x-forwarded-for`, then `x-real-ip`, then the socket address. The Hono adapter has no socket address in `Context`, so it falls back to `"unknown-ip"` when both headers are missing. Behind a proxy that overwrites those headers, that is fine. Without one, every Hono client shares a single key.
+
+<Callout type="warn">
+  `getClientIp` trusts `x-forwarded-for` and `x-real-ip` without checking whether the request came
+  from a trusted proxy. If your app is reachable directly, a client can send its own header and
+  choose a new key for every request. Run the app behind a proxy that overwrites these headers, or
+  pass a `keyGenerator` that uses a value you control.
+</Callout>
+
+For authenticated routes, use the user or tenant ID. This example assumes your auth middleware sets `req.user`:
 
 ```ts
-async function evaluateRateLimit(
+keyGenerator: (req) => `user:${req.user.id}`; // Express or Fastify
+```
+
+On Hono, read the user from context:
+
+```ts
+keyGenerator: (c) => `user:${c.get("user").id}`;
+```
+
+For unauthenticated routes, a normalized IP is reasonable:
+
+```ts
+keyGenerator: (req) => req.ip ?? req.socket.remoteAddress ?? "unknown"; // Express or Fastify
+```
+
+## Behavior
+
+The limiter uses a fixed window, not a sliding window or token bucket. A key gets `max` requests per window. Traffic can burst at a window boundary: 100 requests at the end of one window and 100 at the start of the next are both allowed.
+
+When the store call succeeds, headers are set on both allowed and blocked responses:
+
+| Header                | Meaning                                                       |
+| --------------------- | ------------------------------------------------------------- |
+| `RateLimit-Limit`     | Maximum requests and window length, such as `100, window=60`. |
+| `RateLimit-Remaining` | Requests left after this one.                                 |
+| `RateLimit-Reset`     | Seconds until the window resets.                              |
+| `Retry-After`         | Seconds until the client can retry. Only set when blocked.    |
+| `X-RateLimit-Reset`   | Absolute Unix timestamp in seconds.                           |
+
+When the store throws, the adapter fails open. Express and Hono call `next()`, Fastify continues the request. Check your logs for `Rate limiter failure`.
+
+## API reference
+
+### `expressRateLimit`
+
+```ts
+function expressRateLimit(options: ExpressOptions): RequestHandler;
+```
+
+`ExpressOptions` extends `Partial<RateLimitConfig>` with `store` and `keyGenerator`.
+
+### `fastifyRateLimit`
+
+```ts
+function fastifyRateLimit(options: FastifyOptions): preHandlerHookHandler;
+```
+
+Register it as an `onRequest` hook or a route pre-handler.
+
+### `honoRateLimit`
+
+```ts
+function honoRateLimit(options: HonoOptions): MiddlewareHandler;
+```
+
+Register it with `app.use`.
+
+### `evaluateRateLimit`
+
+```ts
+function evaluateRateLimit(
   key: string,
   store: RateLimitStore,
   config: RateLimitConfig
 ): Promise<RateLimitResult>;
 ```
 
-| Parameter | Type              | Required | Description                         |
-| --------- | ----------------- | -------- | ----------------------------------- |
-| `key`     | `string`          | Yes      | Unique client identifier            |
-| `store`   | `RateLimitStore`  | Yes      | Storage backend to persist counters |
-| `config`  | `RateLimitConfig` | Yes      | Rate limit configuration            |
+Runs one increment and returns `isBlocked`, `statusCode`, `message`, and headers. Use it if you need a custom adapter.
 
-**Returns** — `RateLimitResult` with `isBlocked`, `statusCode`, `message`, and `headers`.
-
-### expressRateLimit
-
-Creates Express middleware for rate limiting.
-
-```ts
-function expressRateLimit(
-  options: ExpressOptions
-): (req: Request, res: Response, next: NextFunction) => Promise<void>;
-```
-
-| Parameter | Type             | Required | Description                               |
-| --------- | ---------------- | -------- | ----------------------------------------- |
-| `options` | `ExpressOptions` | Yes      | Configuration with required `store` field |
-
-### fastifyRateLimit
-
-Creates a Fastify `onRequest` hook for rate limiting.
-
-```ts
-function fastifyRateLimit(
-  options: FastifyOptions
-): (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
-```
-
-| Parameter | Type             | Required | Description                               |
-| --------- | ---------------- | -------- | ----------------------------------------- |
-| `options` | `FastifyOptions` | Yes      | Configuration with required `store` field |
-
-### honoRateLimit
-
-Creates Hono middleware for rate limiting.
-
-```ts
-function honoRateLimit(options: HonoOptions): MiddlewareHandler;
-```
-
-| Parameter | Type          | Required | Description                               |
-| --------- | ------------- | -------- | ----------------------------------------- |
-| `options` | `HonoOptions` | Yes      | Configuration with required `store` field |
-
-### getClientIp
-
-Extracts the client IP from request headers. Checks `x-forwarded-for`, `x-real-ip`, then falls back to `remoteAddress`.
-
-```ts
-function getClientIp(
-  headers: Record<string, string | string[] | undefined>,
-  remoteAddress?: string
-): string;
-```
-
-| Parameter       | Type                                              | Required | Description                    |
-| --------------- | ------------------------------------------------- | -------- | ------------------------------ |
-| `headers`       | `Record<string, string \| string[] \| undefined>` | Yes      | Request headers object         |
-| `remoteAddress` | `string`                                          | No       | Socket remote address fallback |
-
-**Returns** — The first IP from `x-forwarded-for`, or `x-real-ip`, or `remoteAddress`, or `"unknown-ip"`.
-
-### MemoryStore
-
-In-memory store using a `Map` with a chronological expiration queue and bounded incremental purge every 60 seconds.
-
-```ts
-class MemoryStore implements RateLimitStore {
-  increment(key: string, windowMs: number): RateLimitRecord;
-}
-```
-
-### RedisStore
-
-Redis store using an atomic Lua script to increment and set expiry in one network round-trip.
-
-```ts
-class RedisStore implements RateLimitStore {
-  constructor(redisClient: RedisWithRateLimit, keyPrefix?: string);
-  increment(key: string, windowMs: number): Promise<RateLimitRecord>;
-}
-```
-
-### RateLimitConfig
-
-```ts
-interface RateLimitConfig {
-  windowMs: number;
-  max: number;
-  statusCode: number;
-  message: string | Record<string, unknown>;
-  standardHeaders: boolean;
-  legacyHeaders: boolean;
-}
-```
-
-### RateLimitStore
+### `RateLimitStore`
 
 ```ts
 interface RateLimitStore {
   increment(key: string, windowMs: number): Promise<RateLimitRecord> | RateLimitRecord;
 }
-```
 
-### RateLimitRecord
-
-```ts
 interface RateLimitRecord {
   hits: number;
-  resetTime: number; // Unix timestamp in ms
+  resetTime: number; // Unix timestamp in milliseconds
 }
 ```
 
-### RateLimitResult
+A custom store must increment atomically. A read-then-write implementation can let concurrent requests pass the limit.
 
-```ts
-interface RateLimitResult {
-  isBlocked: boolean;
-  statusCode: number;
-  message: string | Record<string, unknown>;
-  headers: Record<string, string>;
-}
-```
+## Production notes
 
----
+- Use Redis when you run more than one process or container.
+- Put the limiter before expensive routes and before auth work you want to protect.
+- For per-user limits, put the limiter after auth so the user ID is available.
+- Set `windowMs` and `max` from your traffic profile. A global 100 requests per minute will block API clients that legitimately batch requests.
+- Alert on Redis errors. Fail-open behavior is intentional, but it means the limit is not enforced during an outage.
+- Add a separate limit for login, password reset, and other credential endpoints. A global limit is not a brute-force defense.
 
-## Examples
+## When not to use it
 
-### Basic Usage
+- You need distributed coordination across regions with strict limits. A single Redis instance is still a single point of failure.
+- You need per-endpoint cost weighting. This block counts requests, not units of work.
+- You need a sliding window with no boundary burst. Use a different algorithm.
 
-Minimal setup — 100 requests per minute with in-memory storage:
+## Related blocks
 
-```ts
-import { expressRateLimit } from "@/blocks/rate-limiter/adapters/express";
-import { MemoryStore } from "@/blocks/rate-limiter/variants/memory-store";
-
-app.use(
-  expressRateLimit({
-    store: new MemoryStore(),
-    max: 100,
-    windowMs: 60_000
-  })
-);
-```
-
-### Production Usage with Redis
-
-Shared counter across instances with Redis:
-
-```ts
-import Redis from "ioredis";
-import { expressRateLimit } from "@/blocks/rate-limiter/adapters/express";
-import { RedisStore } from "@/blocks/rate-limiter/variants/redis-store";
-
-const redis = new Redis(process.env.REDIS_URL!);
-
-app.use(
-  "/api",
-  expressRateLimit({
-    max: 100,
-    windowMs: 60_000,
-    store: new RedisStore(redis)
-  })
-);
-```
-
-### Per-User Rate Limiting
-
-Use an authenticated user ID as the key instead of IP:
-
-```ts
-expressRateLimit({
-  max: 50,
-  windowMs: 60_000,
-  store: new MemoryStore(),
-  keyGenerator(req) {
-    return req.user.id; // Rate limit per account, not per IP
-  }
-});
-```
-
-### Testing
-
-Unit-test rate limiting by mocking the store:
-
-```ts
-import { evaluateRateLimit } from "@/blocks/rate-limiter/core/core";
-import type { RateLimitStore, RateLimitRecord } from "@/blocks/rate-limiter/core/core";
-
-// Mock store that returns a specific hit count
-function createMockStore(hits: number): RateLimitStore {
-  return {
-    increment: () => ({
-      hits,
-      resetTime: Date.now() + 60_000
-    })
-  };
-}
-
-const config = {
-  windowMs: 60_000,
-  max: 100,
-  statusCode: 429,
-  message: { error: "Too many requests" },
-  standardHeaders: true,
-  legacyHeaders: true
-};
-
-// Under limit — request passes through
-const allowed = await evaluateRateLimit("user-1", createMockStore(50), config);
-console.assert(allowed.isBlocked === false);
-
-// Over limit — request blocked with 429
-const blocked = await evaluateRateLimit("user-1", createMockStore(101), config);
-console.assert(blocked.isBlocked === true);
-console.assert(blocked.statusCode === 429);
-```
-
----
-
-## FAQ
-
-**What happens when the store throws an error?**
-
-The adapter logs the error and calls `next()` (or `await next()`), allowing the request to proceed. This fail-open behavior prevents a store outage from blocking legitimate traffic.
-
-**How do the standard and legacy headers differ?**
-
-Standard headers (`RateLimit-*`) follow the RFC 9421 draft. `RateLimit-Reset` contains the remaining seconds in the window. Legacy headers (`X-RateLimit-*`) match the de facto industry standard (GitHub, Twitter). `X-RateLimit-Reset` contains an absolute Unix epoch timestamp in seconds. Both are enabled by default.
-
-**What does the `RateLimit-Limit` header format look like?**
-
-The standard header uses the format `100, window=60` — the max count followed by the window duration in seconds.
-
-**Can I use both standard and legacy headers?**
-
-Yes. Both are enabled by default. Toggle them independently with `standardHeaders` and `legacyHeaders`.
-
-**How does the MemoryStore handle expiration?**
-
-Expired entries are purged incrementally every 60 seconds. The store maintains a chronological queue of expiration times. During purge, it walks from the oldest entry and stops at the first non-expired item — so cleanup is O(1) amortized, not a full map scan.
-
-**How does the RedisStore stay atomic?**
-
-A single Lua script executes `INCR`, `PEXPIRE` (on first hit), and `PTTL` in one round-trip. This prevents race conditions where two concurrent requests could both see `hits === 1` and double-set the expiry.
+- [Idempotency](/docs/02-blocks/09-idempotency) deduplicates retries after the limiter lets them through.
+- [Password hash](/docs/02-blocks/10-password-hash) handles credential storage. Rate limiting login attempts is still your app's job.
+- [Logger](/docs/02-blocks/03-pino-logger) records rate limit failures and store outages.

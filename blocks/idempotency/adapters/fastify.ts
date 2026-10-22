@@ -72,7 +72,7 @@ export type FastifyIdempotencyOptions = {
    * authenticated per-user id (or `getOperation` that embeds the tenant).
    */
   getUserId?: (request: FastifyRequest) => string | undefined;
-  /** Resolve the operation name. Default: `${request.method}:${request.routerPath}`. */
+  /** Resolve the operation name. Default: `${request.method}:${request.routeOptions.url}`. */
   getOperation?: (request: FastifyRequest) => string;
   /** Resolve the payload to hash. Default: `request.body ?? {}`. */
   getBody?: (request: FastifyRequest) => unknown;
@@ -141,10 +141,10 @@ function defaultUserId(request: FastifyRequest): string {
 }
 
 function defaultOperation(request: FastifyRequest): string {
-  // routerPath is the registered route pattern (e.g. /payments/:id), which
+  // routeOptions.url is the registered route pattern (e.g. /payments/:id), which
   // keeps the operation stable across path params and excludes the query
   // string. Fall back to the raw path if it is unavailable.
-  const path = (request as { routerPath?: string }).routerPath ?? request.url.split("?")[0];
+  const path = request.routeOptions?.url ?? request.url.split("?")[0];
 
   return `${request.method}:${path}`;
 }

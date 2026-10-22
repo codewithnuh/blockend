@@ -1,288 +1,159 @@
 ---
-title: Add Blocks
-description: Choose a backend block and add its source files to your project.
+title: Add blocks
+description: Choose a block, pick a variant, and write its source files into your project.
 ---
 
-The `add` command downloads a block from the Blockend registry and writes its source files into your project.
+The `add` command copies a block from the registry into the directory in `blockend.json`. The files are normal source files. You can edit, delete, or commit them.
 
-Each block is framework-aware, TypeScript-first, and follows your project's existing configuration defined in `blockend.json`.
+The CLI currently requires a TypeScript project. It exits if `blockend.json` has `"language": "javascript"`.
 
 ## Quick start
 
-If you have not set up Blockend yet, run `pnpm dlx blockend-cli init` first. Then add a block by its key:
-
 ```bash
+pnpm dlx blockend-cli init
 pnpm dlx blockend-cli add rate-limiter
 ```
 
-The CLI checks your framework, asks you to choose a storage variant when needed, and writes the selected files into the folder in `blockend.json`. You own those files and can change them.
-
-## What the CLI does
-
-When you run the command, Blockend:
-
-1. Finds your `blockend.json` configuration.
-2. Connects to the Blockend Registry.
-3. Retrieves all blocks available for your framework.
-4. Lets you select a block (if one isn't provided).
-5. Detects the appropriate storage variant.
-6. Installs missing dependencies.
-7. Downloads the block source code.
-8. Writes the files into your configured blocks directory.
-
-The CLI shows prompts before it installs dependencies or replaces files.
-
----
-
-## Interactive Block Selection
-
-Running the command without a block name opens an interactive selector.
+If you omit the block name, the CLI shows the blocks that support your configured framework:
 
 ```bash
 pnpm dlx blockend-cli add
 ```
 
-Example:
+## What the CLI does
+
+1. Finds `blockend.json`, walking up from the current directory.
+2. Fetches the registry manifest from GitHub.
+3. Filters blocks by your framework and adapter map.
+4. Lets you choose a block and a storage variant when needed.
+5. Checks your existing dependencies for missing or conflicting versions.
+6. Asks before installing missing packages.
+7. Downloads the selected files and rewrites imports for your alias and module strategy.
+8. Records the block in the `installed` array in `blockend.json`.
+
+## Frameworks
+
+The CLI supports Express, Fastify, Next.js App Router, and Hono. A block appears only when it has an adapter for your framework. Universal blocks with `"frameworks": ["*"]`, such as `env-config` and `password-hash`, work with every framework, including Next.js.
+
+## Storage variants
+
+Some blocks offer more than one implementation. For example, the rate limiter has memory and Redis stores.
 
 ```text
-? Which backend block would you like to inject?
-
-❯ rate-limiter
-  logger
-  health-check
-  env-config
+? Select a storage variant for rate-limiter:
+❯ memory
+  redis
 ```
 
-Only blocks compatible with your configured framework are displayed.
+Interactive mode asks. If `includeRedis` is true and a Redis variant exists, it selects Redis. With `--yes`, it selects memory when available, otherwise the first variant.
 
----
+## Dependencies
 
-## Framework support
+Before writing files, the CLI compares the block's required production and development packages with your `package.json`. Missing packages are listed in a prompt. Declining the prompt skips dependency installation, but the block files are still written.
 
-Every block is generated specifically for your backend framework.
+Installation runs `pnpm add` when `packageManager` is `pnpm`, and `npm install` for every other value. If your project uses yarn or bun, decline the prompt and install the listed packages with your package manager.
 
-Currently supported environments include:
+Version conflicts are reported as warnings. If you accept the dependency install, the CLI installs the version required by the block, which can replace an incompatible version in your project.
 
-- Express.js
-- Fastify
-- Next.js (App Router)
-- Hono
+## Generated files
 
-If a block is unavailable for your framework, Blockend will notify you before downloading anything.
+Files go under `paths.blocks` from `blockend.json`.
 
----
-
-## Storage Variants
-
-Some blocks support multiple storage implementations.
-
-For example:
-
-- Memory
-- Redis
-- Database
-
-If multiple variants are available, Blockend asks which implementation you want.
-
-```text
-? Which architectural storage variant do you want?
-
-❯ Memory
-  Redis
-```
-
-If Redis is enabled in your `blockend.json`, the Redis variant is selected automatically whenever available.
-
----
-
-## Automatic Dependency Installation
-
-Many backend blocks require external packages.
-
-Before downloading a block, Blockend checks your project's dependencies.
-
-If required packages are missing, you'll be prompted to install them.
-
-Example:
-
-```text
-Missing required infrastructure packages:
-
-- redis
-- zod
-
-Would you like the CLI to install them automatically?
-
-❯ Yes
-```
-
-Blockend automatically detects your package manager.
-
-Supported package managers:
-
-- pnpm
-- npm
-
-After installation completes, the block download continues automatically.
-
----
-
-## Generated Files
-
-Downloaded files are placed inside the blocks directory configured during initialization.
-
-Example:
+The rate limiter, for example:
 
 ```text
 src/
 └── blocks/
     └── rate-limiter/
         ├── adapters/
-        │   └── express.ts
+        │   ├── express.ts
+        │   └── express.test.ts
         ├── core/
         │   └── core.ts
+        ├── utils/
+        │   ├── ip.ts
+        │   └── ip.test.ts
         └── variants/
-            └── memory-store.ts
-        ...
+            ├── memory-store.ts
+            └── memory-store.test.ts
 ```
 
-Simple blocks may generate a single file.
+A block with a root entry point:
 
 ```text
 src/
 └── blocks/
     └── env-config/
-        └── index.ts
+        ├── index.ts
+        └── index.test.ts
 ```
 
----
+Some blocks have no root `index.ts`. The block page tells you the correct import path.
 
-## Existing Files
+## Import rewriting
 
-If a block already exists, Blockend never overwrites it without confirmation.
+The CLI writes imports in the style your project uses:
 
-Example:
+- With a TypeScript path alias, imports use your configured alias, such as `@/blocks/<block>/...`.
+- Without an alias, imports stay relative.
+- With `importRewriteStrategy: "rewrite"`, internal imports end in `.js`.
+- With `"remove"`, internal extensions are stripped.
 
-```text
-Block component already exists.
+If an import in the docs points to `@/blocks`, run `init` again or edit `blockend.json` if your alias differs.
 
-Overwrite existing files?
+## Existing files
 
-❯ No
-```
+When a block file already exists, the CLI asks before overwriting it. The default answer is no. Declining leaves the existing file untouched and stops the operation.
 
-Selecting **No** safely aborts the operation and preserves your code.
+With `--yes`, the CLI overwrites conflicts and installs missing dependencies without prompting. Use it in scripts only after you have reviewed the target files.
 
----
+## Options
 
-## Examples
+| Option    | Alias | Default | Description                                                  |
+| --------- | ----- | ------- | ------------------------------------------------------------ |
+| `[block]` |       |         | Block key, such as `rate-limiter` or `logger`.               |
+| `--yes`   | `-y`  | `false` | Skip prompts, install dependencies, and overwrite conflicts. |
+| `--json`  |       | `false` | Write machine-readable output.                               |
+| `--multi` | `-m`  | `false` | Select multiple blocks in one session.                       |
 
-Add the rate limiter block:
+## Multi-select
 
 ```bash
-pnpm dlx blockend-cli add rate-limiter
+pnpm dlx blockend-cli add --multi
 ```
 
-Add the environment config block:
+Each selected block is processed in order with its own dependency check, conflict prompt, and file download. If one block fails, the CLI skips it and continues with the rest. The final count includes only the blocks that succeeded.
 
-```bash
-pnpm dlx blockend-cli add env-config
-```
+## Common problems
 
-Add the token service block:
+### `blockend.json not found`
 
-```bash
-pnpm dlx blockend-cli add token-service
-```
-
-Open the interactive selector:
-
-```bash
-pnpm dlx blockend-cli add
-```
-
----
-
-## Requirements
-
-Before using the `add` command, make sure your project has been initialized.
+Run `init` from your project root, or from a directory inside it:
 
 ```bash
 pnpm dlx blockend-cli init
 ```
-
-Blockend also requires:
-
-- A valid `blockend.json`
-- A supported backend framework
-- Node.js 20 or newer
-- Internet access to download blocks from the Blockend Registry
-
----
-
-## Common Errors
-
-### blockend.json not found
-
-```text
-blockend.json not found.
-Run 'pnpm dlx blockend-cli init' first.
-```
-
-Initialize your project before adding blocks.
-
-```bash
-pnpm dlx blockend-cli init
-```
-
----
 
 ### Block not found
 
-```text
-Block "unknown-block" does not exist.
-```
-
-The requested block either doesn't exist or hasn't been published yet.
-
-Run the interactive command to see all available blocks.
+Run `list` to see the registry keys available for your framework:
 
 ```bash
 pnpm dlx blockend-cli list
 ```
 
----
+### Block does not support your framework
 
-### Unsupported Framework
+The block has no adapter for your configured environment. Change `environment` in `blockend.json` if it is wrong, or choose a compatible block.
 
-```text
-The selected block does not support your configured framework.
-```
+### Registry fetch failed
 
-Some blocks are framework-specific and may not be available for every backend.
+The CLI downloads `registry/index.json` from GitHub. Check network access, proxy settings, and GitHub availability.
 
----
+## Next steps
 
-### Failed to Download Registry
+After the files are written, open the block page and follow its quick start. Every block page lists the exact import paths and required setup for its framework.
 
-```text
-Failed to fetch the component registry.
-```
-
-Verify your internet connection and try again.
-
----
-
-## Next Steps
-
-After generating a block, import it into your application and customize it as needed.
-
-Every generated block is fully owned by you—there are no runtime dependencies on Blockend.
-
----
-
-<Cards>
-  <Card title="Initialize Blockend" href="/docs/01-getting-started/01-intialization" />
-  <Card title="Available blocks" href="/docs/blocks-reference" />
-  <Card title="CLI reference" href="/docs/cli-reference" />
-</Cards>
+- [Blocks reference](/docs/blocks-reference)
+- [CLI reference](/docs/cli-reference)
+- [Initialize Blockend](/docs/01-getting-started/01-intialization)

@@ -113,7 +113,7 @@ export async function mcpStartCommand(): Promise<void> {
 
   server.tool(
     "list_blocks",
-    "Lists all available Blockend blocks with names, descriptions, and tags",
+    "Lists all available Blockend blocks with names, descriptions, and variants",
     {},
     async () => {
       const result = await safeExec("npx", ["--no-install", "blockend", "list", "--json"]);
@@ -125,7 +125,7 @@ export async function mcpStartCommand(): Promise<void> {
     "add_block",
     "Installs a Blockend block into a project.",
     {
-      blockName: z.string().describe("Block name e.g. rate-limit, error-handler, logger"),
+      blockName: z.string().describe("Block name, e.g. rate-limiter, error-handler, logger"),
       projectPath: z
         .string()
         .describe("Absolute path to the project root where blockend should install")
@@ -158,7 +158,7 @@ export async function mcpStartCommand(): Promise<void> {
     "diff_block",
     "Preview what files a block would generate without writing to disk. Shows new/modified/unchanged files.",
     {
-      blockName: z.string().describe("Block name to preview, e.g. rate-limiter, pino-logger"),
+      blockName: z.string().describe("Block name to preview, e.g. rate-limiter, logger"),
       projectPath: z.string().describe("Absolute path to the project root")
     },
     async ({ blockName, projectPath }) => {
@@ -208,7 +208,7 @@ export async function mcpStartCommand(): Promise<void> {
     async ({ projectPath }) => {
       const result = await safeExec(
         "npx",
-        ["--no-install", "blockend", "update", "--apply", "--yes", "--json"],
+        ["--no-install", "blockend", "update", "--apply", "--json"],
         { cwd: projectPath }
       );
       return { content: [{ type: "text", text: result.text }], isError: result.isError };
@@ -217,17 +217,29 @@ export async function mcpStartCommand(): Promise<void> {
 
   server.tool(
     "add_blocks",
-    "Install multiple blocks at once via interactive selection.",
+    "Install multiple blocks into a project.",
     {
-      projectPath: z.string().describe("Absolute path to the project root")
+      blockNames: z.array(z.string()).min(1).describe("Block names, e.g. rate-limiter, logger"),
+      projectPath: z
+        .string()
+        .describe("Absolute path to the project root where blockend should install")
     },
-    async ({ projectPath }) => {
-      const result = await safeExec(
-        "npx",
-        ["--no-install", "blockend", "add", "--multi", "--yes", "--json"],
-        { cwd: projectPath }
-      );
-      return { content: [{ type: "text", text: result.text }], isError: result.isError };
+    async ({ blockNames, projectPath }) => {
+      const results: Array<{ blockName: string; output: string; isError: boolean }> = [];
+
+      for (const blockName of blockNames) {
+        const result = await safeExec(
+          "npx",
+          ["--no-install", "blockend", "add", blockName, "--yes", "--json"],
+          { cwd: projectPath }
+        );
+        results.push({ blockName, output: result.text, isError: result.isError });
+      }
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        isError: results.some((result) => result.isError)
+      };
     }
   );
 

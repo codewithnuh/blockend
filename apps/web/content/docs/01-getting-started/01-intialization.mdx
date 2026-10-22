@@ -1,108 +1,50 @@
 ---
 title: Initialize Blockend
-description: Create blockend.json so the Blockend CLI knows your framework and where to add blocks.
+description: Create blockend.json so the CLI knows your framework, blocks directory, and import style.
 ---
 
-The `init` command checks your project and creates `blockend.json`. Blockend uses this file to choose compatible blocks and place their files in the right folder.
+The `init` command creates `blockend.json` in your project root. The CLI uses this file to filter compatible blocks and place their files correctly.
 
-Run the following command from the root of your project:
+Run it from the project root:
 
 ```bash
 pnpm dlx blockend-cli init
 ```
 
-The setup asks a few questions. You usually run it once per project.
+You normally run `init` once. If the file already exists, the CLI asks whether to keep it, overwrite it, or delete and regenerate it.
 
-## Quick start
+## What init detects
 
-Run the command from your project root and answer the prompts. Then add a block:
+- Framework: Express, Fastify, Next.js, or Hono
+- Language: TypeScript or JavaScript
+- Package manager: npm, pnpm, yarn, or bun
+- Import rewrite strategy: append `.js` for NodeNext, or remove extensions for bundlers
+- Redis in your dependencies
+- A matching import alias from `tsconfig.json` or `jsconfig.json`
 
-```bash
-pnpm dlx blockend-cli init
-pnpm dlx blockend-cli add rate-limiter
-```
+If detection fails, the CLI asks you to choose a framework.
 
-The CLI creates `blockend.json` and adds the block files to the folder shown in that config. Read [Add blocks](/docs/01-getting-started/02-adding-new-block) for variant choices, dependency prompts, and file conflicts.
+## Prompts
 
----
+1. Existing config: keep, overwrite, or regenerate. This prompt only appears when `blockend.json` exists.
+2. Framework: choose one when detection fails. The CLI does not ask when it detects a framework.
+3. Blocks directory: defaults to `src/blocks` when `src/` exists, otherwise `blocks`.
+4. Redis: enable Redis-backed variants when Redis is detected.
 
-## What `init` Does
+The import alias is derived from your TypeScript path mappings without a prompt. If none match, the CLI omits `aliases.blocks`.
 
-During initialization, Blockend automatically:
+`init` does not install a block. It only writes the config file.
 
-- Detects your backend framework
-- Detects whether your project uses TypeScript or JavaScript
-- Discovers your import aliases from `tsconfig.json` or `jsconfig.json`
-- Detects Redis support
-- Configures where generated blocks will be placed
-- Creates a `blockend.json` configuration file
-
-These settings help the CLI generate files that fit your project.
-
----
-
-## Interactive Setup
-
-### Framework Detection
-
-Blockend scans your project and attempts to detect the framework automatically.
-
-Supported frameworks include:
-
-- Express.js
-- Fastify
-- Next.js (App Router)
-- Hono
-
-If the detected framework is correct, press **Enter**. Otherwise, choose the framework your app uses.
-
----
-
-### Blocks Import Alias
-
-Next, Blockend asks where generated blocks should be imported from.
-
-Example:
-
-```text
-@/blocks
-```
-
-or
-
-```text
-~/blocks
-```
-
-The alias is resolved automatically to the correct physical directory using your project's path mappings.
-
----
-
-### Redis Support
-
-If Redis is detected, Blockend will ask whether Redis-enabled block variants should be generated.
-
-```text
-Redis detected.
-Enable Redis-backed block variants automatically?
-```
-
-Choose **Yes** to enable Redis variants for blocks that offer them. This does not create or configure a Redis server.
-
----
-
-## Generated Configuration
-
-After setup, Blockend creates a `blockend.json` file in your project's root.
-
-Example:
+## Generated config
 
 ```json
 {
   "$schema": "https://blockend.noorulhassan.com/schema.json",
   "environment": "express",
   "language": "typescript",
-  "includeRedis": true,
+  "packageManager": "pnpm",
+  "importRewriteStrategy": "remove",
+  "includeRedis": false,
   "aliases": {
     "blocks": "@/blocks"
   },
@@ -112,128 +54,49 @@ Example:
 }
 ```
 
----
+| Field                   | Meaning                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `environment`           | `express`, `fastify`, `next`, or `hono`.                                       |
+| `language`              | `typescript` or `javascript`. The `add` command currently requires TypeScript. |
+| `packageManager`        | Detected package manager.                                                      |
+| `importRewriteStrategy` | `rewrite` appends `.js`; `remove` strips extensions.                           |
+| `includeRedis`          | Select Redis variants in interactive adds when a block offers one.             |
+| `aliases.blocks`        | Import alias used in generated code. Omitted when no alias matches.            |
+| `paths.blocks`          | Directory where blocks are written.                                            |
 
-## Configuration Fields
+The `installed` array is added later by the `add` command. It is not part of a fresh config.
 
-### `$schema`
-
-Specifies the JSON schema used by editors for validation and autocomplete.
-
-### `environment`
-
-The backend framework Blockend should target.
-
-Supported values:
-
-- `express`
-- `fastify`
-- `next`
-- `hono`
-
-### `language`
-
-The language used by your project.
-
-Supported values:
-
-- `typescript`
-- `javascript`
-
-### `includeRedis`
-
-Controls whether Redis-enabled block templates should be generated.
-
-### `aliases.blocks`
-
-The import alias used when generating blocks.
-
-Example:
-
-```text
-@/blocks
-```
-
-### `paths.blocks`
-
-The filesystem location where Blockend will generate new blocks.
-
-Example:
-
-```text
-./src/blocks
-```
-
----
-
-## Existing Configuration
-
-If a `blockend.json` file already exists, Blockend will ask how you want to proceed.
-
-Available options:
-
-| Option                | Description                                               |
-| --------------------- | --------------------------------------------------------- |
-| Keep existing config  | Cancel initialization and keep the current configuration. |
-| Overwrite config      | Replace the existing configuration file.                  |
-| Delete and regenerate | Remove the current configuration and generate a new one.  |
-
----
-
-## Example setup
-
-```text
-$ pnpm dlx blockend-cli init
-
-✔ Project structure detected
-✔ Detected Express environment
-✔ Import strategy mapped
-
-? Confirm framework environment
-❯ Express.js
-
-? Configure blocks import alias
-❯ @/blocks
-
-? Redis detected.
-Enable Redis-backed block variants automatically?
-❯ Yes
-
-✔ blockend.json ready
-
-Blockend initialized successfully.
-Run: pnpm dlx blockend-cli add <block>
-```
-
----
-
-## Next Steps
-
-After setup, add a block by its key. For example:
+## Non-interactive setup
 
 ```bash
-pnpm dlx blockend-cli add <block>
+pnpm dlx blockend-cli init --yes
 ```
 
-For example:
+`--yes` accepts detected defaults and does not prompt. If `blockend.json` already exists, it overwrites the file. If no framework is detected, it uses Express. Run `init --yes` only when overwriting the config is safe.
+
+For machine-readable output:
+
+```bash
+pnpm dlx blockend-cli init --json
+```
+
+`--json` changes the output format but still shows prompts. Combine it with `--yes` for a non-interactive run.
+
+## Example output
+
+```text
+✔ Project scanned.
+Framework detected: express
+Import alias: @/blocks
+Import strategy: Bundler / Extensionless
+✔ Configuration saved.
+Blockend initialized! Run: npx blockend add <block>
+```
+
+## Next steps
 
 ```bash
 pnpm dlx blockend-cli add rate-limiter
 ```
 
-```bash
-pnpm dlx blockend-cli add health-check
-```
-
-```bash
-pnpm dlx blockend-cli add env-config
-```
-
----
-
-## Related Commands
-
-<Cards>
-  <Card title="Add blocks" href="/docs/01-getting-started/02-adding-new-block" />
-  <Card title="CLI reference" href="/docs/cli-reference" />
-</Cards>
+See [Add blocks](/docs/01-getting-started/02-adding-new-block) for variants, dependency installation, and file conflicts. See the [CLI reference](/docs/cli-reference) for every command.

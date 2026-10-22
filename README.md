@@ -1,53 +1,8 @@
-```
-██████╗ ██╗      ██████╗  ██████╗██╗  ██╗███████╗███╗   ██╗██████╗
-██╔══██╗██║     ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝████╗  ██║██╔══██╗
-██████╔╝██║     ██║   ██║██║     █████╔╝ █████╗  ██╔██╗ ██║██║  ██║
-██╔══██╗██║     ██║   ██║██║     ██╔═██╗ ██╔══╝  ██║╚██╗██║██║  ██║
-██████╔╝███████╗╚██████╔╝╚██████╗██║  ██╗███████╗██║ ╚████║██████╔╝
-╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═════╝
-```
+# Blockend
 
-<div align="center">
+Blockend copies backend source files into your project. You choose a block, and the CLI writes its code into your repository. The code is yours: read it, change it, commit it, or remove it.
 
-_production backend blocks. generated into your project. owned by you._
-
-[![npm](https://img.shields.io/npm/v/blockend-cli?color=0ea5e9&label=blockend-cli)](https://npmjs.com/package/blockend-cli)
-[![CI](https://img.shields.io/github/actions/workflow/status/codewithnuh/blockend/.github/workflows/ci.yml?label=CI&color=0ea5e9&branch=master)](https://github.com/codewithnuh/blockend/actions/workflows/ci.yml)
-[![Test CLI](https://img.shields.io/github/actions/workflow/status/codewithnuh/blockend/.github/workflows/test-cli.yml?label=Test%20CLI&color=0ea5e9&branch=master)](https://github.com/codewithnuh/blockend/actions/workflows/test-cli.yml)
-[![Publish CLI](https://img.shields.io/github/actions/workflow/status/codewithnuh/blockend/.github/workflows/release.yml?label=Release&color=0ea5e9&event=release)](https://github.com/codewithnuh/blockend/actions/workflows/release.yml)
-[![license](https://img.shields.io/github/license/codewithnuh/blockend?color=0ea5e9)](./LICENSE)
-[![blocks](https://img.shields.io/badge/blocks-10-0ea5e9)](#available-blocks)
-[![docs](https://img.shields.io/badge/docs-blockend.noorulhassan.com/docs-0ea5e9)](https://blockend.noorulhassan.com)
-
-</div>
-
-## What is Blockend?
-
-Blockend generates production backend infrastructure as source files inside your project.
-
-It helps you add common backend blocks like:
-
-- rate limiting,
-- logging,
-- validation,
-- error handling,
-- response formatting.
-- much more ...
-
-Unlike a typical package, Blockend does not put the core logic behind a runtime dependency. It copies readable code into your repository so you can inspect it, edit it, and commit it like any other part of your app.
-
-## Why Blockend exists
-
-Most backend apps keep rebuilding the same infrastructure:
-
-- request validation,
-- structured errors,
-- logging,
-- rate limits,
-- health checks,
-- graceful shutdown.
-
-Those patterns are necessary, but they are rarely fun to rewrite. Blockend turns them into reusable blocks so you can move faster without losing ownership of your code.
+The CLI supports Express, Fastify, Next.js App Router, and Hono. The `add` command requires TypeScript.
 
 ## Quick start
 
@@ -56,14 +11,15 @@ npx blockend-cli init
 npx blockend-cli add request-validator
 ```
 
-`init` sets up your `blocks/` directory. `add` copies the selected block into your project.
+`init` creates `blockend.json` with your framework, blocks directory, package manager, and import style. `add` writes the selected block.
 
 ```ts
 import express from "express";
 import { z } from "zod";
-import { expressValidator } from "./blocks/request-validator/express.js";
+import { expressValidator } from "@/blocks/request-validator/adapters/express";
 
 const app = express();
+app.use(express.json());
 
 const validate = expressValidator({
   body: z.object({
@@ -73,66 +29,132 @@ const validate = expressValidator({
 });
 
 app.post("/users", validate, (req, res) => {
-  res.status(201).json({ user: req.body });
+  const { body } = validate.validated(req);
+  res.status(201).json({ user: body });
 });
 
 app.listen(3000);
 ```
 
-![Demo](assets/demo.gif)
-The import resolves to a file in your own repository. You can open it, read it, and change it whenever you want.
+If your `blockend.json` uses a different alias, import from that path instead. With no alias, use the relative path under `paths.blocks`.
 
-## Why this approach
+## Blocks
 
-- No runtime package lock-in.
-- No black box inside `node_modules`.
-- No hidden behavior you cannot inspect.
-- No dependency boundary between the block and your app code.
+| Block                                                                                          | What it does                                                               |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [`rate-limiter`](https://blockend.noorulhassan.com/docs/02-blocks/01-rate-limiter)             | Fixed-window limits with memory and Redis stores.                          |
+| [`error-handler`](https://blockend.noorulhassan.com/docs/02-blocks/02-global-error-handler)    | Classifies errors, hides internal details, and returns one response shape. |
+| [`logger`](https://blockend.noorulhassan.com/docs/02-blocks/03-pino-logger)                    | Pino logger with request IDs and async context.                            |
+| [`request-validator`](https://blockend.noorulhassan.com/docs/02-blocks/04-request-validator)   | Validates body, query, and params with Zod.                                |
+| [`response-formatter`](https://blockend.noorulhassan.com/docs/02-blocks/05-response-formatter) | Success, error, and pagination envelopes.                                  |
+| [`env-config`](https://blockend.noorulhassan.com/docs/02-blocks/06-env-config)                 | Validates environment variables with Zod at startup.                       |
+| [`health-check`](https://blockend.noorulhassan.com/docs/02-blocks/07-health-check)             | Dependency checks with per-check timeouts and a JSON health report.        |
+| [`graceful-shutdown`](https://blockend.noorulhassan.com/docs/02-blocks/08-graceful-shutdown)   | Drains requests and closes resources in priority order.                    |
+| [`idempotency`](https://blockend.noorulhassan.com/docs/02-blocks/09-idempotency)               | Deduplicates retries with an atomic store lock.                            |
+| [`password-hash`](https://blockend.noorulhassan.com/docs/02-blocks/10-password-hash)           | Argon2id hashing with a server-side pepper and rehash detection.           |
+| [`token-service`](https://blockend.noorulhassan.com/docs/02-blocks/11-token-service)           | JWT access tokens and rotating refresh tokens.                             |
 
-Blockend keeps backend infrastructure close to the code that uses it.
+## How it works
 
-## Available blocks
+1. `init` detects your project and writes `blockend.json`.
+2. `add` filters the registry by framework, asks for a variant, and checks dependencies.
+3. The CLI copies source files into your blocks directory and rewrites imports.
+4. The block is recorded in `blockend.json` so `update` can compare versions.
 
-| Block                                                                                          | Description                                                                  |
-| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [`rate-limiter`](https://blockend.noorulhassan.com/docs/02-blocks/01-rate-limiter)             | Token bucket rate limiting with storage adapters.                            |
-| [`error-handler`](https://blockend.noorulhassan.com/docs/02-blocks/02-global-error-handler)    | Centralized error pipeline with typed errors and logging hooks.              |
-| [`logger`](https://blockend.noorulhassan.com/docs/02-blocks/03-pino-logger)                    | Structured request logging with async context propagation.                   |
-| [`request-validator`](https://blockend.noorulhassan.com/docs/02-blocks/04-request-validator)   | Zod-based input validation with framework adapters.                          |
-| [`response-formatter`](https://blockend.noorulhassan.com/docs/02-blocks/05-response-formatter) | Standard API response shapes for success and error payloads.                 |
-| [`Browse All Blocks`](https://blockend.noorulhassan.com/docs/blocks-reference)                 | Explore the complete collection of available blocks and their documentation. |
+There is no Blockend runtime dependency. Installed blocks use normal packages such as `zod`, `pino`, or `jose`.
 
-## Installing
+## CLI
+
+| Command                   | Description                                                        |
+| ------------------------- | ------------------------------------------------------------------ |
+| `blockend init`           | Create `blockend.json`.                                            |
+| `blockend add <block>`    | Write a block into the project.                                    |
+| `blockend add`            | Choose a block interactively.                                      |
+| `blockend add --multi`    | Choose several blocks.                                             |
+| `blockend list`           | List blocks for your framework.                                    |
+| `blockend detect`         | Report framework, language, package manager, and project settings. |
+| `blockend diff <block>`   | Preview files without writing.                                     |
+| `blockend doctor`         | Check config and project health.                                   |
+| `blockend update`         | Compare installed blocks with registry versions.                   |
+| `blockend update --apply` | Apply selected updates.                                            |
+| `blockend mcp`            | Start the MCP server.                                              |
+| `blockend mcp init`       | Write MCP client config.                                           |
+
+See the [CLI reference](https://blockend.noorulhassan.com/docs/cli-reference) for options.
+
+## MCP
+
+Blockend includes an MCP server for Claude Code, Cursor, VS Code, Codex CLI, and Windsurf.
 
 ```bash
-# add a block to your project
-npx blockend-cli add <block-name>
-
-# list all available blocks
-npx blockend-cli list
-
-# initialize Blockend in an existing project
-npx blockend-cli init
+npx blockend-cli mcp init --client cursor
 ```
 
-Blockend detects your package manager automatically and generates TypeScript by default.
+The server exposes block listing, project detection, diff preview, install, update, and doctor tools. Installs run with `--yes`, so preview with the diff tool before writing.
 
-> **Note:** JavaScript output is on the roadmap.
+## Local development
 
-## MCP support
+Prerequisites:
 
-Blockend includes an MCP server so AI tools can add and configure blocks through natural language.
+- Node.js 20 or newer
+- pnpm
 
 ```bash
-npx blockend-cli mcp init
+git clone https://github.com/codewithnuh/blockend.git
+cd blockend
+pnpm install
+pnpm build
+pnpm dev
 ```
 
-Once connected, your AI assistant can:
+Useful commands:
 
-- add blocks,
-- explain what each block generates,
-- scaffold middleware stacks,
-- and help plan production-ready backend setups.
+```bash
+pnpm test
+pnpm lint
+pnpm typecheck
+pnpm validate
+```
+
+## Repository layout
+
+```text
+blockend/
+├── apps/
+│   └── web/                  Documentation site
+├── blocks/                   Block source code
+│   ├── error-handler/
+│   ├── env-config/
+│   ├── graceful-shutdown/
+│   ├── health-check/
+│   ├── idempotency/
+│   ├── logger/
+│   ├── password-hash/
+│   ├── rate-limiter/
+│   ├── request-validator/
+│   ├── response-formatter/
+│   └── token-service/
+├── packages/
+│   └── cli/                  CLI that copies blocks into projects
+├── registry/
+│   └── index.json            Block metadata and file mappings
+├── scripts/
+├── turbo.json
+└── pnpm-workspace.yaml
+```
+
+Each block usually contains:
+
+- `core/` or a core file with framework-agnostic logic
+- `adapters/` for Express, Fastify, and Hono
+- `variants/` for storage implementations
+- tests next to the source
+
+`registry/index.json` maps source files to the paths the CLI writes. Some blocks also provide framework-specific tests and SQL.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before adding a block. A block should solve a common backend problem, keep its core framework-independent, and include tests for each adapter it ships.
 
 ## Docs
 
@@ -140,136 +162,8 @@ Once connected, your AI assistant can:
 - [CLI reference](https://blockend.noorulhassan.com/docs/cli-reference)
 - [Block reference](https://blockend.noorulhassan.com/docs/blocks-reference)
 - [Changelog](packages/cli/CHANGELOG.md)
-- [Security Policy](SECURITY.md)
+- [Security policy](SECURITY.md)
 
-## 🗺️ Roadmap & Vision
+## License
 
-Blockend is being built incrementally with a focus on producing clean, source-first backend code that developers fully own.
-
-| Status       | Focus                  | Description                                                                                               |
-| ------------ | ---------------------- | --------------------------------------------------------------------------------------------------------- |
-| ✅ **Now**   | **Core Blocks**        | Validation, error handling, logging, health checks, graceful shutdown, and response formatting.           |
-| ✅ **Now**   | **Framework Coverage** | Refine and expand adapters for Express, Fastify, and Hono.                                                |
-| ✅ **Now**   | **Security Blocks**    | JWT authentication, password hashing, CORS, security headers, idempotency, and environment configuration. |
-| 🔮 **Later** | **Starter Kits**       | Opinionated SaaS and API starter templates built entirely from Blockend blocks.                           |
-
-> **Vision**
->
-> Blockend generates **source-first backend code** directly into your repository, so you own, inspect, modify, and extend every generated block—without vendor lock-in.
-
-## Contributing
-
-Want to contribute a block? Read the [contribution guidelines](CONTRIBUTING.md).
-
-A new block should:
-
-- solve a common backend problem,
-- work without deep runtime coupling,
-- produce readable source code,
-- and feel comfortable in a production codebase.
-
-If you have a utility that has proven itself across multiple projects and want to add it here, open an issue first and describe:
-
-- what it solves,
-- what dependencies it needs,
-- what files it generates,
-- and what its public API looks like.
-
-### Local development
-
-**Prerequisites**
-
-- [Node.js](https://nodejs.org/) >= 18
-- [pnpm](https://pnpm.io/installation) >= 10
-
-**Setup**
-
-```bash
-# Clone the repository
-git clone https://github.com/codewithnuh/blockend.git
-cd blockend
-
-# Install dependencies
-pnpm install
-
-# Build all packages
-pnpm build
-
-# Start development (watches all packages)
-pnpm dev
-```
-
-# Command Reference
-
-| Command                   | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `blockend init`           | Detect your framework and create `blockend.json` |
-| `blockend add <block>`    | Generate a specific block                        |
-| `blockend add`            | Browse and select blocks interactively           |
-| `blockend add --multi`    | Select and generate multiple blocks              |
-| `blockend list`           | List available blocks                            |
-| `blockend detect`         | Detect framework and project environment         |
-| `blockend diff <block>`   | Preview generated files                          |
-| `blockend doctor`         | Diagnose configuration and project issues        |
-| `blockend update`         | Check installed blocks for updates               |
-| `blockend update --apply` | Select and apply block updates                   |
-| `blockend mcp`            | Start the MCP server                             |
-| `blockend mcp init`       | Configure MCP for an AI assistant                |
-
-## Architecture
-
-Blockend is a **pnpm monorepo** orchestrated by **Turborepo**.
-
-```
-blockend/
-├── apps/              # Frontend applications
-│   └── web/           # Documentation site (Next.js)
-├── blocks/            # Source of truth for all backend blocks
-│   ├── env-config/          # Type-safe env validation (Zod)
-│   ├── error-handler/       # Centralized error pipeline
-│   ├── health-check/        # System health monitoring
-│   ├── logger/              # Structured request logging (Pino)
-│   ├── rate-limiter/        # Token bucket rate limiting
-│   ├── request-validator/   # Zod-based input validation
-│   └── response-formatter/  # Standard API response shapes
-├── packages/           # Shared packages
-│   └── cli/            # CLI tool that copies blocks into user projects
-├── registry/           # Block metadata & file mappings
-│   ├── index.json           # Registry of all blocks & their files
-│   └── registry-schema.json # JSON schema for the registry
-├── scripts/            # Utility scripts
-├── benchmarks/         # Performance benchmarks (mitata)
-└── turbo.json          # Turborepo task configuration
-```
-
-### How it works
-
-Each block in `blocks/` contains:
-
-- **`core/`** – framework-agnostic logic
-- **`adapters/`** – framework-specific integrations (Express, Fastify, Hono)
-- **`variants/`** – alternative implementations (e.g. memory vs Redis storage)
-
-The `registry/index.json` maps each block's source files to their target paths when copied into a user project. The CLI reads this registry to know which files to generate.
-
-When a user runs `npx blockend-cli add <block-name>`, the CLI:
-
-1. Reads the block definition from the registry
-2. Copies the relevant source files from `blocks/` into the user's project
-3. Installs any required dependencies
-
-## Releases
-
-CLI releases are published only after automated verification through GitHub Actions. Every release runs the full CLI test suite, builds the package, verifies its contents, and publishes to npm with provenance metadata via GitHub Actions OIDC trusted publishing. See the [changelog](packages/cli/CHANGELOG.md) for version history.
-
-## Open Source Security
-
-Blockend is committed to maintaining a secure and trustworthy open-source codebase. We use [Snyk](https://snyk.io/) to help identify and address security vulnerabilities in our dependencies and source code as part of our development and CI workflow.
-
-[Learn more about Snyk Open Source Security](https://snyk.io/open-source/).
-
-## Support
-
-If Blockend helps you, a star on the repository helps others discover it.
-
-[GitHub](https://github.com/codewithnuh/blockend) · [npm](https://npmjs.com/package/blockend-cli) · [X](https://x.com/codewithnuh) · [Roadmap](https://github.com/codewithnuh/blockend#-%F0%9F%97%90-%C3%A2-roadmap--vision)
+MIT. See [LICENSE](LICENSE).

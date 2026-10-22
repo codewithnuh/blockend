@@ -1,70 +1,45 @@
 ---
-title: Response Formatter
-description: Generate consistent API responses using a framework-agnostic formatter with lightweight adapters for Express, Fastify, and Hono.
+title: Response formatter
+description: Return one success, error, and pagination shape across Express, Fastify, and Hono.
 status: validated
 ---
 
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
-import { Steps, Step } from "fumadocs-ui/components/steps";
 import { SourceCode } from "../../../components/source-code";
 
-The **Response Formatter** block provides a consistent response format for your APIs.
+The response formatter builds the JSON envelope your API returns. It has a framework-neutral core and thin adapters that send the envelope with the framework's response object.
 
-It separates response formatting from your web framework by exposing a framework-agnostic core and lightweight adapters. The core is responsible only for building response objects, while adapters send those responses using the APIs of your chosen framework.
-
----
+The block has no root `index.ts`. Import the core from `core`, adapters from `adapters/`, and types from `contract`.
 
 ## Quick start
-
-Add the block to your project (skip `init` if it already has a `blockend.json`):
 
 ```bash
 pnpm dlx blockend-cli init
 pnpm dlx blockend-cli add response-formatter
 ```
 
-Use `ExpressResponse` in a route to return the standard success shape:
-
 ```ts
 import express from "express";
 import { ExpressResponse } from "@/blocks/response-formatter/adapters/express";
 
 const app = express();
-app.get("/users/:id", (req, res) =>
-  ExpressResponse.success(res, { id: req.params.id }, "User found")
-);
+
+app.get("/users/:id", (req, res) => {
+  return ExpressResponse.success(res, { id: req.params.id }, "User found");
+});
 ```
 
----
-
-## Features
-
-- Framework-agnostic response formatter
-- Consistent success and error response structure
-- Built-in pagination metadata calculation
-- Lightweight adapters for Express, Fastify, and Hono
-- Type-safe response contracts
-- Optional request ID support
-
----
-
-## File Structure
+## Files
 
 ```text
-response-formatter
-├── adapters
+response-formatter/
+├── adapters/
 │   ├── express.ts
 │   ├── fastify.ts
 │   └── hono.ts
-├── core.ts
-└── contract.ts
+├── contract.ts
+└── core.ts
 ```
-
-- **adapters/** — Framework-specific classes (`ExpressResponse`, `FastifyResponse`, `HonoResponse`) that wrap the core formatter.
-- **core.ts** — `ResponseFormatter` class with `success()`, `paginated()`, and `error()` static methods.
-- **contract.ts** — TypeScript interfaces for response shapes (`SuccessResponse`, `ErrorResponse`, `ApiResponse`, `PaginationMeta`).
-
----
 
 ## Installation
 
@@ -74,117 +49,79 @@ response-formatter
     pnpm dlx blockend-cli add response-formatter
     ```
 
-    <Steps>
-      <Step>
-        ### Detect Project
-
-        Blockend detects your backend framework and installs the appropriate adapter automatically.
-      </Step>
-      <Step>
-        ### Generate Files
-
-        The formatter block is generated inside your configured blocks directory.
-      </Step>
-    </Steps>
+    The CLI copies `core.ts`, `contract.ts`, and one adapter.
 
   </Tab>
+
   <Tab value="Manual">
-    Copy the files below into your project's blocks directory.
+    Copy `core.ts`, `contract.ts`, and the adapter you need into `blocks/response-formatter`.
 
-    ### Peer Dependencies
-
-    | Package | Required for |
-    | ------- | ------------ |
-    | `express` | Express adapter |
-    | `fastify` | Fastify adapter |
-    | `hono` | Hono adapter |
-
-    ### `blocks/response-formatter/contract.ts`
-
-    TypeScript interfaces for API response shapes.
+    ### Contract
 
     <SourceCode file="response-formatter/contract.ts" />
 
-    ### `blocks/response-formatter/core.ts`
-
-    `ResponseFormatter` class with success, paginated, and error static methods.
+    ### Core
 
     <SourceCode file="response-formatter/core.ts" />
 
-    ### `blocks/response-formatter/adapters/express.ts`
-
-    Express adapter — `ExpressResponse` class.
+    ### Express adapter
 
     <SourceCode file="response-formatter/adapters/express.ts" />
 
-    ### `blocks/response-formatter/adapters/fastify.ts`
-
-    Fastify adapter — `FastifyResponse` class.
+    ### Fastify adapter
 
     <SourceCode file="response-formatter/adapters/fastify.ts" />
 
-    ### `blocks/response-formatter/adapters/hono.ts`
-
-    Hono adapter — `HonoResponse` class.
+    ### Hono adapter
 
     <SourceCode file="response-formatter/adapters/hono.ts" />
 
   </Tab>
 </Tabs>
 
----
+## Response shapes
 
-## Configuration
+### Success
 
-| Export              | Description                                                     |
-| ------------------- | --------------------------------------------------------------- |
-| `ResponseFormatter` | Core formatter class with `success()`, `paginated()`, `error()` |
-| `ExpressResponse`   | Express adapter class                                           |
-| `FastifyResponse`   | Fastify adapter class                                           |
-| `HonoResponse`      | Hono adapter class                                              |
-| `SuccessResponse`   | Type for successful responses                                   |
-| `ErrorResponse`     | Type for error responses                                        |
-| `ApiResponse`       | Union type of `SuccessResponse` and `ErrorResponse`             |
-| `PaginationMeta`    | Type for pagination metadata                                    |
-| `PaginationParams`  | Type for pagination input (page, limit, total)                  |
-
----
-
-## Architecture
-
-```text
-Route Handler
-   │
-   ▼
-Adapter (ExpressResponse / FastifyResponse / HonoResponse)
-   │  (delegates to core formatter)
-   ▼
-ResponseFormatter (Core)
-   │  (builds plain response object)
-   ▼
-Adapter sends response via framework API
-   │  (res.json / reply.send / c.json)
-   ▼
-HTTP Response
+```json
+{
+  "success": true,
+  "data": { "id": "usr_123" },
+  "message": "User found"
+}
 ```
 
-The adapter never contains formatting logic — it delegates entirely to the core formatter. The core formatter never imports any framework — it returns plain JavaScript objects. This separation keeps the formatting logic reusable across frameworks.
+### Error
 
----
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "message": "User not found"
+  }
+}
+```
 
-## When to Use
+### Paginated success
 
-- You want consistent JSON response shapes across your entire API.
-- You need built-in pagination metadata calculation.
-- You use multiple frameworks and want a single formatting approach.
+```json
+{
+  "success": true,
+  "data": [],
+  "message": "Users fetched",
+  "meta": {
+    "page": 2,
+    "limit": 20,
+    "total": 55,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrevious": true
+  }
+}
+```
 
-## When Not to Use
-
-- You prefer to construct responses manually in each route handler.
-- You don't need pagination or standardized error shapes.
-- You use a framework with built-in response formatting (like NestJS).
-
----
+`requestId` is added when you pass one. It is omitted otherwise.
 
 ## Usage
 
@@ -194,9 +131,22 @@ The adapter never contains formatting logic — it delegates entirely to the cor
 import { ExpressResponse } from "@/blocks/response-formatter/adapters/express";
 
 app.get("/users/:id", (req, res) => {
-  const user = { id: 1, name: "Alice" };
-  return ExpressResponse.success(res, user, "User fetched successfully");
+  return ExpressResponse.success(res, user, "User fetched");
 });
+
+app.get("/users", (req, res) => {
+  return ExpressResponse.paginated(res, users, "Users fetched", { page: 1, limit: 20, total: 55 });
+});
+
+app.get("/missing", (_req, res) => {
+  return ExpressResponse.error(res, 404, "User not found");
+});
+```
+
+`success` takes an optional status code before the request ID:
+
+```ts
+ExpressResponse.success(res, user, "User created", 201, req.get("x-request-id"));
 ```
 
 ### Fastify
@@ -204,9 +154,16 @@ app.get("/users/:id", (req, res) => {
 ```ts
 import { FastifyResponse } from "@/blocks/response-formatter/adapters/fastify";
 
-fastify.get("/users/:id", async (request, reply) => {
-  const user = { id: 1, name: "Alice" };
-  return FastifyResponse.success(reply, user, "User fetched successfully");
+app.get("/users/:id", async (request, reply) => {
+  return FastifyResponse.success(reply, user, "User fetched");
+});
+
+app.get("/users", async (_request, reply) => {
+  return FastifyResponse.paginated(reply, users, "Users fetched", {
+    page: 1,
+    limit: 20,
+    total: 55
+  });
 });
 ```
 
@@ -216,104 +173,37 @@ fastify.get("/users/:id", async (request, reply) => {
 import { HonoResponse } from "@/blocks/response-formatter/adapters/hono";
 
 app.get("/users/:id", (c) => {
-  const user = { id: 1, name: "Alice" };
-  return HonoResponse.success(c, user, "User fetched successfully");
+  return HonoResponse.success(c, user, "User fetched");
+});
+
+app.get("/users", (c) => {
+  return HonoResponse.paginated(c, users, "Users fetched", { page: 1, limit: 20, total: 55 });
 });
 ```
 
-### Error Responses
+### Core only
+
+Use the core when you need the object without sending it:
 
 ```ts
-return ExpressResponse.error(res, 404, "User not found");
+import { ResponseFormatter } from "@/blocks/response-formatter/core";
 
-// With error details
-return ExpressResponse.error(res, 400, "Validation failed", {
-  email: ["Invalid email address"]
-});
+const body = ResponseFormatter.success(user, "User fetched", "req_123");
+const errorBody = ResponseFormatter.error(
+  { message: "User not found", details: { id: "usr_123" } },
+  "req_123"
+);
+const page = ResponseFormatter.paginated(
+  users,
+  "Users fetched",
+  { page: 1, limit: 20, total: 55 },
+  "req_123"
+);
 ```
 
-### Paginated Responses
+## Pagination
 
-```ts
-return ExpressResponse.paginated(res, users, "Users fetched successfully", {
-  page: 2,
-  limit: 10,
-  total: 53
-});
-```
-
-Response:
-
-```json
-{
-  "success": true,
-  "data": [...],
-  "message": "Users fetched successfully",
-  "meta": {
-    "page": 2,
-    "limit": 10,
-    "total": 53,
-    "totalPages": 6,
-    "hasNext": true,
-    "hasPrevious": true
-  }
-}
-```
-
-### Request IDs
-
-Include a request ID in the response for debugging:
-
-```ts
-ExpressResponse.success(res, user, "Success", 200, req.id);
-```
-
----
-
-## API Reference
-
-### ResponseFormatter.success
-
-```ts
-static success<T>(data: T, message: string, requestId?: string): ApiResponse<T>;
-```
-
-Creates a successful response object.
-
-### ResponseFormatter.paginated
-
-```ts
-static paginated<T>(
-  data: T,
-  message: string,
-  pagination: PaginationParams,
-  requestId?: string
-): ApiResponse<T>;
-```
-
-Creates a paginated response. Automatically computes `totalPages`, `hasNext`, and `hasPrevious`.
-
-### ResponseFormatter.error
-
-```ts
-static error(error: { message: string; details?: unknown }, requestId?: string): ErrorResponse;
-```
-
-Creates an error response object.
-
-### ExpressResponse
-
-```ts
-static success<T>(res: Response, data: T, message?: string, statusCode?: number, requestId?: string): void;
-static paginated<T>(res: Response, data: T, message: string, pagination: PaginationParams, statusCode?: number, requestId?: string): void;
-static error(res: Response, statusCode: number, message: string, details?: unknown, requestId?: string): void;
-```
-
-### FastifyResponse / HonoResponse
-
-Same interface as `ExpressResponse` but accepts `FastifyReply` or `HonoContext` as the first argument.
-
-### PaginationParams
+`PaginationParams` has three required fields:
 
 ```ts
 interface PaginationParams {
@@ -323,7 +213,59 @@ interface PaginationParams {
 }
 ```
 
-### SuccessResponse
+The formatter clamps values below the minimum:
+
+- `page` and `limit` are raised to at least 1.
+- `total` is raised to at least 0.
+- `totalPages` is `Math.ceil(total / limit)`.
+- `hasNext` is true when `page < totalPages`.
+- `hasPrevious` is true when `page > 1` and `totalPages > 0`.
+
+It does not fetch data or count rows. Pass the real total from your query.
+
+## API reference
+
+### `ResponseFormatter`
+
+```ts
+class ResponseFormatter {
+  static success<T>(data: T, message: string, requestId?: string): ApiResponse<T>;
+  static paginated<T>(
+    data: T,
+    message: string,
+    pagination: PaginationParams,
+    requestId?: string
+  ): ApiResponse<T>;
+  static error(error: { message: string; details?: unknown }, requestId?: string): ErrorResponse;
+}
+```
+
+### `ExpressResponse`
+
+```ts
+class ExpressResponse {
+  static success<T>(res, data: T, message?: string, statusCode?: number, requestId?: string);
+  static paginated<T>(
+    res,
+    data: T,
+    message: string,
+    pagination: PaginationParams,
+    statusCode?: number,
+    requestId?: string
+  );
+  static error(res, statusCode: number, message: string, details?: unknown, requestId?: string);
+}
+```
+
+### `FastifyResponse`
+
+Same methods as `ExpressResponse`, with `FastifyReply` instead of `Response`.
+
+### `HonoResponse`
+
+Same methods as `ExpressResponse`, with `Context` and Hono status types instead of Express types.
+
+### Types
 
 ```ts
 interface SuccessResponse<T> {
@@ -333,11 +275,7 @@ interface SuccessResponse<T> {
   requestId?: string;
   meta?: PaginationMeta;
 }
-```
 
-### ErrorResponse
-
-```ts
 interface ErrorResponse {
   success: false;
   data: null;
@@ -347,41 +285,26 @@ interface ErrorResponse {
   };
   requestId?: string;
 }
+
+type ApiResponse<T> = SuccessResponse<T> | ErrorResponse;
 ```
 
----
+## Production notes
 
-## Examples
+- Keep the envelope stable. Clients parse `success` before reading `data` or `error`.
+- The response formatter and the error handler both use `success`, `data`, and `error`. Keep their field names aligned.
+- Do not put internal error details in `error.details`. The formatter sends whatever you pass.
+- Use one status code convention across routes. `success` defaults to 200, not 201.
+- Pagination metadata is computed from the values you pass. A wrong `total` produces wrong `hasNext` and `totalPages`.
 
-### Using the Core Formatter Directly
+## When not to use it
 
-Use the core formatter without adapters — it returns plain objects you can send however you want:
+- Your framework or API gateway already enforces a response envelope.
+- You serve binary responses, streams, or HTML. The adapters are built for JSON.
+- You need content negotiation across multiple formats.
 
-```ts
-import { ResponseFormatter } from "@/blocks/response-formatter/core";
+## Related blocks
 
-const response = ResponseFormatter.success(user, "User fetched successfully");
-res.json(response);
-```
-
----
-
-## Related Blocks
-
-- **Error Handler** — Combine with `ExpressResponse.error()` for consistent error shapes across your API.
-
----
-
-## FAQ
-
-**Why does the formatter only need page, limit, and total for pagination?**
-
-`totalPages`, `hasNext`, and `hasPrevious` are deterministic — they can always be calculated from `page`, `limit`, and `total`. Keeping this computation inside the formatter prevents bugs and ensures consistent pagination behavior across your entire application.
-
-**Can I use the core formatter without adapters?**
-
-Yes. `ResponseFormatter.success()`, `.paginated()`, and `.error()` return plain JavaScript objects. You can use them directly and send the response however you like.
-
-**How do I add custom fields to the response?**
-
-Use the extension point by calling the core formatter and merging your custom fields before sending the response.
+- [Error handler](/docs/02-blocks/02-global-error-handler) uses the same error envelope.
+- [Request validator](/docs/02-blocks/04-request-validator) rejects invalid input before you format a response.
+- [Rate limiter](/docs/02-blocks/01-rate-limiter) returns its own 429 body when a limit is exceeded.

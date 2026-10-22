@@ -105,14 +105,17 @@ export class IdempotencyHandler {
 
   /**
    * Recovers operations stuck in 'PROCESSING' (e.g., node crashed mid-execution)
-   * by marking them 'FAILED' so clients can safely retry or inspect the outcome.
+   * by marking them 'FAILED'. A retry with the same key then returns
+   * REQUEST_FAILED, so reconcile the side effect before using a new key.
    */
   public async recoverStuckRecords(options?: RecoverStuckRecordsOptions): Promise<RecoveryResult> {
     return recoverStuckRecords(this.store, this.logger, this.metrics, options);
   }
 
   /**
-   * Manually re-opens a failed record to 'PROCESSING' to allow retry attempts.
+   * Manually re-opens a FAILED record as PROCESSING for a custom recovery
+   * workflow. This does not execute the operation. A subsequent execute call
+   * sees an in-progress record and returns REQUEST_IN_PROGRESS.
    */
   public async retry(
     userId: string,

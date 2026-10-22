@@ -1,64 +1,64 @@
 ---
 title: Blockend documentation
-description: Set up Blockend, add a backend block, then find the guides and reference you need.
+description: Set up Blockend, add a backend block, and find the guides and reference you need.
 ---
 
-Blockend adds backend code to your project. You choose a block, and the CLI writes its source files into your repository. You can read and change that code like the rest of your app.
+Blockend copies backend source files into your project. You choose a block, and the CLI writes its code into your repository. You can read, edit, and commit it like the rest of your app.
 
 ## Quick start
 
-From your project folder, create a Blockend config and add a block:
+From your project root:
 
 ```bash
 pnpm dlx blockend-cli init
 pnpm dlx blockend-cli add rate-limiter
 ```
 
-The CLI asks how your project is set up, then places the block in the configured directory. Open the [initialization guide](/docs/01-getting-started/01-intialization) if you want to review or change those choices. Use the [add blocks guide](/docs/01-getting-started/02-adding-new-block) to choose another block or understand what the CLI writes.
+`init` creates `blockend.json`. `add` writes the block files under the configured blocks directory.
 
-## Choose your next step
+## Start here
 
 <Cards>
   <Card
     title="Set up Blockend"
-    description="Create blockend.json and choose your framework and blocks folder."
+    description="Create blockend.json and choose your framework, blocks folder, and import style."
     href="/docs/01-getting-started/01-intialization"
   />
   <Card
     title="Add a block"
-    description="Find a block, choose a storage option, and add its files to your project."
+    description="Choose a block and storage variant, install dependencies, and write files."
     href="/docs/01-getting-started/02-adding-new-block"
   />
   <Card
     title="Connect an AI client"
-    description="Set up the Blockend MCP server for your coding assistant."
+    description="Configure the Blockend MCP server for Claude, Cursor, VS Code, Codex, or Windsurf."
     href="/docs/01-getting-started/03-mcp"
   />
   <Card
-    title="Browse all blocks"
-    description="See each block's setup, API, examples, and production notes."
+    title="Browse blocks"
+    description="Open a block page for imports, setup, API details, and production notes."
     href="/docs/blocks-reference"
   />
   <Card
-    title="Read the CLI reference"
-    description="Look up commands, options, and output."
+    title="CLI reference"
+    description="Look up commands, options, and generated config."
     href="/docs/cli-reference"
   />
 </Cards>
 
 ## Production guides
 
-Start with the block page for installation and API details. Then use these guides for production setup and failure handling.
+Read the block page first, then use these guides for deployment details and failure handling.
 
 <Cards>
   <Card
     title="Health checks and graceful shutdown"
-    description="Make readiness checks respond to shutdown and give requests time to finish."
+    description="Separate liveness from readiness and drain requests during a deploy."
     href="/docs/03-guides/01-production-health-checks-and-graceful-shutdown"
   />
   <Card
     title="Idempotency in production"
-    description="Plan storage, retries, recovery jobs, and monitoring for safe request retries."
+    description="Design the store, classify errors, and run recovery jobs for retried requests."
     href="/docs/03-guides/02-idempotency-in-production"
   />
 </Cards>

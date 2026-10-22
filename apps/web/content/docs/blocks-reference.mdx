@@ -1,28 +1,26 @@
 ---
-title: Blocks Reference
-description: Browse Blockend blocks and open a page for setup, examples, API details, and production notes.
+title: Blocks reference
+description: Browse the Blockend catalog and open a page for setup, examples, and API details.
 ---
 
 import { BlocksList } from "@/components/blocks-list";
 
-Choose a block from the catalog. Its page starts with what the block does, then covers setup, examples, API details, and production notes.
+Each block page covers what the block does, how to install it, the exact import paths, the public API, and production notes.
 
 If you are new to Blockend, start with the [quick start](/docs).
 
 <BlocksList />
 
----
-
-## Adding a Block
-
-To install any of these blocks into your project:
+## Add a block
 
 ```bash
 pnpm dlx blockend-cli add <block-key>
 ```
 
-First make sure your project is initialized:
+If you have not initialized the project yet:
 
 ```bash
 pnpm dlx blockend-cli init
 ```
+
+For variant selection, dependency prompts, and file conflicts, see [Add blocks](/docs/01-getting-started/02-adding-new-block).
