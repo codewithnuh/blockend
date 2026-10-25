@@ -1,17 +1,17 @@
 /* oxlint-disable no-console */
-import path, { join, dirname } from "path";
+import path from "path";
 import fs from "fs/promises";
 import { intro, outro, spinner, log } from "@clack/prompts";
 import pc from "picocolors";
 import {
-  RegistryManifest,
-  BlockManifest,
-  AssetMapping,
-  EnvironmentConfig,
-  selectVariant,
-  resolvePreferredVariant
-} from "./add.js";
-import { configPayloadType } from "./init.js";
+  createGitHubRegistrySource,
+  findUp,
+  loadRegistry,
+  planBlock,
+  previewBlock,
+  type BlockendConfig,
+  type RegistryManifest
+} from "../block-install/index.js";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -28,61 +28,6 @@ export interface DiffResult {
   block: string;
   files: DiffFile[];
   error?: string;
-}
-
-// ─── constants ───────────────────────────────────────────────────────────────
-
-const REPO_OWNER = "codewithnuh";
-const REPO_NAME = "blockend";
-const BRANCH = "master";
-
-const RAW_CDN_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
-const MANIFEST_URL = `${RAW_CDN_BASE}/registry/index.json`;
-
-// ─── framework compatibility helpers (reused from add.ts) ────────────────────
-
-function blockSupportsEnv(block: BlockManifest, envKey: string): boolean {
-  if (block.frameworks && block.frameworks.length > 0) {
-    return block.frameworks.includes("*") || block.frameworks.includes(envKey as never);
-  }
-  return block.adapters?.[envKey] !== undefined || block.environments?.[envKey] !== undefined;
-}
-
-function resolveAdapterContext(block: BlockManifest, envKey: string): EnvironmentConfig | null {
-  return (
-    block.adapters?.[envKey] ??
-    block.adapters?.["*"] ??
-    block.environments?.[envKey] ??
-    block.environments?.["*"] ??
-    null
-  );
-}
-
-// ─── filesystem helpers ──────────────────────────────────────────────────────
-
-async function findUp(filename: string, startDir: string): Promise<string | null> {
-  let dir = startDir;
-  while (true) {
-    const candidate = join(dir, filename);
-    try {
-      await fs.access(candidate);
-      return candidate;
-    } catch {
-      const parent = dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
-    }
-  }
-  return null;
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 // ─── diff command ────────────────────────────────────────────────────────────
@@ -117,11 +62,11 @@ export async function diffCommand(
     return { block: blockName, files: [], error };
   }
 
-  const rootDir = dirname(configPath);
+  const rootDir = path.dirname(configPath);
 
-  let config: configPayloadType;
+  let config: BlockendConfig;
   try {
-    config = JSON.parse(await fs.readFile(configPath, "utf-8")) as configPayloadType;
+    config = JSON.parse(await fs.readFile(configPath, "utf-8")) as BlockendConfig;
   } catch {
     const error = "Failed to parse blockend.json.";
     if (json) {
@@ -138,14 +83,13 @@ export async function diffCommand(
 
   // ── Fetch registry ──────────────────────────────────────────────────────
 
+  const source = createGitHubRegistrySource();
   const s = spinner();
   if (!json) s.start("Fetching registry...");
 
   let registry: RegistryManifest;
   try {
-    const res = await fetch(MANIFEST_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    registry = (await res.json()) as RegistryManifest;
+    registry = await loadRegistry(source);
     if (!json) s.stop("Registry synced.");
   } catch (err) {
     const error = `Failed to fetch registry: ${String(err)}`;
@@ -156,93 +100,30 @@ export async function diffCommand(
     return { block: blockName, files: [], error };
   }
 
-  const blockMap: Record<string, BlockManifest> =
-    registry.blocks && typeof registry.blocks === "object" && !Array.isArray(registry.blocks)
-      ? (registry.blocks as Record<string, BlockManifest>)
-      : (registry as Record<string, BlockManifest>);
-
-  // ── Validate block ──────────────────────────────────────────────────────
-
-  const blockMeta = blockMap[blockName];
-  if (!blockMeta) {
-    const error = `Block "${blockName}" not found in the registry.`;
-    if (json) {
-      process.stdout.write(JSON.stringify({ block: blockName, files: [], error }) + "\n");
-    } else {
-      log.error(error);
-      outro(pc.dim("Block not found."));
-    }
-    return { block: blockName, files: [], error };
-  }
-
-  if (!blockSupportsEnv(blockMeta, envKey)) {
-    const error = `Block "${blockName}" does not support environment: ${envKey}`;
-    if (json) {
-      process.stdout.write(JSON.stringify({ block: blockName, files: [], error }) + "\n");
-    } else {
-      log.error(error);
-    }
-    return { block: blockName, files: [], error };
-  }
-
-  // ── Resolve adapter context ─────────────────────────────────────────────
-
-  const adapterContext = resolveAdapterContext(blockMeta, envKey);
-  if (!adapterContext) {
-    const error = `Block "${blockName}" has no adapter for: ${envKey}`;
-    if (json) {
-      process.stdout.write(JSON.stringify({ block: blockName, files: [], error }) + "\n");
-    } else {
-      log.error(error);
-    }
-    return { block: blockName, files: [], error };
-  }
-
-  // ── Resolve variant (prefer the variant recorded at install time) ────────
-
-  const variantKeys = Object.keys(adapterContext.variants ?? {});
-  if (variantKeys.length === 0) {
-    const error = `No variants found for "${blockName}" / "${envKey}".`;
-    if (json) {
-      process.stdout.write(JSON.stringify({ block: blockName, files: [], error }) + "\n");
-    } else {
-      log.error(error);
-    }
-    return { block: blockName, files: [], error };
-  }
+  // ── Resolve the block plan ──────────────────────────────────────────────
 
   const targetFolder = path.resolve(blocksRootAbsolute, blockName);
-  const installedRecord = config.installed?.find((b) => b.name === blockName);
-  const preferred = await resolvePreferredVariant(
-    variantKeys,
-    installedRecord?.variant,
+  const installedRecord = config.installed?.find((block) => block.name === blockName);
+  const planResult = await planBlock(registry, blockName, envKey, {
+    recordedVariant: installedRecord?.variant,
     targetFolder
-  );
-  const selectedVariant = selectVariant(variantKeys, preferred);
-  const variantMeta = adapterContext.variants[selectedVariant];
+  });
 
-  // ── Build file list ─────────────────────────────────────────────────────
-
-  const filesToDownload: AssetMapping[] = [];
-
-  if (blockMeta.baseFiles?.length) {
-    filesToDownload.push(...blockMeta.baseFiles);
-  }
-
-  if (adapterContext.core) {
-    filesToDownload.push({
-      source: adapterContext.core,
-      target: path.basename(adapterContext.core)
-    });
-  }
-
-  if (variantMeta && Array.isArray(variantMeta.files)) {
-    for (const entry of variantMeta.files) {
-      filesToDownload.push(
-        typeof entry === "string" ? { source: entry, target: path.basename(entry) } : entry
-      );
+  if (!planResult.ok) {
+    const error =
+      planResult.error.code === "no-adapter"
+        ? `Block "${blockName}" has no adapter for: ${envKey}`
+        : planResult.error.message;
+    if (json) {
+      process.stdout.write(JSON.stringify({ block: blockName, files: [], error }) + "\n");
+    } else {
+      log.error(error);
+      if (planResult.error.code === "not-found") outro(pc.dim("Block not found."));
     }
+    return { block: blockName, files: [], error };
   }
+
+  const plan = planResult.plan;
 
   // ── Download and compare ────────────────────────────────────────────────
 
@@ -251,43 +132,15 @@ export async function diffCommand(
   const diffFiles: DiffFile[] = [];
 
   try {
-    for (const fm of filesToDownload) {
-      // Download new content
-      const res = await fetch(`${RAW_CDN_BASE}/${fm.source}`);
-      if (!res.ok) throw new Error(`Download failed: ${fm.source} (HTTP ${res.status})`);
-      const newContent = await res.text();
-
-      const targetPath = path.join(targetFolder, fm.target);
-
-      // Check if file exists locally
-      let existingContent: string | null = null;
-      let status: "new" | "modified" | "unchanged" = "new";
-
-      if (await fileExists(targetPath)) {
-        try {
-          existingContent = await fs.readFile(targetPath, "utf-8");
-          status = existingContent === newContent ? "unchanged" : "modified";
-        } catch {
-          // File exists but can't be read — treat as new
-        }
-      }
-
-      diffFiles.push({
-        name: fm.target,
-        sourcePath: fm.source,
-        targetPath,
-        existingContent,
-        newContent,
-        status
-      });
-    }
+    const previews = await previewBlock(plan, { source, targetFolder });
+    diffFiles.push(...previews);
 
     if (!json) s.stop("Comparison complete.");
 
     // ── Print diff summary ──────────────────────────────────────────────
 
     if (!json) {
-      console.log(`\n  ${pc.bold(pc.cyan(blockName))} — ${pc.dim(selectedVariant)} variant\n`);
+      console.log(`\n  ${pc.bold(pc.cyan(blockName))} — ${pc.dim(plan.variant)} variant\n`);
 
       for (const file of diffFiles) {
         const icon =
@@ -330,12 +183,14 @@ export async function diffCommand(
       }
       console.log("");
 
-      const newCount = diffFiles.filter((f) => f.status === "new").length;
-      const modCount = diffFiles.filter((f) => f.status === "modified").length;
-      const unchangedCount = diffFiles.filter((f) => f.status === "unchanged").length;
+      const newCount = diffFiles.filter((file) => file.status === "new").length;
+      const modCount = diffFiles.filter((file) => file.status === "modified").length;
+      const unchangedCount = diffFiles.filter((file) => file.status === "unchanged").length;
 
       outro(
-        `${pc.green(`${newCount} new`)} | ${pc.yellow(`${modCount} modified`)} | ${pc.dim(`${unchangedCount} unchanged`)}`
+        `${pc.green(`${newCount} new`)} | ${pc.yellow(`${modCount} modified`)} | ${pc.dim(
+          `${unchangedCount} unchanged`
+        )}`
       );
     }
 

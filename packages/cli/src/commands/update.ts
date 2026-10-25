@@ -1,18 +1,20 @@
 /* oxlint-disable no-console */
-import path, { join, dirname } from "path";
+import path from "path";
 import fs from "fs/promises";
 import { intro, outro, spinner, log, multiselect, confirm, isCancel } from "@clack/prompts";
 import pc from "picocolors";
 import {
-  RegistryManifest,
-  BlockManifest,
-  AssetMapping,
-  EnvironmentConfig,
-  rewriteFileImports,
-  selectVariant,
-  resolvePreferredVariant
-} from "./add.js";
-import { configPayloadType, InstalledBlockRecord } from "./init.js";
+  applyBlock,
+  createGitHubRegistrySource,
+  findUp,
+  loadRegistry,
+  planBlock,
+  previewBlock,
+  type BlockPlan,
+  type BlockendConfig,
+  type InstalledBlockRecord,
+  type RegistryManifest
+} from "../block-install/index.js";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -42,52 +44,6 @@ export interface UpdateResult {
   applied?: string[];
   diffs?: Record<string, FileDiff[]>;
   error?: string;
-}
-
-// ─── constants ───────────────────────────────────────────────────────────────
-
-const REPO_OWNER = "codewithnuh";
-const REPO_NAME = "blockend";
-const BRANCH = "master";
-
-const RAW_CDN_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
-const MANIFEST_URL = `${RAW_CDN_BASE}/registry/index.json`;
-
-// ─── framework compatibility helpers ─────────────────────────────────────────
-
-function blockSupportsEnv(block: BlockManifest, envKey: string): boolean {
-  if (block.frameworks && block.frameworks.length > 0) {
-    return block.frameworks.includes("*") || block.frameworks.includes(envKey as never);
-  }
-  return block.adapters?.[envKey] !== undefined || block.environments?.[envKey] !== undefined;
-}
-
-function resolveAdapterContext(block: BlockManifest, envKey: string): EnvironmentConfig | null {
-  return (
-    block.adapters?.[envKey] ??
-    block.adapters?.["*"] ??
-    block.environments?.[envKey] ??
-    block.environments?.["*"] ??
-    null
-  );
-}
-
-// ─── filesystem helpers ──────────────────────────────────────────────────────
-
-async function findUp(filename: string, startDir: string): Promise<string | null> {
-  let dir = startDir;
-  while (true) {
-    const candidate = join(dir, filename);
-    try {
-      await fs.access(candidate);
-      return candidate;
-    } catch {
-      const parent = dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
-    }
-  }
-  return null;
 }
 
 // ─── diff helpers ────────────────────────────────────────────────────────────
@@ -148,8 +104,6 @@ function computeLineDiff(oldContent: string, newContent: string): DiffLine[] {
 
   return result;
 }
-
-// ─── helpers shared with add.ts ──────────────────────────────────────────────
 
 function handleCancel(value: unknown): void {
   if (isCancel(value)) {
@@ -221,7 +175,9 @@ function outputUpdateResult(json: boolean, result: UpdateResult): void {
     console.log(`  ${pc.bold(pc.yellow("Updates available:"))}\n`);
     for (const block of updates) {
       console.log(
-        `    ${pc.yellow("~")} ${pc.bold(block.name)} ${pc.dim(`${block.localVersion} → ${block.remoteVersion}`)}`
+        `    ${pc.yellow("~")} ${pc.bold(block.name)} ${pc.dim(
+          `${block.localVersion} → ${block.remoteVersion}`
+        )}`
       );
     }
     console.log("");
@@ -254,44 +210,6 @@ function outputUpdateResult(json: boolean, result: UpdateResult): void {
   }
 }
 
-// ─── block file resolution (shared logic) ────────────────────────────────────
-
-async function resolveBlockFiles(
-  blockMeta: BlockManifest,
-  envKey: string,
-  preferredVariant?: string,
-  targetFolder?: string
-): Promise<{ files: AssetMapping[]; variant: string } | null> {
-  const adapterContext = resolveAdapterContext(blockMeta, envKey);
-  if (!adapterContext) return null;
-
-  const variantKeys = Object.keys(adapterContext.variants ?? {});
-  if (variantKeys.length === 0) return null;
-
-  let preferred = preferredVariant;
-  if (targetFolder && (!preferred || !variantKeys.includes(preferred))) {
-    preferred = (await resolvePreferredVariant(variantKeys, preferred, targetFolder)) ?? preferred;
-  }
-
-  const selectedVariant = selectVariant(variantKeys, preferred);
-  const variantMeta = adapterContext.variants[selectedVariant];
-
-  const expectedFiles: AssetMapping[] = [];
-  if (blockMeta.baseFiles?.length) expectedFiles.push(...blockMeta.baseFiles);
-  if (adapterContext.core) {
-    expectedFiles.push({ source: adapterContext.core, target: path.basename(adapterContext.core) });
-  }
-  if (variantMeta && Array.isArray(variantMeta.files)) {
-    for (const entry of variantMeta.files) {
-      expectedFiles.push(
-        typeof entry === "string" ? { source: entry, target: path.basename(entry) } : entry
-      );
-    }
-  }
-
-  return { files: expectedFiles, variant: selectedVariant };
-}
-
 // ─── update command ──────────────────────────────────────────────────────────
 
 export async function updateCommand(
@@ -316,11 +234,11 @@ export async function updateCommand(
     return { blocks: [], error };
   }
 
-  const rootDir = dirname(configPath);
+  const rootDir = path.dirname(configPath);
 
-  let config: configPayloadType;
+  let config: BlockendConfig;
   try {
-    config = JSON.parse(await fs.readFile(configPath, "utf-8")) as configPayloadType;
+    config = JSON.parse(await fs.readFile(configPath, "utf-8")) as BlockendConfig;
   } catch {
     const error = "Failed to parse blockend.json.";
     if (json) process.stdout.write(JSON.stringify({ blocks: [], error }) + "\n");
@@ -339,14 +257,13 @@ export async function updateCommand(
 
   // ── Fetch registry ──────────────────────────────────────────────────────
 
+  const source = createGitHubRegistrySource();
   const s = spinner();
   if (!json) s.start("Fetching registry...");
 
   let registry: RegistryManifest;
   try {
-    const res = await fetch(MANIFEST_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    registry = (await res.json()) as RegistryManifest;
+    registry = await loadRegistry(source);
     if (!json) s.stop("Registry synced.");
   } catch (err) {
     const error = `Failed to fetch registry: ${String(err)}`;
@@ -357,23 +274,22 @@ export async function updateCommand(
     return { blocks: [], error };
   }
 
-  const blockMap: Record<string, BlockManifest> =
-    registry.blocks && typeof registry.blocks === "object" && !Array.isArray(registry.blocks)
-      ? (registry.blocks as Record<string, BlockManifest>)
-      : (registry as Record<string, BlockManifest>);
-
   // ── Compare installed blocks with registry ──────────────────────────────
 
   if (!json) s.start("Comparing versions...");
 
   const blockResults: UpdateBlockInfo[] = [];
   const diffs: Record<string, FileDiff[]> = {};
+  const plans: Record<string, BlockPlan> = {};
 
   for (const record of installedRecords) {
-    const blockMeta = blockMap[record.name];
-    const remoteVersion = blockMeta?.version ?? "0.0.0";
+    const targetFolder = path.resolve(blocksRootAbsolute, record.name);
+    const planResult = await planBlock(registry, record.name, envKey, {
+      recordedVariant: record.variant,
+      targetFolder
+    });
 
-    if (!blockMeta || !blockSupportsEnv(blockMeta, envKey)) {
+    if (!planResult.ok) {
       blockResults.push({
         name: record.name,
         localVersion: record.version,
@@ -383,6 +299,10 @@ export async function updateCommand(
       continue;
     }
 
+    const plan = planResult.plan;
+    plans[record.name] = plan;
+
+    const remoteVersion = plan.block.version ?? "0.0.0";
     const hasUpdate = record.version !== remoteVersion || record.contentHash === "0";
 
     blockResults.push({
@@ -394,61 +314,42 @@ export async function updateCommand(
 
     // Build diff for blocks with updates
     if (hasUpdate && diff) {
-      const targetFolder = path.resolve(blocksRootAbsolute, record.name);
-      const resolved = await resolveBlockFiles(blockMeta, envKey, record.variant, targetFolder);
-      if (!resolved) continue;
+      const previews = await previewBlock(plan, {
+        source,
+        targetFolder,
+        onDownloadError: "empty"
+      });
 
-      const fileDiffs: FileDiff[] = [];
-
-      for (const fm of resolved.files) {
-        const localPath = join(targetFolder, fm.target);
-        let localContent = "";
-        let localExists = false;
-
-        try {
-          localContent = await fs.readFile(localPath, "utf-8");
-          localExists = true;
-        } catch {
-          localContent = "";
-        }
-
-        let remoteContent = "";
-        try {
-          const res = await fetch(`${RAW_CDN_BASE}/${fm.source}`);
-          if (res.ok) remoteContent = await res.text();
-        } catch {
-          remoteContent = "";
-        }
-
-        if (!localExists) {
-          fileDiffs.push({
-            name: fm.target,
-            file: fm.target,
-            status: "added",
-            lines: remoteContent.split("\n").map((l, i) => ({
+      diffs[record.name] = previews.map((preview) => {
+        if (preview.existingContent === null) {
+          return {
+            name: preview.name,
+            file: preview.name,
+            status: "added" as const,
+            lines: preview.newContent.split("\n").map((line, index) => ({
               type: "added" as const,
-              content: l,
-              newLineNo: i + 1
+              content: line,
+              newLineNo: index + 1
             }))
-          });
-        } else if (localContent !== remoteContent) {
-          fileDiffs.push({
-            name: fm.target,
-            file: fm.target,
-            status: "modified",
-            lines: computeLineDiff(localContent, remoteContent)
-          });
-        } else {
-          fileDiffs.push({
-            name: fm.target,
-            file: fm.target,
-            status: "unchanged",
-            lines: []
-          });
+          };
         }
-      }
 
-      diffs[record.name] = fileDiffs;
+        if (preview.existingContent !== preview.newContent) {
+          return {
+            name: preview.name,
+            file: preview.name,
+            status: "modified" as const,
+            lines: computeLineDiff(preview.existingContent, preview.newContent)
+          };
+        }
+
+        return {
+          name: preview.name,
+          file: preview.name,
+          status: "unchanged" as const,
+          lines: []
+        };
+      });
     }
   }
 
@@ -497,73 +398,21 @@ export async function updateCommand(
     const applied: string[] = [];
 
     for (const blockName of selectedNames) {
-      const blockMeta = blockMap[blockName];
-      if (!blockMeta) continue;
-
-      const record = installedRecords.find((r) => r.name === blockName);
-      const targetFolder = path.resolve(blocksRootAbsolute, blockName);
-      const resolved = await resolveBlockFiles(blockMeta, envKey, record?.variant, targetFolder);
-      if (!resolved) continue;
-
-      const downloadedTargets = new Set<string>();
+      const plan = plans[blockName];
+      if (!plan) continue;
 
       try {
-        // Pass 1: download all files
-        const fileBatches: Array<{ fm: AssetMapping; raw: string }> = [];
-        for (const fm of resolved.files) {
-          const res = await fetch(`${RAW_CDN_BASE}/${fm.source}`);
-          if (!res.ok) throw new Error(`Download failed: ${fm.source} (HTTP ${res.status})`);
-          fileBatches.push({ fm, raw: await res.text() });
-          downloadedTargets.add(fm.target);
-        }
-
-        // Pass 2: rewrite imports and write
-        let contentHash = 0;
-        for (const { fm, raw } of fileBatches) {
-          const writtenFilePath = path.join(targetFolder, fm.target);
-          const content = rewriteFileImports(
-            raw,
-            writtenFilePath,
-            blocksRootAbsolute,
-            aliasBase,
-            rewriteStrategy,
-            downloadedTargets
-          );
-
-          await fs.mkdir(dirname(writtenFilePath), { recursive: true });
-          await fs.writeFile(writtenFilePath, content, "utf-8");
-
-          for (let i = 0; i < content.length; i++) {
-            contentHash = ((contentHash << 5) - contentHash + content.charCodeAt(i)) | 0;
-          }
-        }
-
-        // Update blockend.json tracking
-        const blockVersion = blockMeta.version ?? "0.0.0";
-        const installedRecord = {
-          name: blockName,
-          version: blockVersion,
-          installedAt: new Date().toISOString(),
-          files: resolved.files.map((f) => f.target),
-          contentHash: contentHash.toString(16),
-          variant: resolved.variant
-        };
-
-        try {
-          const cfgRaw = await fs.readFile(configPath, "utf-8");
-          const cfgData = JSON.parse(cfgRaw) as configPayloadType;
-          if (!Array.isArray(cfgData.installed)) cfgData.installed = [];
-          cfgData.installed = cfgData.installed.filter(
-            (b: { name: string }) => b.name !== blockName
-          );
-          cfgData.installed.push(installedRecord);
-          await fs.writeFile(configPath, JSON.stringify(cfgData, null, 2), "utf-8");
-        } catch {
-          // Non-fatal
-        }
+        await applyBlock(plan, {
+          source,
+          blocksRoot: blocksRootAbsolute,
+          aliasBase,
+          rewriteStrategy,
+          configPath
+        });
 
         applied.push(blockName);
-        if (!json) log.info(`  ${pc.green("✔")} ${blockName} updated to v${blockVersion}`);
+        if (!json)
+          log.info(`  ${pc.green("✔")} ${blockName} updated to v${plan.block.version ?? "0.0.0"}`);
       } catch (err) {
         if (!json) log.error(`  ${pc.red("✖")} ${blockName}: ${String(err)}`);
       }
