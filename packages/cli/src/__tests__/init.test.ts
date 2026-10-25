@@ -42,14 +42,7 @@ vi.mock("@clack/prompts", () => ({
   }
 }));
 
-const mockDetectProject = vi.fn(() =>
-  Promise.resolve({
-    framework: "express",
-    language: "typescript",
-    hasRedis: false,
-    aliasMap: {}
-  })
-);
+const mockDetectProject = vi.fn();
 
 vi.mock("../detectors/index.js", () => ({
   get detectProject() {
@@ -60,47 +53,68 @@ vi.mock("../detectors/index.js", () => ({
 describe("initCommand - Path Layout & Alias Edge Cases", () => {
   const cwd = process.cwd();
 
+  const detectedProject = (overrides: Record<string, unknown> = {}) => ({
+    root: cwd,
+    framework: "express",
+    language: "typescript",
+    runtime: "node",
+    packageManager: "npm",
+    hasRedis: false,
+    hasPrisma: false,
+    hasDrizzle: false,
+    aliasMap: {},
+    srcDir: join(cwd, "src"),
+    blocksDir: join(cwd, "src/blocks"),
+    importRewriteStrategy: "remove",
+    ...overrides
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "log").mockImplementation(() => {});
 
-    mockDetectProject.mockResolvedValue({
-      framework: "express",
-      language: "typescript",
-      hasRedis: false,
-      aliasMap: {}
-    });
+    mockDetectProject.mockResolvedValue(detectedProject());
   });
 
   // ==========================================
   // EDGE CASE: Path & Alias Edge Cases
   // ==========================================
 
-  it("should cleanly reverse-engineer aliases when choosing a directory inside an absolute custom baseUrl", async () => {
-    vi.mocked(existsSync).mockImplementation(
-      (p) => p === join(cwd, "tsconfig.json") || p === join(cwd, "src")
+  it("should emit a JSON result when the blocks directory prompt is cancelled", async () => {
+    vi.mocked(existsSync).mockReturnValue(false);
+    vi.mocked(prompts.text).mockResolvedValueOnce("src/blocks");
+    vi.mocked(prompts.isCancel).mockReturnValueOnce(true);
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    try {
+      await initCommand({ json: true });
+
+      expect(writeSpy).toHaveBeenCalledWith(
+        JSON.stringify({ success: false, message: "Setup cancelled." }) + "\n"
+      );
+      expect(mockDetectProject).not.toHaveBeenCalled();
+    } finally {
+      writeSpy.mockRestore();
+    }
+  });
+
+  it("should write the detected blocks alias and relative path", async () => {
+    vi.mocked(existsSync).mockImplementation((p) => p === join(cwd, "src"));
+
+    mockDetectProject.mockResolvedValue(
+      detectedProject({
+        framework: "next",
+        blocksDir: join(cwd, "src/modules/blocks"),
+        blocksAlias: "~/modules/blocks"
+      })
     );
 
-    mockDetectProject.mockResolvedValue({
-      framework: "next",
-      language: "typescript",
-      hasRedis: false,
-      aliasMap: {}
-    });
-
-    const mockTsConfig = JSON.stringify({
-      compilerOptions: {
-        baseUrl: ".",
-        paths: {
-          "~/*": ["src/*"]
-        }
-      }
-    });
-    vi.mocked(fs.readFile).mockResolvedValue(mockTsConfig);
     vi.mocked(prompts.text).mockResolvedValueOnce("src/modules/blocks");
 
     await initCommand();
 
+    expect(mockDetectProject).toHaveBeenCalledWith(cwd, { blocksDir: "src/modules/blocks" });
+    expect(fs.readFile).not.toHaveBeenCalled();
     expect(fs.writeFile).toHaveBeenCalledWith(
       join(cwd, "blockend.json"),
       expect.stringContaining('"blocks": "~/modules/blocks"'),
@@ -113,67 +127,24 @@ describe("initCommand - Path Layout & Alias Edge Cases", () => {
     );
   });
 
-  it("should handle custom non-standard alias structures safely (e.g., #/* fallback calculations)", async () => {
-    vi.mocked(existsSync).mockImplementation((p) => p === join(cwd, "tsconfig.json"));
+  it("should normalize the detected blocks directory into config paths", async () => {
+    vi.mocked(existsSync).mockReturnValue(false);
 
-    mockDetectProject.mockResolvedValue({
-      framework: "fastify",
-      language: "typescript",
-      hasRedis: false,
-      aliasMap: {}
-    });
-
-    const mockTsConfig = JSON.stringify({
-      compilerOptions: {
-        baseUrl: ".",
-        paths: {
-          "#*": ["lib/*"]
-        }
-      }
-    });
-    vi.mocked(fs.readFile).mockResolvedValue(mockTsConfig);
-    vi.mocked(prompts.text).mockResolvedValueOnce("lib/blocks");
-
-    await initCommand();
-
-    expect(fs.writeFile).toHaveBeenCalledWith(
-      join(cwd, "blockend.json"),
-      expect.stringContaining('"blocks": "#/blocks"'),
-      "utf-8"
+    mockDetectProject.mockResolvedValue(
+      detectedProject({
+        blocksDir: join(cwd, "src", "infrastructure", "blocks")
+      })
     );
-    expect(fs.writeFile).toHaveBeenCalledWith(
-      join(cwd, "blockend.json"),
-      expect.stringContaining('"blocks": "./lib/blocks"'),
-      "utf-8"
-    );
-  });
-
-  it("should correctly handle paths containing backslashes and normalize them on Windows environments", async () => {
-    vi.mocked(existsSync).mockImplementation((p) => {
-      const pathStr = String(p);
-      if (pathStr.endsWith("package.json") || pathStr.endsWith("pnpm-lock.yaml")) return true;
-      return false;
-    });
-
-    vi.mocked(fs.readFile).mockImplementation(async (p) => {
-      const pathStr = String(p);
-      if (pathStr.endsWith("package.json"))
-        return JSON.stringify({ name: "test", dependencies: {} });
-      throw new Error();
-    });
-
-    mockDetectProject.mockResolvedValue({
-      framework: "express",
-      language: "typescript",
-      hasRedis: false,
-      aliasMap: {}
-    });
 
     vi.mocked(prompts.text).mockResolvedValueOnce("src\\infrastructure\\blocks");
 
     await initCommand();
 
-    // When no tsconfig.json exists, no alias is derived — aliases should be empty
+    expect(mockDetectProject).toHaveBeenCalledWith(cwd, {
+      blocksDir: "src\\infrastructure\\blocks"
+    });
+    expect(fs.readFile).not.toHaveBeenCalled();
+    // When no path mapping exists, no alias is derived - aliases should be empty
     expect(fs.writeFile).toHaveBeenCalledWith(
       join(cwd, "blockend.json"),
       expect.not.stringContaining('"blocks": "@/blocks"'),

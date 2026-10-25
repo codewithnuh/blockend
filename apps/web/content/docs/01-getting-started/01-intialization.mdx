@@ -27,11 +27,11 @@ If detection fails, the CLI asks you to choose a framework.
 ## Prompts
 
 1. Existing config: keep, overwrite, or regenerate. This prompt only appears when `blockend.json` exists.
-2. Framework: choose one when detection fails. The CLI does not ask when it detects a framework.
-3. Blocks directory: defaults to `src/blocks` when `src/` exists, otherwise `blocks`.
+2. Blocks directory: defaults to `src/blocks` when `src/` exists, otherwise `blocks`.
+3. Framework: choose one when detection fails. The CLI does not ask when it detects a framework.
 4. Redis: enable Redis-backed variants when Redis is detected.
 
-The import alias is derived from your TypeScript path mappings without a prompt. If none match, the CLI omits `aliases.blocks`.
+The import alias is derived from your `tsconfig.json` or `jsconfig.json` path mappings without a prompt. If none match, the CLI omits `aliases.blocks`.
 
 `init` does not install a block. It only writes the config file.
 

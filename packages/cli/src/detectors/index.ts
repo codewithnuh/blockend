@@ -1,18 +1,30 @@
-import { join } from "path";
+import path, { join } from "path";
 import type { ProjectContext } from "../types/index.js";
 import { readPackageJson } from "./readers/package.js";
-import { readTsConfig } from "./readers/tsconfig.js";
+import { readCompilerConfig } from "./readers/tsconfig.js";
 import { inferSrcDir } from "./readers/filesystem.js";
 import { detectFramework } from "./framework.js";
 import { detectRuntime } from "./runtime.js";
 import { detectPackageManager } from "./package-manager.js";
+import { deriveBlocksAlias, flattenTsPaths } from "./alias.js";
+
+export interface DetectProjectOptions {
+  /**
+   * Absolute or root-relative directory where block files will be installed.
+   * Defaults to the conventional srcDir/lib/blocks location.
+   */
+  blocksDir?: string;
+}
 
 /**
  * Analyzes a project directory and returns a ProjectContext.
  * This is the single entry point for all detection logic.
  */
-export async function detectProject(cwd: string): Promise<ProjectContext> {
-  const [pkg, tsConfig] = await Promise.all([readPackageJson(cwd), readTsConfig(cwd)]);
+export async function detectProject(
+  cwd: string,
+  options: DetectProjectOptions = {}
+): Promise<ProjectContext> {
+  const [pkg, compilerConfig] = await Promise.all([readPackageJson(cwd), readCompilerConfig(cwd)]);
   const allDeps: Record<string, string> = {
     ...pkg.dependencies,
     ...pkg.devDependencies,
@@ -20,8 +32,9 @@ export async function detectProject(cwd: string): Promise<ProjectContext> {
   };
 
   const srcDir = await inferSrcDir(cwd);
-  const moduleOpt = tsConfig?.compilerOptions?.module?.toLocaleLowerCase();
-  const resolutionOpt = tsConfig?.compilerOptions?.moduleResolution?.toLocaleLowerCase();
+  const compilerOptions = compilerConfig?.config.compilerOptions;
+  const moduleOpt = compilerOptions?.module?.toLocaleLowerCase();
+  const resolutionOpt = compilerOptions?.moduleResolution?.toLocaleLowerCase();
   let importRewriteStrategy: "rewrite" | "remove" = "remove";
   if (
     moduleOpt === "nodenext" ||
@@ -33,35 +46,25 @@ export async function detectProject(cwd: string): Promise<ProjectContext> {
     importRewriteStrategy = "rewrite";
   }
 
+  const blocksDir = options.blocksDir
+    ? path.resolve(cwd, options.blocksDir)
+    : join(srcDir, "lib", "blocks");
+  const relativeBlocksDir = path.relative(cwd, blocksDir).replace(/\\/g, "/");
+  const tsPaths = compilerOptions?.paths;
+
   return {
     root: cwd,
-    language: tsConfig !== null ? "typescript" : "javascript",
+    language: compilerConfig?.kind === "tsconfig" ? "typescript" : "javascript",
     runtime: detectRuntime(allDeps),
     framework: detectFramework(allDeps),
     packageManager: detectPackageManager(cwd),
     hasRedis: "ioredis" in allDeps || "redis" in allDeps,
     hasPrisma: "@prisma/client" in allDeps,
     hasDrizzle: "drizzle-orm" in allDeps,
-    aliasMap: tsConfig?.compilerOptions?.paths
-      ? flattenTsPaths(tsConfig.compilerOptions.paths)
-      : {},
+    aliasMap: tsPaths ? flattenTsPaths(tsPaths) : {},
     srcDir,
-    // Default blocks directory: srcDir/lib/blocks
-    blocksDir: join(srcDir, "lib", "blocks"),
+    blocksDir,
+    blocksAlias: tsPaths ? deriveBlocksAlias(tsPaths, relativeBlocksDir) : undefined,
     importRewriteStrategy
   };
-}
-
-/**
- * Converts TypeScript compilerOptions.paths to a flat alias map.
- * Example: { "@/*": ["./src/*"] } -> { "@/": "./src/" }
- */
-function flattenTsPaths(paths: Record<string, string[]>): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [alias, targets] of Object.entries(paths)) {
-    if (targets[0]) {
-      result[alias.replace("/*", "/")] = targets[0].replace("/*", "/");
-    }
-  }
-  return result;
 }
