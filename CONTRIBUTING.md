@@ -66,16 +66,21 @@ pnpm test
 .
 ├── apps/
 │   └── web/                 # Next.js catalog and documentation
-├── blocks/                  # Block source templates and tests
+├── blocks/                  # Block source templates, tests, and declarations
+│   └── <slug>/
+│       ├── block.json       # Block metadata and file topology
+│       └── ...              # Template source files
 ├── packages/
 │   ├── cli/                 # blockend CLI and MCP server
 │   └── registry/            # Canonical schema, loaders, and validation
 ├── registry/
-│   ├── index.json           # Published block registry data
+│   ├── config.json          # Registry-level metadata
+│   ├── index.json           # Generated block registry data
 │   ├── recipes.json         # Published recipe data
+│   ├── block-schema.json    # Generated JSON Schema for block declarations
 │   ├── registry-schema.json # Generated JSON Schema for editor support
 │   └── recipe-schema.json   # Generated JSON Schema for editor support
-├── scripts/                 # Validation and schema generation entry points
+├── scripts/                 # Validation, index, and schema generation entry points
 └── .github/
 ```
 
@@ -83,7 +88,7 @@ pnpm test
 
 # Adding a New Block
 
-Every new block consists of template files and a registry entry.
+Every new block consists of template files and a block declaration.
 
 ## 1. Create Template Files
 
@@ -103,20 +108,21 @@ blocks/
         └── fastify.ts
 ```
 
-The registry stores each source path and its destination path; the CLI copies the files into user projects.
+Each block declaration stores every source path and its destination path next to the block source; the CLI copies the files into user projects.
 
 ---
 
-## 2. Register the Block
+## 2. Declare the Block
 
-Add an entry to `registry/index.json`.
+Create `blocks/<slug>/block.json` next to the template files. The directory name is the registry key.
 
-Every entry **must** conform to `registry-schema.json`. The schema is generated from `packages/registry/src/schema.ts`; do not hand-edit it.
+Every declaration **must** conform to `registry/block-schema.json`, which is generated from `packages/registry/src/schema.ts`; do not hand-edit the schema.
 
 Example:
 
 ```json
 {
+  "$schema": "../../registry/block-schema.json",
   "name": "Rate Limiter",
   "description": "IP-based rate limiting middleware",
   "version": "1.0.0",
@@ -143,10 +149,20 @@ Example:
 }
 ```
 
+`registry/index.json` is generated from every `blocks/*/block.json` declaration. Do not hand-edit it. Regenerate it after changing a block declaration:
+
+```bash
+pnpm generate:registry-index
+pnpm validate:registry
+```
+
+CI also runs `pnpm check:registry-index` and fails when the checked-in index is stale. The registry-wide format version lives in `registry/config.json`.
+
 To change the registry shape, update the Zod schema in `packages/registry/src/schema.ts`, then run:
 
 ```bash
 pnpm generate:registry-schemas
+pnpm generate:registry-index
 pnpm validate:registry
 ```
 
@@ -192,7 +208,7 @@ Rules enforced by validation:
 
 ## Registry Architecture
 
-Blockend currently supports **two registry layouts** for compatibility, but **all new contributions must use the modern adapter-based architecture.**
+Blockend currently supports **two block topology layouts** for compatibility, but **all new contributions must use the modern adapter-based architecture.**
 
 ### ✅ Preferred (Modern)
 
@@ -242,7 +258,7 @@ blocks/
         └── store-redis.ts.txt
 ```
 
-or registry entries using:
+or block declarations using:
 
 ```json
 {
@@ -266,7 +282,7 @@ When contributing a new block:
 - Use `adapters` instead of `environments`.
 - Keep adapters lightweight and free of business logic.
 - Do not introduce new blocks using the legacy `rate-limiter/express/...` directory structure.
-- Run `pnpm validate:registry` after editing `registry/index.json`.
+- Run `pnpm generate:registry-index` and `pnpm validate:registry` after editing a block declaration.
 
 # Testing
 
@@ -309,7 +325,7 @@ Before submitting a pull request, ensure that:
 - All tests pass.
 - New functionality includes tests where appropriate.
 - Documentation has been updated if necessary.
-- Registry changes pass `pnpm validate:registry` and generated schemas are current.
+- Block declarations are current, `registry/index.json` is regenerated, and generated schemas pass validation.
 
 Please complete the pull request template when opening a PR.
 

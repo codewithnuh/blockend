@@ -1,11 +1,18 @@
 #!/usr/bin/env sh
-# Pre-commit hook: keep generated registry schemas in sync, then run lint-staged.
+# Pre-commit hook: keep generated registry artifacts in sync, then run lint-staged.
 
 # Regenerate JSON Schemas when their Zod source or generator changes.
 if git diff --cached --name-only | grep -Eq "^(packages/registry/src/schema.ts|scripts/generate-registry-schemas.ts)$"; then
   echo "registry schema changed - regenerating JSON schemas"
   pnpm generate:registry-schemas
-  git add registry/registry-schema.json registry/recipe-schema.json
+  git add registry/registry-schema.json registry/block-schema.json registry/recipe-schema.json
+fi
+
+# Regenerate the registry index when its inputs or generated output change.
+if git diff --cached --name-only | grep -Eq "^(blocks/|packages/registry/src/schema\.ts|registry/config\.json|registry/index\.json|scripts/generate-registry-index\.ts)"; then
+  echo "registry inputs changed - regenerating registry/index.json"
+  pnpm generate:registry-index
+  git add registry/index.json
 fi
 
 pnpm exec lint-staged

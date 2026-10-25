@@ -1,0 +1,77 @@
+{
+  "$schema": "../../registry/block-schema.json",
+  "name": "Structured Context Logger",
+  "description": "Framework-agnostic context logging engine.",
+  "version": "1.0.1",
+  "releasedAt": "2026-07-01",
+  "runtimes": {
+    "node": ">=20"
+  },
+  "related": ["error-handler", "health-check", "graceful-shutdown", "idempotency"],
+  "dependencies": ["pino@^10.3.1"],
+  "devDependencies": ["vitest@^4.1.11"],
+  "baseFiles": [
+    {
+      "source": "blocks/logger/core.ts",
+      "target": "core.ts"
+    },
+    {
+      "source": "blocks/logger/core.test.ts",
+      "target": "core.test.ts"
+    }
+  ],
+  "adapters": {
+    "express": {
+      "dependencies": ["express@^5.3.0"],
+      "devDependencies": ["@types/express@^5.0.6", "supertest@^7.2.2", "@types/supertest@^7.2.1"],
+      "variants": {
+        "default": {
+          "files": [
+            {
+              "source": "blocks/logger/adapters/express.ts",
+              "target": "adapters/express.ts"
+            },
+            {
+              "source": "blocks/logger/adapters/express.test.ts",
+              "target": "adapters/express.test.ts"
+            }
+          ]
+        }
+      }
+    },
+    "fastify": {
+      "dependencies": ["fastify@^5.12.7", "fastify-plugin@^6.0.0"],
+      "variants": {
+        "default": {
+          "files": [
+            {
+              "source": "blocks/logger/adapters/fastify.ts",
+              "target": "adapters/fastify.ts"
+            },
+            {
+              "source": "blocks/logger/adapters/fastify.test.ts",
+              "target": "adapters/fastify.test.ts"
+            }
+          ]
+        }
+      }
+    },
+    "hono": {
+      "dependencies": ["hono@^4.13.5"],
+      "variants": {
+        "default": {
+          "files": [
+            {
+              "source": "blocks/logger/adapters/hono.ts",
+              "target": "adapters/hono.ts"
+            },
+            {
+              "source": "blocks/logger/adapters/hono.test.ts",
+              "target": "adapters/hono.test.ts"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
