@@ -1,32 +1,34 @@
 import path, { dirname } from "path";
 
 /**
- * Given a relative import path and the file it's imported from,
- * checks if the path resolves to a directory containing an index.ts file.
- * Returns the resolved target path (e.g., "./types" → "./types/index").
+ * Given a relative import path and the directory of the file containing it,
+ * checks whether a downloaded index file lives in the resolved directory.
+ * Downloaded target paths are relative to the block folder, not the importing
+ * file's directory.
  */
 function resolveIndexImport(
   importPath: string,
   sourceFileDir: string,
-  downloadedFiles: Set<string>
-): string | null {
+  downloadedFiles: Set<string>,
+  blockRoot: string
+): boolean {
   const resolved = path.resolve(sourceFileDir, importPath);
   // Check if any downloaded file is an index file inside this directory
   for (const downloaded of downloadedFiles) {
-    const downloadedAbs = path.resolve(sourceFileDir, downloaded);
+    const downloadedAbs = path.resolve(blockRoot, downloaded);
     const dirOfDownloaded = dirname(downloadedAbs);
     const basenameOfDownloaded = path.basename(downloadedAbs);
     if (dirOfDownloaded === resolved && basenameOfDownloaded.startsWith("index.")) {
-      // Found an index file — return the path with /index suffix
-      return `${importPath}/index`;
+      return true;
     }
   }
-  return null;
+  return false;
 }
 
 /**
  * Rewrites imports inside a downloaded file to use path aliases and appends/removes
  * extensions according to the project's config strategy.
+ * `blockRoot` is the block folder that downloaded target paths are relative to.
  */
 export function rewriteFileImports(
   fileContent: string,
@@ -34,7 +36,8 @@ export function rewriteFileImports(
   blocksRoot: string,
   aliasBase: string | undefined,
   strategy: "rewrite" | "remove",
-  downloadedFiles: Set<string> = new Set()
+  downloadedFiles: Set<string> = new Set<string>(),
+  blockRoot: string = dirname(writtenFilePath)
 ): string {
   // Only match RELATIVE imports (starting with ./ or ../)
   // Never touch bare external packages like "vitest", "express", "pino"
@@ -63,9 +66,8 @@ export function rewriteFileImports(
       // Smart index resolution: check if this path points to a directory with index.ts
       // e.g., "./types" → "./types/index" when types/index.ts exists
       if (downloadedFiles.size > 0) {
-        const indexResolved = resolveIndexImport(targetPath, fileDir, downloadedFiles);
-        if (indexResolved) {
-          targetPath = indexResolved;
+        if (resolveIndexImport(importPath, fileDir, downloadedFiles, blockRoot)) {
+          targetPath = `${targetPath}/index`;
         }
       }
 

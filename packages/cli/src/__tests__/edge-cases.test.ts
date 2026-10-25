@@ -151,7 +151,7 @@ describe("rewriteFileImports - External Package Preservation", () => {
   });
 
   it("should resolve directory/index.ts imports for NodeNext", () => {
-    const input = `import { HealthStatus } from "./types";`;
+    const input = `import { HealthStatus } from "../types";`;
     const downloadedFiles = new Set(["types/index.ts", "core.ts"]);
     const result = rewriteFileImports(
       input,
@@ -159,9 +159,10 @@ describe("rewriteFileImports - External Package Preservation", () => {
       blocksRoot,
       undefined,
       "rewrite",
-      downloadedFiles
+      downloadedFiles,
+      "/project/src/blocks/rate-limit"
     );
-    expect(result).toBe(`import { HealthStatus } from "./types/index.js";`);
+    expect(result).toBe(`import { HealthStatus } from "../types/index.js";`);
   });
 
   it("should handle mixed relative and external imports in one file", () => {

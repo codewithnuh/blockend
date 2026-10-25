@@ -42,7 +42,8 @@ export async function applyBlock(
       options.blocksRoot,
       options.aliasBase,
       options.rewriteStrategy,
-      downloadedTargets
+      downloadedTargets,
+      targetFolder
     );
 
     await fs.mkdir(dirname(writtenFilePath), { recursive: true });
