@@ -2,7 +2,11 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import * as prettier from "prettier";
-import { RecipeCollectionSchema, RegistrySchema } from "../packages/registry/src/index.js";
+import {
+  BlockDeclarationSchema,
+  RecipeCollectionSchema,
+  RegistrySchema
+} from "../packages/registry/src/index.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 
@@ -26,6 +30,14 @@ const schemas: Array<{ schema: JsonSchemaCapable; metadata: SchemaMetadata }> = 
     }
   },
   {
+    schema: BlockDeclarationSchema,
+    metadata: {
+      file: "registry/block-schema.json",
+      title: "BlockendBlockDeclaration",
+      id: "https://blockend.noorulhassan.com/block-schema.json"
+    }
+  },
+  {
     schema: RecipeCollectionSchema,
     metadata: {
       file: "registry/recipe-schema.json",
@@ -35,6 +47,7 @@ const schemas: Array<{ schema: JsonSchemaCapable; metadata: SchemaMetadata }> = 
   }
 ];
 
+/** Adds shared metadata to a Zod-generated JSON Schema. */
 function buildJsonSchema(
   schema: JsonSchemaCapable,
   metadata: SchemaMetadata
@@ -49,6 +62,7 @@ function buildJsonSchema(
   };
 }
 
+/** Writes the generated JSON Schema files. */
 async function main(): Promise<void> {
   for (const { schema, metadata } of schemas) {
     const json = buildJsonSchema(schema, metadata);

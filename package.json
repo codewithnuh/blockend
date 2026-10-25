@@ -17,7 +17,9 @@
     "validate:registry": "tsx scripts/validate-registry.ts",
     "validate:recipes": "tsx scripts/validate-recipes.ts",
     "generate:registry-schemas": "tsx scripts/generate-registry-schemas.ts",
-    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm typecheck:blocks && pnpm validate:registry && pnpm validate:recipes && pnpm test",
+    "generate:registry-index": "tsx scripts/generate-registry-index.ts",
+    "check:registry-index": "tsx scripts/generate-registry-index.ts --check",
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm typecheck:blocks && pnpm check:registry-index && pnpm validate:registry && pnpm validate:recipes && pnpm test",
     "prepare": "husky"
   },
   "keywords": [

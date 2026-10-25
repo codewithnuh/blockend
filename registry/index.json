@@ -263,22 +263,13 @@
       "baseFiles": [
         { "source": "blocks/error-handler/index.ts", "target": "index.ts" },
         { "source": "blocks/error-handler/types/index.ts", "target": "types/index.ts" },
-        {
-          "source": "blocks/error-handler/core/app-error.ts",
-          "target": "core/app-error.ts"
-        },
+        { "source": "blocks/error-handler/core/app-error.ts", "target": "core/app-error.ts" },
         {
           "source": "blocks/error-handler/core/app-error.test.ts",
           "target": "core/app-error.test.ts"
         },
-        {
-          "source": "blocks/error-handler/core/classify.ts",
-          "target": "core/classify.ts"
-        },
-        {
-          "source": "blocks/error-handler/core/context.ts",
-          "target": "core/context.ts"
-        },
+        { "source": "blocks/error-handler/core/classify.ts", "target": "core/classify.ts" },
+        { "source": "blocks/error-handler/core/context.ts", "target": "core/context.ts" },
         {
           "source": "blocks/error-handler/core/create-error-boundary.ts",
           "target": "core/create-error-boundary.ts"
@@ -287,22 +278,10 @@
           "source": "blocks/error-handler/core/create-error-boundary.test.ts",
           "target": "core/create-error-boundary.test.ts"
         },
-        {
-          "source": "blocks/error-handler/core/defaults.ts",
-          "target": "core/defaults.ts"
-        },
-        {
-          "source": "blocks/error-handler/core/normalize.ts",
-          "target": "core/normalize.ts"
-        },
-        {
-          "source": "blocks/error-handler/core/sanitize.ts",
-          "target": "core/sanitize.ts"
-        },
-        {
-          "source": "blocks/error-handler/core/serialize.ts",
-          "target": "core/serialize.ts"
-        }
+        { "source": "blocks/error-handler/core/defaults.ts", "target": "core/defaults.ts" },
+        { "source": "blocks/error-handler/core/normalize.ts", "target": "core/normalize.ts" },
+        { "source": "blocks/error-handler/core/sanitize.ts", "target": "core/sanitize.ts" },
+        { "source": "blocks/error-handler/core/serialize.ts", "target": "core/serialize.ts" }
       ],
       "adapters": {
         "express": {
@@ -390,10 +369,7 @@
           "variants": {
             "default": {
               "files": [
-                {
-                  "source": "blocks/error-handler/adapters/hono.ts",
-                  "target": "adapters/hono.ts"
-                },
+                { "source": "blocks/error-handler/adapters/hono.ts", "target": "adapters/hono.ts" },
                 {
                   "source": "blocks/error-handler/adapters/hono.test.ts",
                   "target": "adapters/hono.test.ts"
@@ -620,10 +596,10 @@
       "name": "Environment Configuration",
       "description": "Type-safe environment variable validation using Zod.",
       "version": "1.0.0",
+      "frameworks": ["*"],
       "releasedAt": "2026-07-14",
       "runtimes": { "node": ">=20" },
       "related": ["logger", "password-hash"],
-      "frameworks": ["*"],
       "dependencies": ["zod@^4.4.3"],
       "devDependencies": ["vitest@^4.1.11"],
       "adapters": {
@@ -995,10 +971,10 @@
       "name": "Password Hashing",
       "description": "Argon2id password hashing with HMAC-SHA256 peppering, automatic salting, and rehash detection.",
       "version": "1.0.0",
+      "frameworks": ["*"],
       "releasedAt": "2026-08-27",
       "runtimes": { "node": ">=20" },
       "related": ["env-config", "request-validator"],
-      "frameworks": ["*"],
       "dependencies": ["@node-rs/argon2@^2.1.0"],
       "devDependencies": ["vitest@^4.1.11", "@types/node@^26.2.0"],
       "adapters": {
@@ -1023,10 +999,10 @@
       "name": "Token Service",
       "description": "JWT access tokens and rotating opaque refresh tokens with pinned keys and shared stores.",
       "version": "1.0.1",
+      "frameworks": ["*"],
       "releasedAt": "2026-09-27",
       "runtimes": { "node": ">=20" },
       "related": ["password-hash", "rate-limiter", "env-config"],
-      "frameworks": ["*"],
       "dependencies": ["jose@^6.1.0", "zod@^4.4.3"],
       "devDependencies": [
         "vitest@^4.1.11",

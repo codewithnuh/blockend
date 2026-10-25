@@ -1,0 +1,32 @@
+{
+  "$schema": "../../registry/block-schema.json",
+  "name": "Environment Configuration",
+  "description": "Type-safe environment variable validation using Zod.",
+  "version": "1.0.0",
+  "releasedAt": "2026-07-14",
+  "runtimes": {
+    "node": ">=20"
+  },
+  "related": ["logger", "password-hash"],
+  "frameworks": ["*"],
+  "dependencies": ["zod@^4.4.3"],
+  "devDependencies": ["vitest@^4.1.11"],
+  "adapters": {
+    "*": {
+      "variants": {
+        "default": {
+          "files": [
+            {
+              "source": "blocks/env-config/index.ts",
+              "target": "index.ts"
+            },
+            {
+              "source": "blocks/env-config/index.test.ts",
+              "target": "index.test.ts"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -3,10 +3,10 @@ import { z } from "zod";
 /**
  * Registry schema and inferred types.
  *
- * This file is the single source of truth for the shape of `registry/index.json`,
- * `registry/recipes.json`, and every TypeScript consumer of that data. The
- * checked-in JSON Schema files are generated from these schemas by
- * `pnpm generate:registry-schemas`.
+ * This file is the single source of truth for the shape of
+ * `blocks/<slug>/block.json`, `registry/index.json`, `registry/recipes.json`,
+ * and every TypeScript consumer of that data. The checked-in JSON Schema files
+ * are generated from these schemas by `pnpm generate:registry-schemas`.
  */
 
 export const FRAMEWORK_KEYS = ["express", "fastify", "hono", "next", "*"] as const;
@@ -155,6 +155,15 @@ export const BlockSchema = z
     "block must define at least one of: baseFiles, adapters, or environments"
   );
 
+/**
+ * A block declaration lives next to the block source as `blocks/<slug>/block.json`.
+ * It carries the same block shape plus an optional `$schema` reference for editors.
+ * `safeExtend` preserves BlockSchema's object-level topology check.
+ */
+export const BlockDeclarationSchema = BlockSchema.safeExtend({
+  $schema: z.string().optional().describe("JSON Schema reference for editor support.")
+});
+
 export const RegistrySchema = z
   .object({
     $schema: z.string().optional(),
@@ -170,6 +179,7 @@ export const RegistrySchema = z
 
 export type Registry = z.infer<typeof RegistrySchema>;
 export type RegistryBlock = z.infer<typeof BlockSchema>;
+export type BlockDeclaration = z.infer<typeof BlockDeclarationSchema>;
 export type AssetMapping = z.infer<typeof AssetMappingSchema>;
 export type AssetReference = z.infer<typeof AssetReferenceSchema>;
 export type VariantConfig = z.infer<typeof VariantSchema>;

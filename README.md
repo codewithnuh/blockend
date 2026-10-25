@@ -137,7 +137,8 @@ blockend/
 ├── packages/
 │   └── cli/                  CLI that copies blocks into projects
 ├── registry/
-│   └── index.json            Block metadata and file mappings
+│   ├── config.json           Registry format version
+│   └── index.json            Generated block metadata and file mappings
 ├── scripts/
 ├── turbo.json
 └── pnpm-workspace.yaml
@@ -145,12 +146,13 @@ blockend/
 
 Each block usually contains:
 
+- `block.json` with metadata and file topology
 - `core/` or a core file with framework-agnostic logic
 - `adapters/` for Express, Fastify, and Hono
 - `variants/` for storage implementations
 - tests next to the source
 
-`registry/index.json` maps source files to the paths the CLI writes. Some blocks also provide framework-specific tests and SQL.
+Each block's `block.json` maps its source files to the paths the CLI writes. The checked-in `registry/index.json` is generated from those declarations. Some blocks also provide framework-specific tests and SQL.
 
 ## Contributing
 

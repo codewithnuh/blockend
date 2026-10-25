@@ -1,0 +1,116 @@
+{
+  "$schema": "../../registry/block-schema.json",
+  "name": "System Health Check Monitoring",
+  "description": "Framework-agnostic health assessment suite.",
+  "version": "1.0.1",
+  "releasedAt": "2026-07-20",
+  "runtimes": {
+    "node": ">=20"
+  },
+  "related": ["graceful-shutdown", "logger"],
+  "devDependencies": ["vitest@^4.1.11"],
+  "baseFiles": [
+    {
+      "source": "blocks/health-check/core/build-report.ts",
+      "target": "core/build-report.ts"
+    },
+    {
+      "source": "blocks/health-check/core/build-report.test.ts",
+      "target": "core/build-report.test.ts"
+    },
+    {
+      "source": "blocks/health-check/core/calculate-status.ts",
+      "target": "core/calculate-status.ts"
+    },
+    {
+      "source": "blocks/health-check/core/calculate-status.test.ts",
+      "target": "core/calculate-status.test.ts"
+    },
+    {
+      "source": "blocks/health-check/core/create-health.ts",
+      "target": "core/create-health.ts"
+    },
+    {
+      "source": "blocks/health-check/core/create-health.test.ts",
+      "target": "core/create-health.test.ts"
+    },
+    {
+      "source": "blocks/health-check/core/run-check.ts",
+      "target": "core/run-check.ts"
+    },
+    {
+      "source": "blocks/health-check/core/run-check.test.ts",
+      "target": "core/run-check.test.ts"
+    },
+    {
+      "source": "blocks/health-check/core/run-checks.ts",
+      "target": "core/run-checks.ts"
+    },
+    {
+      "source": "blocks/health-check/core/run-checks.test.ts",
+      "target": "core/run-checks.test.ts"
+    },
+    {
+      "source": "blocks/health-check/core/validate-config.ts",
+      "target": "core/validate-config.ts"
+    },
+    {
+      "source": "blocks/health-check/types/index.ts",
+      "target": "types/index.ts"
+    }
+  ],
+  "adapters": {
+    "express": {
+      "dependencies": ["express@^5.3.0"],
+      "devDependencies": ["@types/express@^5.0.6"],
+      "variants": {
+        "default": {
+          "files": [
+            {
+              "source": "blocks/health-check/adapters/express.ts",
+              "target": "adapters/express.ts"
+            },
+            {
+              "source": "blocks/health-check/adapters/express.test.ts",
+              "target": "adapters/express.test.ts"
+            }
+          ]
+        }
+      }
+    },
+    "fastify": {
+      "dependencies": ["fastify@^5.12.7"],
+      "variants": {
+        "default": {
+          "files": [
+            {
+              "source": "blocks/health-check/adapters/fastify.ts",
+              "target": "adapters/fastify.ts"
+            },
+            {
+              "source": "blocks/health-check/adapters/fastify.test.ts",
+              "target": "adapters/fastify.test.ts"
+            }
+          ]
+        }
+      }
+    },
+    "hono": {
+      "dependencies": ["hono@^4.13.5"],
+      "variants": {
+        "default": {
+          "files": [
+            {
+              "source": "blocks/health-check/adapters/hono.ts",
+              "target": "adapters/hono.ts"
+            },
+            {
+              "source": "blocks/health-check/adapters/hono.test.ts",
+              "target": "adapters/hono.test.ts"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
