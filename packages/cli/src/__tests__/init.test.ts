@@ -80,6 +80,24 @@ describe("initCommand - Path Layout & Alias Edge Cases", () => {
   // EDGE CASE: Path & Alias Edge Cases
   // ==========================================
 
+  it("should emit a JSON result when the blocks directory prompt is cancelled", async () => {
+    vi.mocked(existsSync).mockReturnValue(false);
+    vi.mocked(prompts.text).mockResolvedValueOnce("src/blocks");
+    vi.mocked(prompts.isCancel).mockReturnValueOnce(true);
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    try {
+      await initCommand({ json: true });
+
+      expect(writeSpy).toHaveBeenCalledWith(
+        JSON.stringify({ success: false, message: "Setup cancelled." }) + "\n"
+      );
+      expect(mockDetectProject).not.toHaveBeenCalled();
+    } finally {
+      writeSpy.mockRestore();
+    }
+  });
+
   it("should write the detected blocks alias and relative path", async () => {
     vi.mocked(existsSync).mockImplementation((p) => p === join(cwd, "src"));
 

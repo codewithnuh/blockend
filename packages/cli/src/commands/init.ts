@@ -103,7 +103,11 @@ export async function initCommand(
     });
 
     if (isCancel(directoryPrompt)) {
-      outro(format.muted("Setup cancelled."));
+      if (json) {
+        outputInitResult(json, { success: false, message: "Setup cancelled." });
+      } else {
+        outro(format.muted("Setup cancelled."));
+      }
       return;
     }
     rawPhysicalInput = String(directoryPrompt).trim();
