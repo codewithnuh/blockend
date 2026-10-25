@@ -216,6 +216,22 @@ describe("registry validation", () => {
       expect(result.stderr).toContain("must have at least one variant");
     });
 
+    it("fails when an adapter uses an unsupported framework key", async () => {
+      const reg = makeValidRegistry();
+      reg.blocks!["test-block"].adapters = {
+        svelte: {
+          variants: {
+            default: { files: [{ source: "blocks/env-config/index.ts", target: "index.ts" }] }
+          }
+        }
+      };
+      delete reg.blocks!["test-block"].baseFiles;
+      const result = await runValidator(reg);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("adapters");
+      expect(result.stderr).toContain('Unrecognized key: "svelte"');
+    });
+
     it("fails when a variant has no files", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].adapters = {

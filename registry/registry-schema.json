@@ -121,7 +121,10 @@
           },
           "adapters": {
             "type": "object",
-            "propertyNames": { "type": "string" },
+            "propertyNames": {
+              "type": "string",
+              "enum": ["express", "fastify", "hono", "next", "*"]
+            },
             "additionalProperties": {
               "type": "object",
               "properties": {
@@ -195,7 +198,10 @@
           },
           "environments": {
             "type": "object",
-            "propertyNames": { "type": "string" },
+            "propertyNames": {
+              "type": "string",
+              "enum": ["express", "fastify", "hono", "next", "*"]
+            },
             "additionalProperties": {
               "type": "object",
               "properties": {

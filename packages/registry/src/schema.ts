@@ -141,23 +141,11 @@ export const BlockSchema = z
       .describe("Files copied for every install of this block.")
       .optional(),
     adapters: z
-      .record(z.string(), FrameworkMappingSchema)
-      .refine(
-        (adapters) =>
-          Object.keys(adapters).every((key) => (FRAMEWORK_KEYS as readonly string[]).includes(key)),
-        `adapter keys must be one of: ${FRAMEWORK_KEYS.join(", ")}`
-      )
+      .partialRecord(FrameworkKeySchema, FrameworkMappingSchema)
       .describe("Framework adapter mappings.")
       .optional(),
     environments: z
-      .record(z.string(), FrameworkMappingSchema)
-      .refine(
-        (environments) =>
-          Object.keys(environments).every((key) =>
-            (FRAMEWORK_KEYS as readonly string[]).includes(key)
-          ),
-        `environment keys must be one of: ${FRAMEWORK_KEYS.join(", ")}`
-      )
+      .partialRecord(FrameworkKeySchema, FrameworkMappingSchema)
       .describe("Legacy framework mappings.")
       .optional()
   })
