@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { TERMINAL_SCRIPT } from "@/lib/data";
-import type { TerminalLine } from "@/lib/types";
+import { TERMINAL_SCRIPT, type TerminalLine } from "@/lib/landing-copy";
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

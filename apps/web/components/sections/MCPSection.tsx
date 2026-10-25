@@ -1,4 +1,4 @@
-import { MCP_SECTION } from "@/lib/landing-constants";
+import { MCP_SECTION } from "@/lib/landing-copy";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Cpu, Search, Code2, SlidersHorizontal } from "lucide-react";

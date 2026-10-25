@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FOOTER_LINKS } from "@/lib/data";
+import { FOOTER_LINKS } from "@/lib/landing-copy";
 
 export function Footer() {
   return (

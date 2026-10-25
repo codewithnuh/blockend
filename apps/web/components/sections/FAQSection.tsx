@@ -1,6 +1,6 @@
 "use client";
 
-import { FAQ_SECTION } from "@/lib/landing-constants";
+import { FAQ_SECTION } from "@/lib/landing-copy";
 import { Badge } from "@/components/ui/badge";
 import {
   Accordion,

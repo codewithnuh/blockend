@@ -1,4 +1,4 @@
-import { PROBLEM_SECTION } from "@/lib/landing-constants";
+import { PROBLEM_SECTION } from "@/lib/landing-copy";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { RotateCcw, PackageOpen, Bug, GitMerge, AlertCircle } from "lucide-react";
 

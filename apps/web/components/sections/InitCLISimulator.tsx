@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import posthog from "posthog-js";
-import { FRAMEWORK_OPTIONS } from "@/lib/data";
+import { FRAMEWORK_OPTIONS } from "@/lib/landing-copy";
 
 type Phase = "idle" | "scanning" | "framework" | "alias" | "redis" | "writing" | "done";
 

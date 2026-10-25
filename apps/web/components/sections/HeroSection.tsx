@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { HERO, CODE_EXAMPLE } from "@/lib/landing-constants";
+import { HERO, CODE_EXAMPLE } from "@/lib/landing-copy";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "./Badge";

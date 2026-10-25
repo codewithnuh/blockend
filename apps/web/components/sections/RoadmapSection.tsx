@@ -1,4 +1,4 @@
-import { ROADMAP } from "@/lib/landing-constants";
+import { ROADMAP } from "@/lib/landing-copy";
 
 export function RoadmapSection() {
   return (

@@ -1,4 +1,82 @@
-export const NAV_LINKS = [
+// ─── Landing page copy ────────────────────────────────────────────────────────
+// Single source of truth for the marketing page. Sections read from here; do not
+// add a second landing-copy module.
+
+export interface TerminalLine {
+  type: "cmd" | "out" | "tree";
+  text: string;
+}
+
+interface NavLink {
+  url: string;
+  text: string;
+  active?: "nested-url";
+}
+
+interface StatItem {
+  value: string;
+  label: string;
+}
+
+interface ProblemItem {
+  icon: string;
+  title: string;
+  description: string;
+  color: string;
+}
+
+interface WorkflowStep {
+  step: string;
+  title: string;
+  description: string;
+  command: string;
+}
+
+interface FeatureItem {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+interface Framework {
+  name: string;
+  icon: string;
+  color: string;
+}
+
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface RoadmapItem {
+  period: string;
+  title: string;
+  description: string;
+  color: string;
+}
+
+interface RateLimiterFeature {
+  text: string;
+}
+
+interface PhilosophyCard {
+  title: string;
+  body: string;
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+interface FooterLink {
+  href: string;
+  label: string;
+}
+
+// ─── Nav ──────────────────────────────────────────────────────────────────────
+export const NAV_LINKS: NavLink[] = [
   { url: "/#how-it-works", text: "How it works" },
   { url: "/#catalog", text: "Catalog" },
   { url: "/#features", text: "Features" },
@@ -11,56 +89,7 @@ export const NAV_LINKS = [
   { url: "/docs", text: "Documentation", active: "nested-url" }
 ];
 
-export interface ProblemItem {
-  icon: string;
-  title: string;
-  description: string;
-  color: string;
-}
-
-export interface WorkflowStep {
-  step: string;
-  title: string;
-  description: string;
-  command: string;
-}
-
-export interface FeatureItem {
-  icon: string;
-  title: string;
-  description: string;
-}
-
-export interface Framework {
-  name: string;
-  icon: string;
-  color: string;
-}
-
-export interface FAQItem {
-  question: string;
-  answer: string;
-}
-
-export interface RoadmapItem {
-  period: string;
-  title: string;
-  description: string;
-  color: string;
-}
-
-export interface StatItem {
-  value: string;
-  label: string;
-}
-
-export const SITE = {
-  name: "Blockend",
-  tagline: "Source-First Backend Toolkit",
-  url: "https://blockend.noorulhassan.com",
-  github: "https://github.com/noorulhassan/blockend"
-} as const;
-
+// ─── Hero ─────────────────────────────────────────────────────────────────────
 export const HERO = {
   badge: "Source-First Backend Toolkit",
   headline: "Production backend code blocks, generated into your project.",
@@ -71,6 +100,54 @@ export const HERO = {
   command: "npx blockend-cli add rate-limiter"
 } as const;
 
+export const TERMINAL_SCRIPT: TerminalLine[] = [
+  { type: "cmd", text: "$ npx blockend-cli init" },
+  { type: "out", text: "✓ detected: express · typescript · pnpm" },
+  { type: "out", text: "✓ workspace ready\n" },
+  { type: "cmd", text: "$ npx blockend-cli add rate-limiter" },
+  { type: "out", text: "✓ generated:" },
+  {
+    type: "tree",
+    text: "  src/rate-limiter/\n  ├─ rateLimiter.ts\n  ├─ memory-store.ts\n  └─ types.ts\n"
+  },
+  { type: "out", text: "block added — zero new dependencies\n" }
+];
+
+export const CODE_EXAMPLE = `// GENERATED FILE: src/blocks/rate-limiter.ts
+// Owned by your repository. Zero black-box wrapper dependencies.
+
+import { Request, Response, NextFunction } from 'express';
+
+export interface RateLimitOptions {
+  windowMs: number;
+  maxRequests: number;
+}
+
+export function createRateLimiter(options: RateLimitOptions) {
+  const hits = new Map<string, { count: number; resetTime: number }>();
+
+  return (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || '127.0.0.1';
+    const now = Date.now();
+    const record = hits.get(ip) || { count: 0, resetTime: now + options.windowMs };
+
+    if (now > record.resetTime) {
+      record.count = 0;
+      record.resetTime = now + options.windowMs;
+    }
+
+    record.count++;
+    hits.set(ip, record);
+
+    if (record.count > options.maxRequests) {
+      return res.status(429).json({ error: 'Too Many Requests' });
+    }
+
+    next();
+  };
+}`;
+
+// ─── Social proof ─────────────────────────────────────────────────────────────
 export const SOCIAL_PROOF = {
   badge: "Designed for backend teams building modern TypeScript services.",
   subtext: "Compatible with Express, Fastify, Hono, and Next.js backend layers.",
@@ -80,6 +157,7 @@ export const SOCIAL_PROOF = {
   ] as StatItem[]
 } as const;
 
+// ─── Problem ──────────────────────────────────────────────────────────────────
 export const PROBLEM_SECTION = {
   badge: "The Problem",
   headline: "Stop relying on black-box middleware dependencies.",
@@ -115,6 +193,7 @@ export const PROBLEM_SECTION = {
   ] as ProblemItem[]
 } as const;
 
+// ─── How it works ─────────────────────────────────────────────────────────────
 export const HOW_IT_WORKS = {
   badge: "Workflow",
   headline: "Three commands to clean, native backend blocks.",
@@ -143,6 +222,7 @@ export const HOW_IT_WORKS = {
   ] as WorkflowStep[]
 } as const;
 
+// ─── Generated output ─────────────────────────────────────────────────────────
 export const GENERATED_OUTPUT = {
   badge: "Output Structure",
   headline: "Real TypeScript files in your workspace.",
@@ -161,6 +241,7 @@ export const GENERATED_OUTPUT = {
   ] as { name: string; size: string }[]
 } as const;
 
+// ─── Features ─────────────────────────────────────────────────────────────────
 export const FEATURES = {
   badge: "System Properties",
   headline: "Engineered for code ownership and maintainability.",
@@ -204,11 +285,25 @@ export const FEATURES = {
   ] as FeatureItem[]
 } as const;
 
+export const RATE_LIMITER_FEATURES: RateLimiterFeature[] = [
+  {
+    text: "Token bucket algorithm, tuned via windowMs and max"
+  },
+  {
+    text: "Storage adapters: in-memory store out of the box, Redis-compatible stores drop in"
+  },
+  {
+    text: "Plain Express middleware — no custom request lifecycle to learn"
+  }
+];
+
+// ─── Catalog ──────────────────────────────────────────────────────────────────
 export const BLOCKS_CATALOG = {
   badge: "Catalog",
   headline: "Production blocks ready for generation."
 } as const;
 
+// ─── Frameworks ───────────────────────────────────────────────────────────────
 export const FRAMEWORKS = {
   badge: "Ecosystem",
   headline: "Native support across HTTP frameworks.",
@@ -221,6 +316,13 @@ export const FRAMEWORKS = {
   ] as Framework[]
 } as const;
 
+export const FRAMEWORK_OPTIONS: SelectOption[] = [
+  { value: "express", label: "Express.js" },
+  { value: "fastify", label: "Fastify" },
+  { value: "hono", label: "Hono" }
+];
+
+// ─── MCP ──────────────────────────────────────────────────────────────────────
 export const MCP_SECTION = {
   badge: "Model Context Protocol",
   badgeIcon: "robot",
@@ -246,6 +348,7 @@ export const MCP_SECTION = {
   ]
 } as const;
 
+// ─── Roadmap ──────────────────────────────────────────────────────────────────
 export const ROADMAP = {
   badge: "Roadmap",
   headline: "Roadmap & Vision",
@@ -279,6 +382,23 @@ export const ROADMAP = {
     "Blockend generates source-first backend code directly into your repository, so you own, inspect, and extend every block."
 } as const;
 
+// ─── Philosophy ───────────────────────────────────────────────────────────────
+export const PHILOSOPHY_CARDS: PhilosophyCard[] = [
+  {
+    title: "Read it",
+    body: "No compiled output to trust blindly. The implementation is sitting right there in your editor."
+  },
+  {
+    title: "Debug it",
+    body: "Stack traces point into your own files, not three layers deep in node_modules."
+  },
+  {
+    title: "Outgrow it",
+    body: "Refactor or rip it out whenever your architecture changes. Nothing else in your stack depends on it."
+  }
+];
+
+// ─── FAQ ──────────────────────────────────────────────────────────────────────
 export const FAQ_SECTION = {
   badge: "FAQ",
   headline: "Frequently Asked Questions",
@@ -311,6 +431,7 @@ export const FAQ_SECTION = {
   ] as FAQItem[]
 } as const;
 
+// ─── Final CTA ────────────────────────────────────────────────────────────────
 export const FINAL_CTA = {
   headline: "Own your backend code.",
   description: "Generate your first block in seconds and experience pure source code ownership.",
@@ -319,46 +440,11 @@ export const FINAL_CTA = {
   command: "npx blockend-cli init"
 } as const;
 
-export const CODE_EXAMPLE = `// GENERATED FILE: src/blocks/rate-limiter.ts
-// Owned by your repository. Zero black-box wrapper dependencies.
-
-import { Request, Response, NextFunction } from 'express';
-
-export interface RateLimitOptions {
-  windowMs: number;
-  maxRequests: number;
-}
-
-export function createRateLimiter(options: RateLimitOptions) {
-  const hits = new Map<string, { count: number; resetTime: number }>();
-
-  return (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip || '127.0.0.1';
-    const now = Date.now();
-    const record = hits.get(ip) || { count: 0, resetTime: now + options.windowMs };
-
-    if (now > record.resetTime) {
-      record.count = 0;
-      record.resetTime = now + options.windowMs;
-    }
-
-    record.count++;
-    hits.set(ip, record);
-
-    if (record.count > options.maxRequests) {
-      return res.status(429).json({ error: 'Too Many Requests' });
-    }
-
-    next();
-  };
-}`;
-
-export const FILE_TREE_CODE = `my-backend-service/
-├── src/
-│   ├── blocks/
-│   │   ├── rate-limiter.ts
-│   │   ├── error-handler.ts
-│   │   ├── logger.ts
-│   │   └── request-validator.ts
-│   └── server.ts
-└── package.json`;
+// ─── Footer ───────────────────────────────────────────────────────────────────
+export const FOOTER_LINKS: FooterLink[] = [
+  { href: "https://github.com/codewithnuh/blockend", label: "GitHub" },
+  { href: "https://www.npmjs.com/package/blockend-cli", label: "npm" },
+  { href: "https://x.com/codewithnuh", label: "X" },
+  { href: "https://linkedin.com/in/codewithnuh", label: "LinkedIn" },
+  { href: "https://blockend.noorulhassan.com/llms.txt", label: "llms.txt" }
+];

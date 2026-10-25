@@ -1,4 +1,4 @@
-import { RATE_LIMITER_FEATURES } from "@/lib/data";
+import { RATE_LIMITER_FEATURES } from "@/lib/landing-copy";
 
 // Fixed: Swapped hardcoded hex values for your system variables to maintain perfect readability in both light & dark themes
 const CODE_SNIPPET = `<span className="text-muted-foreground">// generated into your project — yours to edit</span>
