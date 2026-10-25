@@ -1,43 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import path from "node:path";
-import { mkdir, rm, writeFile } from "node:fs/promises";
-
-const exec = promisify(execFile);
-const REPO_ROOT = path.resolve(import.meta.dirname, "..");
-const SCRIPT = path.join(REPO_ROOT, "scripts", "validate-recipes.mjs");
-const TMP_DIR = path.join(REPO_ROOT, ".tmp-test-recipes");
-
-interface MutableRecipe {
-  slug: string;
-  title: string;
-  outcome: string;
-  includedBlocks: string[];
-  optionalBlocks: string[];
-  integrationOrder: string[];
-  architecture: {
-    overview: string;
-    components: Array<{ name: string; description: string; block?: string }>;
-  };
-  assumptions: string[];
-  configuration: Array<{
-    name: string;
-    description: string;
-    required: boolean;
-    default?: string;
-  }>;
-  tradeoffs: Array<{ choice: string; tradeoff: string }>;
-  alternatives?: Array<{ title: string; description: string }>;
-  failureBehavior: Array<{ scenario: string; behavior: string }>;
-  commands: Array<{ label: string; command: string }>;
-  relatedContent: Array<{ title: string; href: string }>;
-}
-
-interface RecipeCollection {
-  version: string;
-  recipes: MutableRecipe[];
-}
+import {
+  validateRecipes,
+  type RecipeCollection,
+  type Registry
+} from "../packages/registry/src/index.js";
 
 interface RecipeRegistry {
   blocks: Record<string, { requires?: string[]; conflicts?: string[] }>;
@@ -47,34 +13,19 @@ async function runValidator(
   collection: RecipeCollection,
   registry: RecipeRegistry
 ): Promise<{ code: number; stdout: string; stderr: string }> {
-  await mkdir(TMP_DIR, { recursive: true });
-  const recipesPath = path.join(TMP_DIR, "recipes.json");
-  const registryPath = path.join(TMP_DIR, "registry.json");
-  await Promise.all([
-    writeFile(recipesPath, JSON.stringify(collection, null, 2), "utf-8"),
-    writeFile(registryPath, JSON.stringify(registry, null, 2), "utf-8")
-  ]);
-
-  try {
-    const result = await exec("node", [SCRIPT], {
-      env: {
-        ...process.env,
-        TEST_RECIPES_PATH: recipesPath,
-        TEST_REGISTRY_PATH: registryPath
-      },
-      timeout: 10_000
-    });
-    return { code: 0, stdout: result.stdout, stderr: result.stderr };
-  } catch (error: unknown) {
-    const execError = error as { code?: number; stdout?: string; stderr?: string };
+  const errors = validateRecipes(collection, registry as unknown as Registry);
+  if (errors.length === 0) {
     return {
-      code: execError.code ?? 1,
-      stdout: execError.stdout ?? "",
-      stderr: execError.stderr ?? ""
+      code: 0,
+      stdout: `${collection.recipes.length} recipe(s) verified`,
+      stderr: ""
     };
-  } finally {
-    await rm(TMP_DIR, { recursive: true, force: true });
   }
+  return {
+    code: 1,
+    stdout: "",
+    stderr: `Recipe validation failed\n${errors.map((error) => error.toString()).join("\n")}`
+  };
 }
 
 function makeValidCollection(): RecipeCollection {

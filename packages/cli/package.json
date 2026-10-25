@@ -20,8 +20,10 @@
     "provenance": true
   },
   "scripts": {
+    "prebuild": "node ../../scripts/ensure-registry-build.mjs",
     "build": "tsup src/index.ts --format esm --clean --out-dir dist && tsc --emitDeclarationOnly --declaration",
     "typecheck": "tsc --noEmit",
+    "pretest": "node ../../scripts/ensure-registry-build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "pnpm typecheck"
@@ -80,6 +82,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@blockend/registry": "workspace:*",
     "@types/node": "^25.9.3",
     "tsup": "^9.0.0",
     "vitest": "^4.1.11"

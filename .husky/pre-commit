@@ -1,12 +1,11 @@
 #!/usr/bin/env sh
-# Pre-commit hook: regenerate registry types when registry/index.json changes,
-# then run lint-staged.
+# Pre-commit hook: keep generated registry schemas in sync, then run lint-staged.
 
-# Check if registry/index.json is staged
-if git diff --cached --name-only | grep -q "^registry/index.json$"; then
-  echo "registry/index.json changed — regenerating registry/generated.d.ts"
-  node scripts/generate-registry-types.mjs
-  git add registry/generated.d.ts
+# Regenerate JSON Schemas when their Zod source or generator changes.
+if git diff --cached --name-only | grep -Eq "^(packages/registry/src/schema.ts|scripts/generate-registry-schemas.ts)$"; then
+  echo "registry schema changed - regenerating JSON schemas"
+  pnpm generate:registry-schemas
+  git add registry/registry-schema.json registry/recipe-schema.json
 fi
 
 pnpm exec lint-staged

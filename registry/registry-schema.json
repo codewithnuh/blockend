@@ -1,25 +1,31 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://blockend.noorulhassan.com/registry-schema.json",
   "title": "BlockendRegistryManifest",
+  "$comment": "Generated from packages/registry/src/schema.ts. Do not edit manually.",
   "type": "object",
-  "required": ["version", "blocks"],
   "properties": {
+    "$schema": { "type": "string" },
     "version": {
       "type": "string",
-      "description": "The semantic version of the registry schema layout."
+      "minLength": 1,
+      "description": "Semantic version of the registry schema layout."
     },
     "blocks": {
       "type": "object",
-      "description": "Dictionary lookup table of all available ingestible component blocks.",
+      "propertyNames": { "type": "string", "minLength": 1 },
       "additionalProperties": {
         "type": "object",
-        "required": ["name", "description"],
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable block name."
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "description": "Short description of the block."
           },
           "version": {
             "type": "string",
@@ -27,181 +33,253 @@
           },
           "frameworks": {
             "type": "array",
-            "description": "Explicit framework support list.",
             "items": {
               "type": "string",
               "enum": ["express", "fastify", "hono", "next", "*"]
             },
-            "uniqueItems": true
+            "uniqueItems": true,
+            "description": "Explicit framework support list. Named keys mean the block only supports that environment; \"*\" means framework-agnostic."
           },
           "releasedAt": {
             "type": "string",
-            "description": "ISO calendar date (YYYY-MM-DD) when this block was first released.",
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "ISO calendar date (YYYY-MM-DD) when this block was first released."
           },
           "runtimes": {
             "type": "object",
-            "description": "Supported runtime engine ranges (semver range strings), e.g. {\"node\": \">=20\"}.",
-            "propertyNames": {
-              "enum": ["node"]
-            },
-            "additionalProperties": {
-              "type": "string",
-              "minLength": 1
-            }
+            "propertyNames": { "type": "string", "enum": ["node"] },
+            "additionalProperties": { "type": "string", "minLength": 1 },
+            "required": ["node"],
+            "description": "Supported runtime engine ranges, e.g. {\"node\": \">=20\"}."
           },
           "requires": {
-            "type": "array",
             "description": "Registry slugs that must be installed alongside this block.",
+            "type": "array",
             "items": {
               "type": "string",
+              "minLength": 1,
               "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
             },
             "uniqueItems": true
           },
           "related": {
+            "description": "Registry slugs that pair well with this block.",
             "type": "array",
-            "description": "Registry slugs that pair well with this block (soft catalog links).",
             "items": {
               "type": "string",
+              "minLength": 1,
               "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
             },
             "uniqueItems": true
           },
           "conflicts": {
-            "type": "array",
             "description": "Registry slugs that must not be installed together with this block.",
+            "type": "array",
             "items": {
               "type": "string",
+              "minLength": 1,
               "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
             },
             "uniqueItems": true
           },
           "dependencies": {
             "type": "array",
-            "description": "Production dependencies. Each entry can be a bare name (\"vitest\") or include a version range (\"vitest@^4.0.0\").",
             "items": {
               "type": "string",
               "pattern": "^[a-z@][a-z0-9._/-]*(@[~^>=<]*[0-9]+(\\.[0-9]+)*)?$"
-            }
+            },
+            "description": "Production dependencies, optionally with version ranges."
           },
           "devDependencies": {
             "type": "array",
-            "description": "Dev dependencies. Each entry can be a bare name or include a version range.",
             "items": {
               "type": "string",
               "pattern": "^[a-z@][a-z0-9._/-]*(@[~^>=<]*[0-9]+(\\.[0-9]+)*)?$"
-            }
+            },
+            "description": "Development dependencies, optionally with version ranges."
           },
           "baseFiles": {
             "type": "array",
             "items": {
-              "$ref": "#/definitions/assetMapping"
-            }
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Repo-relative source path."
+                },
+                "target": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Block-folder-relative destination path."
+                }
+              },
+              "required": ["source", "target"],
+              "additionalProperties": false
+            },
+            "description": "Files copied for every install of this block."
           },
           "adapters": {
             "type": "object",
-            "description": "Framework adapter mappings.",
             "propertyNames": {
+              "type": "string",
               "enum": ["express", "fastify", "hono", "next", "*"]
             },
             "additionalProperties": {
-              "$ref": "#/definitions/frameworkMapping"
-            }
+              "type": "object",
+              "properties": {
+                "core": {
+                  "type": "string",
+                  "description": "Optional fallback template."
+                },
+                "dependencies": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Dependencies for this framework mapping."
+                },
+                "devDependencies": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Development dependencies for this framework mapping."
+                },
+                "variants": {
+                  "type": "object",
+                  "propertyNames": { "type": "string" },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "dependencies": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Variant-specific production dependencies."
+                      },
+                      "devDependencies": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Variant-specific development dependencies."
+                      },
+                      "files": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            { "type": "string", "minLength": 1 },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "description": "Repo-relative source path."
+                                },
+                                "target": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "description": "Block-folder-relative destination path."
+                                }
+                              },
+                              "required": ["source", "target"],
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        "description": "Files copied for this variant."
+                      }
+                    },
+                    "required": ["files"],
+                    "additionalProperties": false
+                  },
+                  "description": "Storage or implementation variants."
+                }
+              },
+              "required": ["variants"],
+              "additionalProperties": false
+            },
+            "description": "Framework adapter mappings."
           },
           "environments": {
             "type": "object",
-            "description": "Legacy framework mappings.",
             "propertyNames": {
+              "type": "string",
               "enum": ["express", "fastify", "hono", "next", "*"]
             },
             "additionalProperties": {
-              "$ref": "#/definitions/frameworkMapping"
-            }
+              "type": "object",
+              "properties": {
+                "core": {
+                  "type": "string",
+                  "description": "Optional fallback template."
+                },
+                "dependencies": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Dependencies for this framework mapping."
+                },
+                "devDependencies": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Development dependencies for this framework mapping."
+                },
+                "variants": {
+                  "type": "object",
+                  "propertyNames": { "type": "string" },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "dependencies": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Variant-specific production dependencies."
+                      },
+                      "devDependencies": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Variant-specific development dependencies."
+                      },
+                      "files": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            { "type": "string", "minLength": 1 },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "description": "Repo-relative source path."
+                                },
+                                "target": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "description": "Block-folder-relative destination path."
+                                }
+                              },
+                              "required": ["source", "target"],
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        "description": "Files copied for this variant."
+                      }
+                    },
+                    "required": ["files"],
+                    "additionalProperties": false
+                  },
+                  "description": "Storage or implementation variants."
+                }
+              },
+              "required": ["variants"],
+              "additionalProperties": false
+            },
+            "description": "Legacy framework mappings."
           }
         },
+        "required": ["name", "description"],
         "additionalProperties": false
-      }
+      },
+      "description": "Dictionary lookup table of all available ingestible component blocks."
     }
   },
-  "definitions": {
-    "assetMapping": {
-      "type": "object",
-      "required": ["source", "target"],
-      "properties": {
-        "source": {
-          "type": "string",
-          "description": "Remote template path."
-        },
-        "target": {
-          "type": "string",
-          "description": "Destination path."
-        }
-      },
-      "additionalProperties": false
-    },
-    "frameworkMapping": {
-      "type": "object",
-      "required": ["variants"],
-      "properties": {
-        "core": {
-          "type": "string",
-          "description": "Optional fallback template."
-        },
-        "dependencies": {
-          "type": "array",
-          "description": "Dependencies for this adapter. Supports version ranges (e.g. \"express@^4.18.0\").",
-          "items": {
-            "type": "string"
-          }
-        },
-        "devDependencies": {
-          "type": "array",
-          "description": "Dev dependencies for this adapter. Supports version ranges.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "variants": {
-          "type": "object",
-          "description": "Storage layout strategies.",
-          "additionalProperties": {
-            "type": "object",
-            "required": ["files"],
-            "properties": {
-              "dependencies": {
-                "type": "array",
-                "description": "Variant-specific dependencies. Supports version ranges.",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "devDependencies": {
-                "type": "array",
-                "description": "Variant-specific dev dependencies. Supports version ranges.",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "files": {
-                "type": "array",
-                "items": {
-                  "oneOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/assetMapping"
-                    }
-                  ]
-                }
-              }
-            },
-            "additionalProperties": false
-          }
-        }
-      },
-      "additionalProperties": false
-    }
-  }
+  "required": ["version", "blocks"],
+  "additionalProperties": false
 }

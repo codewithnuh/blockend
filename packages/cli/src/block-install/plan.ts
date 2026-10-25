@@ -21,25 +21,25 @@ function blockSupportsEnv(block: BlockManifest, environment: string): boolean {
       block.frameworks.includes("*") || block.frameworks.includes(environment as FrameworkName)
     );
   }
-  return (
-    block.adapters?.[environment] !== undefined || block.environments?.[environment] !== undefined
-  );
+  const framework = environment as FrameworkName;
+  return block.adapters?.[framework] !== undefined || block.environments?.[framework] !== undefined;
 }
 
 function resolveAdapterContext(
   block: BlockManifest,
   environment: string
 ): EnvironmentConfig | null {
+  const framework = environment as FrameworkName;
   return (
-    block.adapters?.[environment] ??
+    block.adapters?.[framework] ??
     block.adapters?.["*"] ??
-    block.environments?.[environment] ??
+    block.environments?.[framework] ??
     block.environments?.["*"] ??
     null
   );
 }
 
-function normalizeFiles(files: string[] | AssetMapping[] | undefined): AssetMapping[] {
+function normalizeFiles(files: Array<string | AssetMapping> | undefined): AssetMapping[] {
   if (!files) return [];
   return files.map((entry) =>
     typeof entry === "string" ? { source: entry, target: path.basename(entry) } : entry

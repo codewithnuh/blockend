@@ -1,3 +1,4 @@
+import { parseRegistry } from "@blockend/registry";
 import type { BlockManifest, RegistryManifest, RegistrySource } from "./types.js";
 
 const DEFAULT_REPO_OWNER = "codewithnuh";
@@ -30,7 +31,7 @@ export function createGitHubRegistrySource(
     async fetchRegistry() {
       const response = await fetch(`${baseUrl}/registry/index.json`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return (await response.json()) as RegistryManifest;
+      return parseRegistry(await response.json(), { allowLegacy: true });
     },
 
     async fetchFile(sourcePath) {
@@ -69,13 +70,6 @@ export async function loadRegistry(source: RegistrySource): Promise<RegistryMani
   return source.fetchRegistry();
 }
 
-/**
- * Registry entries are either wrapped in `{ blocks: ... }` or written directly
- * as a block map in older manifests.
- */
 export function getBlockMap(registry: RegistryManifest): Record<string, BlockManifest> {
-  if (registry.blocks && typeof registry.blocks === "object" && !Array.isArray(registry.blocks)) {
-    return registry.blocks;
-  }
-  return registry as Record<string, BlockManifest>;
+  return registry.blocks;
 }
