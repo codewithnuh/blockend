@@ -5,6 +5,19 @@ All notable changes to the `blockend-cli` package are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-10-25
+
+### Changed
+
+- Collapsed the block install, diff, and update flows onto one shared install pipeline.
+- Made `ProjectContext` the single detection interface used by `init`.
+- Moved registry schemas, validation, and catalog derivation into the shared `@blockend/registry` package.
+- Colocated block metadata and file topology with block sources and generated `registry/index.json` from those declarations.
+- Consolidated the web landing copy into a single module.
+- Hardened pre-commit registry generation against partially staged declarations.
+
+No user-facing CLI command behavior changes are expected from these refactors.
+
 ## [2.0.2] - 2026-09-10
 
 ### Added
@@ -160,7 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 2. Commit the version bump with a message like `chore(cli): bump version to x.y.z`.
 3. Push to `master`.
 4. On GitHub, go to **Releases** → **Draft new release**.
-5. Set the release tag (e.g., `v2.1.0`) and target the `master` branch.
+5. Set the release tag (e.g., `v2.1.1`) and target the `master` branch.
 6. Fill in release notes summarizing the changes.
 7. Click **Publish release**.
 
