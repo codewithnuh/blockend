@@ -24,11 +24,11 @@ pnpm dlx blockend-cli init [options]
 | `--yes`  | `-y`  | `false` | Accept detected defaults and overwrite an existing config. |
 | `--json` |       | `false` | Write a JSON result instead of terminal output.            |
 
-The command detects the framework, language, package manager, Redis, and TypeScript path aliases. It prompts for:
+The command detects the framework, language, package manager, Redis, and `tsconfig.json` or `jsconfig.json` path aliases. It prompts for:
 
 1. Whether to keep, overwrite, or regenerate an existing config
-2. Framework, when detection fails
-3. Blocks directory, defaulting to `src/blocks` or `blocks`
+2. Blocks directory, defaulting to `src/blocks` or `blocks`
+3. Framework, when detection fails
 4. Redis variants, when Redis is detected
 
 Generated config:

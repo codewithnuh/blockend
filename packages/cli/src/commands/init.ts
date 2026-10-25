@@ -10,79 +10,6 @@ import { format } from "../ui/format.js";
 import { theme } from "../ui/theme.js";
 import type { BlockendConfig } from "../block-install/index.js";
 
-// ─── tsconfig path alias resolution ────────────────────────────────────────────
-
-interface TsConfigPaths {
-  baseUrl: string;
-  paths: Record<string, string[]>;
-}
-
-async function resolveTsConfigPaths(cwd: string): Promise<TsConfigPaths> {
-  const candidates = [join(cwd, "tsconfig.json"), join(cwd, "jsconfig.json")];
-
-  for (const configPath of candidates) {
-    if (!existsSync(configPath)) continue;
-    try {
-      const raw = await fs.readFile(configPath, "utf-8");
-      // Strip block comments and single-line comments (tsconfig allows them)
-      const clean = raw.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1");
-      const parsed = JSON.parse(clean);
-      return {
-        baseUrl: parsed.compilerOptions?.baseUrl ?? ".",
-        paths: (parsed.compilerOptions?.paths ?? {}) as Record<string, string[]>
-      };
-    } catch {
-      // Malformed config — fall through to next candidate
-    }
-  }
-
-  return { baseUrl: ".", paths: {} };
-}
-
-/**
- * Given the tsconfig paths map and the chosen physical blocks directory
- * (relative to project root, e.g. "src/blocks"), derive the import alias
- * that TypeScript will resolve to that directory.
- */
-function deriveBlockAlias(
-  tsPaths: Record<string, string[]>,
-  blocksPhysicalPath: string // e.g. "src/blocks" (no leading ./)
-): string | undefined {
-  const normalizedBlocksPath = blocksPhysicalPath
-    .replace(/^\.\//, "") // strip leading ./
-    .replace(/\\/g, "/"); // normalise windows separators
-
-  for (const [aliasKey, targets] of Object.entries(tsPaths)) {
-    if (!Array.isArray(targets) || targets.length === 0) continue;
-
-    // The first target is canonical; strip trailing /* or / to get the root
-    const rawTarget = targets[0].replace(/\\/g, "/");
-    const targetRoot = rawTarget
-      .replace(/\*$/, "") // strip trailing glob *
-      .replace(/\/$/, "") // strip trailing slash
-      .replace(/^\.\//, ""); // strip leading ./
-
-    // The alias prefix: strip trailing /* or /
-    const aliasRoot = aliasKey
-      .replace(/\/\*$/, "") // strip /*
-      .replace(/\*$/, ""); // strip bare *
-
-    if (targetRoot === "") {
-      // Alias maps to project root ("./") — everything matches
-      return `${aliasRoot}/${normalizedBlocksPath}`.replace(/\/+/g, "/");
-    }
-
-    if (normalizedBlocksPath === targetRoot || normalizedBlocksPath.startsWith(`${targetRoot}/`)) {
-      // Replace the target prefix with the alias prefix
-      const suffix = normalizedBlocksPath.slice(targetRoot.length).replace(/^\//, "");
-      const alias = suffix ? `${aliasRoot}/${suffix}` : aliasRoot;
-      return alias.replace(/\/+/g, "/");
-    }
-  }
-
-  return undefined;
-}
-
 // ─── output helpers ─────────────────────────────────────────────────────────
 
 function outputInitError(json: boolean, message: string): void {
@@ -159,14 +86,35 @@ export async function initCommand(
     }
   }
 
+  // ── Blocks directory ──────────────────────────────────────────────────────
+
+  const hasSrcDir = existsSync(join(cwd, "src"));
+  const defaultDir = hasSrcDir ? "src/blocks" : "blocks";
+  let rawPhysicalInput = defaultDir;
+
+  if (!yes) {
+    const directoryPrompt = await text({
+      message: "Where would you like to install blocks?",
+      placeholder: defaultDir,
+      initialValue: defaultDir,
+      validate(value) {
+        if (!value || value.trim().length === 0) return "Directory path cannot be empty.";
+      }
+    });
+
+    if (isCancel(directoryPrompt)) {
+      outro(format.muted("Setup cancelled."));
+      return;
+    }
+    rawPhysicalInput = String(directoryPrompt).trim();
+  }
+
   // ── Detect project ────────────────────────────────────────────────────────
 
   const s = spinner();
   if (!json) s.start("Scanning project architecture...");
 
-  const context = await detectProject(cwd);
-  const hasSrcDir = existsSync(join(cwd, "src"));
-  const tsConfig = await resolveTsConfigPaths(cwd);
+  const context = await detectProject(cwd, { blocksDir: rawPhysicalInput });
 
   if (!json) s.stop("Project scanned.");
 
@@ -202,45 +150,17 @@ export async function initCommand(
     log.info(`Framework detected: ${theme.state.info(framework)}`);
   }
 
-  // ── Blocks directory ──────────────────────────────────────────────────────
-
-  const defaultDir = hasSrcDir ? "src/blocks" : "blocks";
-  let rawPhysicalInput = defaultDir;
-
-  if (!yes) {
-    const directoryPrompt = await text({
-      message: "Where would you like to install blocks?",
-      placeholder: defaultDir,
-      initialValue: defaultDir,
-      validate(value) {
-        if (!value || value.trim().length === 0) return "Directory path cannot be empty.";
-      }
-    });
-
-    if (isCancel(directoryPrompt)) {
-      outro(format.muted("Setup cancelled."));
-      return;
-    }
-    rawPhysicalInput = String(directoryPrompt).trim();
-  }
-
   // Normalise to a clean relative path with leading ./
-  const relativeBlocksPath = path
-    .relative(cwd, path.resolve(cwd, rawPhysicalInput))
-    .replace(/\\/g, "/");
+  const relativeBlocksPath = path.relative(cwd, context.blocksDir).replace(/\\/g, "/");
 
   // Store with leading ./ so it is unambiguous in blockend.json
   const finalPath = relativeBlocksPath.startsWith(".")
     ? relativeBlocksPath
     : `./${relativeBlocksPath}`;
 
-  // ── Alias derivation ──────────────────────────────────────────────────────
+  // ── Import alias ──────────────────────────────────────────────────────────
 
-  const hasTsPaths = Object.keys(tsConfig.paths).length > 0;
-
-  const finalBlockAlias = hasTsPaths
-    ? deriveBlockAlias(tsConfig.paths, relativeBlocksPath)
-    : undefined;
+  const finalBlockAlias = context.blocksAlias;
 
   if (!json) {
     log.info(

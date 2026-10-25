@@ -27,14 +27,18 @@ export interface ProjectContext {
   /** Whether drizzle-orm is in the project's dependencies */
   hasDrizzle: boolean;
 
-  /** Parsed tsconfig paths/aliases, or empty object if none */
+  /** Parsed tsconfig/jsconfig paths/aliases, or empty object if none */
   aliasMap: Record<string, string>;
 
   /** The directory where source files live */
   srcDir: string;
 
-  /** Path where Blockend should write block files */
+  /** Absolute path where Blockend should write block files */
   blocksDir: string;
+
+  /** Import alias prefix for blocksDir, when compiler path mappings resolve it */
+  blocksAlias?: string;
+
   /** Import rewriting strategy for module resolution  */
   importRewriteStrategy: "rewrite" | "remove";
 }
