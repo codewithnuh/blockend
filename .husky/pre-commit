@@ -1,6 +1,30 @@
 #!/usr/bin/env sh
 # Pre-commit hook: keep generated registry artifacts in sync, then run lint-staged.
 
+# The generators read the working tree. Refuse to generate when an input has
+# unstaged or untracked changes, otherwise the generated artifact could include
+# data that the contributor did not stage.
+assert_inputs_staged() {
+  if git diff --name-only -- "$@" | grep -q .; then
+    echo "registry inputs have unstaged changes - stage or stash them before committing"
+    exit 1
+  fi
+
+  if git ls-files --others --exclude-standard -- "$@" | grep -q .; then
+    echo "registry inputs have untracked changes - stage them before committing"
+    exit 1
+  fi
+}
+
+if git diff --cached --name-only | grep -Eq "^(blocks/|packages/registry/src/schema\.ts|registry/config\.json|registry/index\.json|scripts/generate-registry-(schemas|index)\.ts)"; then
+  assert_inputs_staged \
+    ":(glob)blocks/*/block.json" \
+    "packages/registry/src/schema.ts" \
+    "registry/config.json" \
+    "scripts/generate-registry-index.ts" \
+    "scripts/generate-registry-schemas.ts"
+fi
+
 # Regenerate JSON Schemas when their Zod source or generator changes.
 if git diff --cached --name-only | grep -Eq "^(packages/registry/src/schema.ts|scripts/generate-registry-schemas.ts)$"; then
   echo "registry schema changed - regenerating JSON schemas"

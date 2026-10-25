@@ -158,8 +158,9 @@ export const BlockSchema = z
 /**
  * A block declaration lives next to the block source as `blocks/<slug>/block.json`.
  * It carries the same block shape plus an optional `$schema` reference for editors.
+ * `safeExtend` preserves BlockSchema's object-level topology check.
  */
-export const BlockDeclarationSchema = BlockSchema.extend({
+export const BlockDeclarationSchema = BlockSchema.safeExtend({
   $schema: z.string().optional().describe("JSON Schema reference for editor support.")
 });
 

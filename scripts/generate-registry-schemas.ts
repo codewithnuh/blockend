@@ -47,6 +47,7 @@ const schemas: Array<{ schema: JsonSchemaCapable; metadata: SchemaMetadata }> = 
   }
 ];
 
+/** Adds shared metadata to a Zod-generated JSON Schema. */
 function buildJsonSchema(
   schema: JsonSchemaCapable,
   metadata: SchemaMetadata
@@ -61,6 +62,7 @@ function buildJsonSchema(
   };
 }
 
+/** Writes the generated JSON Schema files. */
 async function main(): Promise<void> {
   for (const { schema, metadata } of schemas) {
     const json = buildJsonSchema(schema, metadata);

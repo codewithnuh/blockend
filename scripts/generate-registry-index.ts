@@ -19,10 +19,12 @@ interface RegistryConfig {
   version: string;
 }
 
+/** Returns true when the value is a non-null, non-array object. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Reads and parses a JSON file, adding its repository-relative path to errors. */
 async function readJson(filePath: string): Promise<unknown> {
   try {
     return JSON.parse(await fs.readFile(filePath, "utf8"));
@@ -32,6 +34,7 @@ async function readJson(filePath: string): Promise<unknown> {
   }
 }
 
+/** Loads and validates the registry-wide configuration. */
 async function readConfig(): Promise<RegistryConfig> {
   const config = await readJson(CONFIG_PATH);
 
@@ -42,6 +45,7 @@ async function readConfig(): Promise<RegistryConfig> {
   return { version: config.version };
 }
 
+/** Orders blocks by release date, then slug, for deterministic output. */
 function compareBlocks(
   a: { key: string; releasedAt?: string },
   b: { key: string; releasedAt?: string }
@@ -51,6 +55,7 @@ function compareBlocks(
   return dateA.localeCompare(dateB) || a.key.localeCompare(b.key);
 }
 
+/** Builds the formatted registry/index.json contents from block declarations. */
 export async function buildRegistryIndex(): Promise<string> {
   const config = await readConfig();
   const entries = await fs.readdir(BLOCKS_DIR, { withFileTypes: true });
@@ -108,6 +113,7 @@ export async function buildRegistryIndex(): Promise<string> {
   });
 }
 
+/** Writes registry/index.json, or verifies it when `--check` is passed. */
 async function main(): Promise<void> {
   const generated = await buildRegistryIndex();
 
