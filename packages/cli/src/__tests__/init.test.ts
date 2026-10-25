@@ -80,7 +80,7 @@ describe("initCommand - Path Layout & Alias Edge Cases", () => {
   // EDGE CASE: Path & Alias Edge Cases
   // ==========================================
 
-  it("should cleanly reverse-engineer aliases when choosing a directory inside an absolute custom baseUrl", async () => {
+  it("should write the detected blocks alias and relative path", async () => {
     vi.mocked(existsSync).mockImplementation((p) => p === join(cwd, "src"));
 
     mockDetectProject.mockResolvedValue(
@@ -109,36 +109,7 @@ describe("initCommand - Path Layout & Alias Edge Cases", () => {
     );
   });
 
-  it("should handle custom non-standard alias structures safely (e.g., #/* fallback calculations)", async () => {
-    vi.mocked(existsSync).mockReturnValue(false);
-
-    mockDetectProject.mockResolvedValue(
-      detectedProject({
-        framework: "fastify",
-        blocksDir: join(cwd, "lib/blocks"),
-        blocksAlias: "#/blocks"
-      })
-    );
-
-    vi.mocked(prompts.text).mockResolvedValueOnce("lib/blocks");
-
-    await initCommand();
-
-    expect(mockDetectProject).toHaveBeenCalledWith(cwd, { blocksDir: "lib/blocks" });
-    expect(fs.readFile).not.toHaveBeenCalled();
-    expect(fs.writeFile).toHaveBeenCalledWith(
-      join(cwd, "blockend.json"),
-      expect.stringContaining('"blocks": "#/blocks"'),
-      "utf-8"
-    );
-    expect(fs.writeFile).toHaveBeenCalledWith(
-      join(cwd, "blockend.json"),
-      expect.stringContaining('"blocks": "./lib/blocks"'),
-      "utf-8"
-    );
-  });
-
-  it("should correctly handle paths containing backslashes and normalize them on Windows environments", async () => {
+  it("should normalize the detected blocks directory into config paths", async () => {
     vi.mocked(existsSync).mockReturnValue(false);
 
     mockDetectProject.mockResolvedValue(

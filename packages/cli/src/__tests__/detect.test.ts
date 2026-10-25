@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
+import { deriveBlocksAlias } from "../detectors/alias.js";
 import { detectProject } from "../detectors/index.js";
 
 const tempDirs: string[] = [];
@@ -37,9 +38,10 @@ describe("detectProject - ProjectContext detection interface", () => {
           "moduleResolution": "NodeNext",
           "paths": {
             "@/*": ["./src/*"] // Project alias.
-          }
+          },
         }
-      }`,
+      }
+      /* A standalone block comment after the config. */`,
       "src/app/page.ts": ""
     });
 
@@ -74,6 +76,52 @@ describe("detectProject - ProjectContext detection interface", () => {
     expect(context.blocksAlias).toBe("~/modules/blocks");
     expect(context.aliasMap).toEqual({ "~/": "src/" });
     expect(context.importRewriteStrategy).toBe("remove");
+  });
+
+  it("derives aliases from bare glob keys and absolute directories", async () => {
+    const root = await createProject({
+      "package.json": JSON.stringify({ name: "fixture" }),
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          paths: {
+            "#*": ["lib/*"]
+          }
+        }
+      }),
+      "src/index.ts": ""
+    });
+    const blocksDir = join(root, "lib", "blocks");
+
+    const context = await detectProject(root, { blocksDir });
+
+    expect(context.blocksDir).toBe(blocksDir);
+    expect(context.blocksAlias).toBe("#/blocks");
+  });
+
+  it("normalizes backslash separators when deriving aliases", () => {
+    expect(deriveBlocksAlias({ "@/*": ["src/*"] }, "src\\infrastructure\\blocks")).toBe(
+      "@/infrastructure/blocks"
+    );
+  });
+
+  it("ignores malformed path targets", async () => {
+    const root = await createProject({
+      "package.json": JSON.stringify({ name: "fixture" }),
+      "tsconfig.json": `{
+        "compilerOptions": {
+          "paths": {
+            "@/*": null,
+            "~/*": ["src/*"]
+          }
+        }
+      }`,
+      "src/index.ts": ""
+    });
+
+    const context = await detectProject(root, { blocksDir: "src/blocks" });
+
+    expect(context.aliasMap).toEqual({ "~/": "src/" });
+    expect(context.blocksAlias).toBe("~/blocks");
   });
 
   it("uses the default blocks directory when no directory is chosen", async () => {

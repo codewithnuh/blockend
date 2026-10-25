@@ -5,7 +5,7 @@
 export function flattenTsPaths(paths: Record<string, string[]>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [alias, targets] of Object.entries(paths)) {
-    if (targets[0]) {
+    if (Array.isArray(targets) && typeof targets[0] === "string" && targets[0].length > 0) {
       result[alias.replace("/*", "/")] = targets[0].replace("/*", "/");
     }
   }
@@ -24,7 +24,7 @@ export function deriveBlocksAlias(
   const normalizedBlocksPath = blocksPhysicalPath.replace(/^\.\//, "").replace(/\\/g, "/");
 
   for (const [aliasKey, targets] of Object.entries(tsPaths)) {
-    if (!Array.isArray(targets) || targets.length === 0) continue;
+    if (!Array.isArray(targets) || typeof targets[0] !== "string") continue;
 
     // The first target is canonical; strip trailing /* or / to get the root.
     const rawTarget = targets[0].replace(/\\/g, "/");
