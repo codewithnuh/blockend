@@ -8,6 +8,7 @@ import pc from "picocolors";
 import { detectProject } from "../detectors/index.js";
 import { format } from "../ui/format.js";
 import { theme } from "../ui/theme.js";
+import type { BlockendConfig } from "../block-install/index.js";
 
 // ─── tsconfig path alias resolution ────────────────────────────────────────────
 
@@ -95,7 +96,7 @@ function outputInitError(json: boolean, message: string): void {
 
 function outputInitResult(
   json: boolean,
-  result: { success: boolean; message: string; config?: configPayloadType }
+  result: { success: boolean; message: string; config?: BlockendConfig }
 ): void {
   if (json) {
     process.stdout.write(JSON.stringify(result) + "\n");
@@ -273,7 +274,7 @@ export async function initCommand(
 
   // ── Write config ──────────────────────────────────────────────────────────
 
-  const configPayload: configPayloadType = {
+  const configPayload: BlockendConfig = {
     $schema: "https://blockend.noorulhassan.com/schema.json",
     environment: (framework || "express") as "express" | "fastify" | "hono" | "next",
     language: context.language || "typescript",
@@ -308,29 +309,3 @@ export async function initCommand(
     }
   }
 }
-
-export interface InstalledBlockRecord {
-  name: string;
-  version: string;
-  installedAt: string;
-  files: string[];
-  contentHash: string;
-  /** Storage variant selected at install time (e.g. "memory", "redis", "default"). */
-  variant?: string;
-}
-
-export type configPayloadType = {
-  $schema: string;
-  environment: "express" | "fastify" | "hono" | "next" | "none";
-  language: "typescript" | "javascript";
-  packageManager: string;
-  importRewriteStrategy: "rewrite" | "remove";
-  includeRedis: boolean;
-  aliases: {
-    blocks?: string;
-  };
-  paths: {
-    blocks: string;
-  };
-  installed?: InstalledBlockRecord[];
-};

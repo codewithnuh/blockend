@@ -5,7 +5,7 @@ import { existsSync } from "fs";
 import { intro, outro, spinner } from "@clack/prompts";
 import pc from "picocolors";
 import { detectProject } from "../detectors/index.js";
-import { configPayloadType } from "./init.js";
+import type { BlockendConfig } from "../block-install/index.js";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -211,7 +211,7 @@ export async function doctorCommand(options: { json?: boolean } = {}): Promise<D
   if (configPath) {
     try {
       const raw = await fs.readFile(configPath, "utf-8");
-      const config = JSON.parse(raw) as configPayloadType;
+      const config = JSON.parse(raw) as BlockendConfig;
 
       if (!config.environment) {
         addCheck({

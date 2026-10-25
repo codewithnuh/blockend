@@ -7,7 +7,7 @@ import {
   getMissingDependencies,
   selectVariant,
   resolvePreferredVariant
-} from "../commands/add.js";
+} from "../block-install/index.js";
 import fs from "fs/promises";
 
 vi.mock("fs/promises", () => {

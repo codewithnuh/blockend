@@ -1,31 +1,15 @@
 /* oxlint-disable no-console */
-import { dirname, join } from "path";
 import fs from "fs/promises";
 import pc from "picocolors";
 import { outro, spinner } from "@clack/prompts";
-import { configPayloadType } from "./init.js";
-import { RegistryManifest, BlockManifest } from "./add.js";
-
-const REPO_OWNER = "codewithnuh";
-const REPO_NAME = "blockend";
-const BRANCH = "master";
-const MANIFEST_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/registry/index.json`;
-
-async function findUp(filename: string, startDir: string): Promise<string | null> {
-  let dir = startDir;
-  while (true) {
-    const checkPath = join(dir, filename);
-    try {
-      await fs.access(checkPath);
-      return checkPath;
-    } catch {
-      const parent = dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
-    }
-  }
-  return null;
-}
+import {
+  createGitHubRegistrySource,
+  findUp,
+  listAvailableBlocks,
+  loadRegistry,
+  type BlockendConfig,
+  type RegistryManifest
+} from "../block-install/index.js";
 
 export async function listCommand(options: { json?: boolean } = {}): Promise<void> {
   const { json = false } = options;
@@ -43,10 +27,10 @@ export async function listCommand(options: { json?: boolean } = {}): Promise<voi
     return;
   }
 
-  let config: configPayloadType;
+  let config: BlockendConfig;
   try {
     const configFile = await fs.readFile(configPath, "utf-8");
-    config = JSON.parse(configFile) as configPayloadType;
+    config = JSON.parse(configFile) as BlockendConfig;
   } catch {
     if (json) {
       process.stdout.write(
@@ -59,6 +43,7 @@ export async function listCommand(options: { json?: boolean } = {}): Promise<voi
   }
 
   const envKey = String(config.environment);
+  const source = createGitHubRegistrySource();
   const s = spinner();
 
   if (!json) {
@@ -67,9 +52,7 @@ export async function listCommand(options: { json?: boolean } = {}): Promise<voi
 
   let registry: RegistryManifest;
   try {
-    const response = await fetch(MANIFEST_URL);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    registry = (await response.json()) as RegistryManifest;
+    registry = await loadRegistry(source);
     if (!json) s.stop(pc.green("✔ Synced available block registries."));
   } catch {
     if (json) {
@@ -82,36 +65,12 @@ export async function listCommand(options: { json?: boolean } = {}): Promise<voi
     return;
   }
 
-  let blockMap: Record<string, BlockManifest> = {};
-  if (registry.blocks && typeof registry.blocks === "object" && !Array.isArray(registry.blocks)) {
-    blockMap = registry.blocks as Record<string, BlockManifest>;
-  } else {
-    blockMap = registry as Record<string, BlockManifest>;
-  }
-
-  // Filter components matching the system environment adapter signature
-  const blocksForEnv = Object.entries(blockMap)
-    .filter(([_, block]) => {
-      if (!block) return false;
-      if (block.frameworks?.includes("*")) return true;
-      const hasAdapter =
-        block.adapters?.[envKey] !== undefined || block.adapters?.["*"] !== undefined;
-      const hasEnvironment =
-        block.environments?.[envKey] !== undefined || block.environments?.["*"] !== undefined;
-      return hasAdapter || hasEnvironment;
-    })
-    .map(([key, block]) => {
-      const context =
-        block.adapters?.[envKey] ??
-        block.adapters?.["*"] ??
-        block.environments?.[envKey] ??
-        block.environments?.["*"];
-      return {
-        name: key,
-        description: block.description,
-        variants: Object.keys(context?.variants || {})
-      };
-    });
+  const available = await listAvailableBlocks(registry, envKey);
+  const blocksForEnv = available.map((block) => ({
+    name: block.name,
+    description: block.description,
+    variants: block.variants
+  }));
 
   if (json) {
     process.stdout.write(
@@ -122,10 +81,12 @@ export async function listCommand(options: { json?: boolean } = {}): Promise<voi
     if (blocksForEnv.length === 0) {
       console.log(pc.dim("  No blocks found for this framework."));
     } else {
-      blocksForEnv.forEach((b) => {
-        console.log(`\n  ${pc.cyan(b.name)}`);
-        console.log(`    ${pc.dim(b.description)}`);
-        console.log(`    Storage Variants: ${b.variants.map((v) => pc.yellow(v)).join(", ")}`);
+      blocksForEnv.forEach((block) => {
+        console.log(`\n  ${pc.cyan(block.name)}`);
+        console.log(`    ${pc.dim(block.description)}`);
+        console.log(
+          `    Storage Variants: ${block.variants.map((variant) => pc.yellow(variant)).join(", ")}`
+        );
       });
       console.log();
     }
