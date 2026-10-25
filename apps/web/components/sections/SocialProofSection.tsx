@@ -1,4 +1,4 @@
-import { SOCIAL_PROOF } from "@/lib/landing-constants";
+import { SOCIAL_PROOF } from "@/lib/landing-copy";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 

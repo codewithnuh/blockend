@@ -1,4 +1,4 @@
-import { FEATURES } from "@/lib/landing-constants";
+import { FEATURES } from "@/lib/landing-copy";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Code2, Boxes, Zap, ShieldCheck, Eye, Server, Sparkles } from "lucide-react";
 

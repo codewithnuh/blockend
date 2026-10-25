@@ -1,4 +1,4 @@
-import { FINAL_CTA } from "@/lib/landing-constants";
+import { FINAL_CTA } from "@/lib/landing-copy";
 import { CommandBlock } from "./CommandBlock";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";

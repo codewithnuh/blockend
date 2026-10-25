@@ -1,4 +1,4 @@
-import { HOW_IT_WORKS } from "@/lib/landing-constants";
+import { HOW_IT_WORKS } from "@/lib/landing-copy";
 import { CommandBlock } from "./CommandBlock";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 

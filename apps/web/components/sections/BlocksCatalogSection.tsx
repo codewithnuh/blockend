@@ -1,4 +1,4 @@
-import { BLOCKS_CATALOG } from "@/lib/landing-constants";
+import { BLOCKS_CATALOG } from "@/lib/landing-copy";
 import { loadCatalog, type CatalogBlock } from "@/lib/registry";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

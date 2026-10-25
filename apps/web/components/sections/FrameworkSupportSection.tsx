@@ -1,4 +1,4 @@
-import { FRAMEWORKS } from "@/lib/landing-constants";
+import { FRAMEWORKS } from "@/lib/landing-copy";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Zap, Flame, Terminal, Layers } from "lucide-react";

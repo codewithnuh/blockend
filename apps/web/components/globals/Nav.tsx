@@ -7,7 +7,7 @@ import { Sun, Moon, Menu, X } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
-import { NAV_LINKS } from "@/lib/landing-constants";
+import { NAV_LINKS } from "@/lib/landing-copy";
 import Image from "next/image";
 
 interface NavbarProps {

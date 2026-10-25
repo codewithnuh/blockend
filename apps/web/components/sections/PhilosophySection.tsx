@@ -1,4 +1,4 @@
-import { PHILOSOPHY_CARDS } from "@/lib/data";
+import { PHILOSOPHY_CARDS } from "@/lib/landing-copy";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 

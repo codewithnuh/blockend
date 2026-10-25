@@ -1,4 +1,4 @@
-import { GENERATED_OUTPUT } from "@/lib/landing-constants";
+import { GENERATED_OUTPUT } from "@/lib/landing-copy";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Folder, FolderOpen, FileCode, FileText } from "lucide-react";
