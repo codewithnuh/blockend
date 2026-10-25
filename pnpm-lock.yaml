@@ -104,6 +104,9 @@ importers:
       supertest:
         specifier: ^7.2.2
         version: 7.2.2(supports-color@7.2.0)
+      tsx:
+        specifier: ^4.20.0
+        version: 4.23.1
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -116,6 +119,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@blockend/registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
       '@vercel/analytics':
         specifier: ^2.0.1
         version: 2.0.1(next@16.3.8(@babel/core@7.29.7(supports-color@7.2.0))(@types/node@26.5.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
@@ -228,6 +234,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@blockend/registry':
+        specifier: workspace:*
+        version: link:../registry
       '@types/node':
         specifier: ^25.9.3
         version: 25.9.3
@@ -237,6 +246,19 @@ importers:
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@25.9.3)(vite@8.2.1(@types/node@25.9.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/registry:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.2
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.5.1
+      tsup:
+        specifier: ^9.0.0
+        version: 9.0.0(jiti@2.7.0)(postcss@8.5.31)(tsx@4.23.1)(typescript@7.0.2)(yaml@2.9.0)
 
 packages:
 
@@ -7809,7 +7831,7 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 26.2.0
+      '@types/node': 26.5.1
 
   '@types/chai@5.2.3':
     dependencies:
@@ -7836,7 +7858,7 @@ snapshots:
 
   '@types/express-serve-static-core@5.1.1':
     dependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.5.1
       '@types/qs': 6.15.1
       '@types/range-parser': 1.2.7
       '@types/send': 1.2.1
@@ -7900,13 +7922,13 @@ snapshots:
   '@types/serve-static@2.2.0':
     dependencies:
       '@types/http-errors': 2.0.5
-      '@types/node': 26.2.0
+      '@types/node': 26.5.1
 
   '@types/superagent@8.1.11':
     dependencies:
       '@types/cookiejar': 2.1.5
       '@types/methods': 1.1.4
-      '@types/node': 26.2.0
+      '@types/node': 26.5.1
       form-data: 4.0.6
 
   '@types/supertest@7.2.1':
@@ -11112,7 +11134,6 @@ snapshots:
       esbuild: 0.28.2
     optionalDependencies:
       fsevents: 2.3.3
-    optional: true
 
   turbo@2.10.8:
     optionalDependencies:

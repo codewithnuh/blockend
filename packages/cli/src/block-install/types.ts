@@ -1,54 +1,20 @@
 // ─── registry types ──────────────────────────────────────────────────────────
 
-export interface AssetMapping {
-  /** Repo-relative path, e.g. "blocks/logger/core.ts". */
-  source: string;
-  /** Block-folder-relative path, e.g. "core.ts" or "tests/core.test.ts". */
-  target: string;
-}
+import type {
+  AdapterConfig as RegistryAdapterConfig,
+  AssetMapping as RegistryAssetMapping,
+  BlockManifest as RegistryBlockManifest,
+  EnvironmentConfig as RegistryEnvironmentConfig,
+  FrameworkName as RegistryFrameworkName,
+  RegistryManifest as RegistryManifestType
+} from "@blockend/registry";
 
-export interface AdapterConfig {
-  dependencies?: string[];
-  devDependencies?: string[];
-  files: string[] | AssetMapping[];
-}
-
-export interface EnvironmentConfig {
-  core?: string;
-  dependencies?: string[];
-  devDependencies?: string[];
-  variants: Record<string, AdapterConfig>;
-}
-
-export type FrameworkName = "express" | "fastify" | "hono" | "next";
-
-export interface BlockManifest {
-  name: string;
-  description: string;
-  version?: string;
-  /**
-   * Explicit framework support list.
-   * - Named keys mean this block only appears for that environment.
-   * - "*" means framework-agnostic.
-   * - Omitting the field triggers legacy fallback: inspect adapter/environment keys.
-   */
-  frameworks?: Array<FrameworkName | "*">;
-  /**
-   * Top-level dependencies for adapter-free blocks. Merged with adapter-level
-   * dependencies when an adapter context also exists.
-   */
-  dependencies?: string[];
-  devDependencies?: string[];
-  baseFiles?: AssetMapping[];
-  adapters?: Record<string, EnvironmentConfig>;
-  environments?: Record<string, EnvironmentConfig>;
-}
-
-export interface RegistryManifest {
-  version?: string;
-  blocks?: Record<string, BlockManifest>;
-  [blockKey: string]: unknown;
-}
+export type AssetMapping = RegistryAssetMapping;
+export type AdapterConfig = RegistryAdapterConfig;
+export type EnvironmentConfig = RegistryEnvironmentConfig;
+export type FrameworkName = RegistryFrameworkName;
+export type BlockManifest = RegistryBlockManifest;
+export type RegistryManifest = RegistryManifestType;
 
 // ─── registry source seam ────────────────────────────────────────────────────
 

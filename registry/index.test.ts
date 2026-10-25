@@ -1,12 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import path from "node:path";
-import { writeFile, mkdir, rm } from "node:fs/promises";
+import { validateRegistry } from "../packages/registry/src/index.js";
 
-const exec = promisify(execFile);
-const SCRIPT = path.resolve(import.meta.dirname, "..", "scripts", "validate-registry.mjs");
-const TMP_DIR = path.resolve(import.meta.dirname, "..", ".tmp-test-registry");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 
 interface MutableBlock {
   name: string;
@@ -32,29 +28,18 @@ interface MutableRegistry {
   [key: string]: unknown;
 }
 
-async function runScript(
+async function runValidator(
   registryObj: Record<string, unknown>
 ): Promise<{ code: number; stdout: string; stderr: string }> {
-  await mkdir(TMP_DIR, { recursive: true });
-  const regPath = path.join(TMP_DIR, "index.json");
-  await writeFile(regPath, JSON.stringify(registryObj, null, 2), "utf-8");
-
-  try {
-    const result = await exec("node", [SCRIPT], {
-      env: { ...process.env, TEST_REGISTRY_PATH: regPath },
-      timeout: 10_000
-    });
-    return { code: 0, stdout: result.stdout, stderr: result.stderr };
-  } catch (err: unknown) {
-    const execErr = err as { code?: number; stdout?: string; stderr?: string };
-    return {
-      code: execErr.code ?? 1,
-      stdout: execErr.stdout ?? "",
-      stderr: execErr.stderr ?? ""
-    };
-  } finally {
-    await rm(TMP_DIR, { recursive: true, force: true });
+  const errors = await validateRegistry(registryObj, { repoRoot: REPO_ROOT });
+  if (errors.length === 0) {
+    return { code: 0, stdout: "Registry valid", stderr: "" };
   }
+  return {
+    code: 1,
+    stdout: "",
+    stderr: `Registry Validation Failed\n${errors.map((error) => error.toString()).join("\n")}`
+  };
 }
 
 function makeValidRegistry(): MutableRegistry {
@@ -90,7 +75,7 @@ describe("registry validation", () => {
       reg.blocks!["test-block"].related = ["other-block"];
       reg.blocks!["test-block"].requires = ["other-block"];
       reg.blocks!["other-block"].conflicts = [];
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("Registry valid");
     });
@@ -98,7 +83,7 @@ describe("registry validation", () => {
     it("fails when releasedAt is not a valid ISO date", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].releasedAt = "not-a-date";
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("releasedAt");
       expect(result.stderr).toContain("valid ISO date");
@@ -107,7 +92,7 @@ describe("registry validation", () => {
     it("fails when releasedAt is not a real calendar date", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].releasedAt = "2026-02-30";
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("valid ISO date");
     });
@@ -115,7 +100,7 @@ describe("registry validation", () => {
     it("fails when runtimes uses an unsupported engine", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].runtimes = { deno: ">=2.0.0" };
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("runtimes");
     });
@@ -123,7 +108,7 @@ describe("registry validation", () => {
     it("fails when related references an unknown slug", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].related = ["missing-block"];
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("Unknown block reference");
       expect(result.stderr).toContain("missing-block");
@@ -133,7 +118,7 @@ describe("registry validation", () => {
     it("fails when requires references an unknown slug", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].requires = ["nope-block"];
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("Unknown block reference");
       expect(result.stderr).toContain("nope-block");
@@ -142,7 +127,7 @@ describe("registry validation", () => {
     it("fails when conflicts references an unknown slug", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].conflicts = ["ghost-block"];
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("Unknown block reference");
       expect(result.stderr).toContain("ghost-block");
@@ -151,7 +136,7 @@ describe("registry validation", () => {
     it("fails when a block references itself", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].related = ["test-block"];
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("cannot reference itself");
     });
@@ -160,7 +145,7 @@ describe("registry validation", () => {
       const reg = makeRelatedRegistry();
       reg.blocks!["test-block"].requires = ["other-block"];
       reg.blocks!["other-block"].requires = ["test-block"];
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("Circular requires chain");
     });
@@ -168,7 +153,7 @@ describe("registry validation", () => {
     it("fails when a relationship slug is not a valid slug format", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].related = ["Not_A_Slug"];
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("valid registry slugs");
     });
@@ -176,7 +161,7 @@ describe("registry validation", () => {
 
   describe("structural validation", () => {
     it("passes for a valid registry", async () => {
-      const result = await runScript(makeValidRegistry());
+      const result = await runValidator(makeValidRegistry());
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("Registry valid");
     });
@@ -184,14 +169,14 @@ describe("registry validation", () => {
     it("fails when version is missing", async () => {
       const reg = makeValidRegistry();
       delete reg.version;
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("Validation Failed");
     });
 
     it("fails when blocks is missing", async () => {
       const reg = { version: "1.0.0" };
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("Validation Failed");
     });
@@ -199,7 +184,7 @@ describe("registry validation", () => {
     it("fails when block name is empty", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].name = "";
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("block name must not be empty");
     });
@@ -207,7 +192,7 @@ describe("registry validation", () => {
     it("fails when block description is empty", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].description = "";
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("block description must not be empty");
     });
@@ -215,7 +200,7 @@ describe("registry validation", () => {
     it("fails when block has no baseFiles, adapters, or environments", async () => {
       const reg = makeValidRegistry();
       delete reg.blocks!["test-block"].baseFiles;
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("must define at least one of");
     });
@@ -226,9 +211,20 @@ describe("registry validation", () => {
         express: { dependencies: [], variants: {} }
       };
       delete reg.blocks!["test-block"].baseFiles;
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("must have at least one variant");
+    });
+
+    it("fails when a variant has no files", async () => {
+      const reg = makeValidRegistry();
+      reg.blocks!["test-block"].adapters = {
+        express: { variants: { default: { files: [] } } }
+      };
+      delete reg.blocks!["test-block"].baseFiles;
+      const result = await runValidator(reg);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("variant must have at least one file");
     });
   });
 
@@ -236,7 +232,7 @@ describe("registry validation", () => {
     it("fails on case-insensitive duplicate block keys", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["Test-Block"] = { ...reg.blocks!["test-block"] };
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("Case-insensitive duplicate");
     });
@@ -248,7 +244,7 @@ describe("registry validation", () => {
       reg.blocks!["test-block"].baseFiles = [
         { source: "blocks/nonexistent/file.ts", target: "file.ts" }
       ];
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("File not found on disk");
       expect(result.stderr).toContain("blocks/nonexistent/file.ts");
@@ -266,7 +262,7 @@ describe("registry validation", () => {
           }
         }
       };
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("File not found on disk");
       expect(result.stderr).toContain("blocks/nonexistent/adapter.ts");
@@ -292,7 +288,7 @@ describe("registry validation", () => {
           }
         }
       };
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain('Conflicting version ranges for "zod"');
     });
@@ -315,7 +311,7 @@ describe("registry validation", () => {
           }
         }
       };
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(0);
     });
   });
@@ -327,7 +323,7 @@ describe("registry validation", () => {
         { source: "blocks/env-config/index.ts", target: "output.ts" },
         { source: "blocks/env-config/index.test.ts", target: "output.ts" }
       ];
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain('Duplicate target "output.ts"');
     });
@@ -347,7 +343,7 @@ describe("registry validation", () => {
           }
         }
       };
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain('Duplicate target "output.ts"');
     });
@@ -357,7 +353,7 @@ describe("registry validation", () => {
     it("includes field path in error output", async () => {
       const reg = makeValidRegistry();
       reg.blocks!["test-block"].name = "";
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("blocks.test-block.name");
     });
@@ -367,7 +363,7 @@ describe("registry validation", () => {
       reg.blocks!["test-block"].baseFiles = [
         { source: "blocks/nonexistent/file.ts", target: "file.ts" }
       ];
-      const result = await runScript(reg);
+      const result = await runValidator(reg);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("Add the file or remove/update the registry entry");
     });

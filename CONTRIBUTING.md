@@ -64,15 +64,19 @@ pnpm test
 
 ```text
 .
+├── apps/
+│   └── web/                 # Next.js catalog and documentation
+├── blocks/                  # Block source templates and tests
 ├── packages/
-│   ├── cli/
-│   └── ...
+│   ├── cli/                 # blockend CLI and MCP server
+│   └── registry/            # Canonical schema, loaders, and validation
 ├── registry/
-│   ├── blocks/
-│   ├── registry.json
-│   └── registry-schema.json
-├── .github/
-└── ...
+│   ├── index.json           # Published block registry data
+│   ├── recipes.json         # Published recipe data
+│   ├── registry-schema.json # Generated JSON Schema for editor support
+│   └── recipe-schema.json   # Generated JSON Schema for editor support
+├── scripts/                 # Validation and schema generation entry points
+└── .github/
 ```
 
 ---
@@ -83,29 +87,31 @@ Every new block consists of template files and a registry entry.
 
 ## 1. Create Template Files
 
-Place templates under the appropriate directory inside `registry/blocks`.
+Place templates under `blocks/<slug>/`.
 
 Example:
 
 ```text
-registry/
-└── blocks/
-    └── rate-limiter/
-        └── express/
-            ├── base.ts.txt
-            ├── store-memory.ts.txt
-            └── store-redis.ts.txt
+blocks/
+└── rate-limiter/
+    ├── core/
+    │   └── core.ts
+    ├── utils/
+    │   └── ip.ts
+    └── adapters/
+        ├── express.ts
+        └── fastify.ts
 ```
 
-Template files use the `.txt` extension because they are copied directly into user projects by the CLI.
+The registry stores each source path and its destination path; the CLI copies the files into user projects.
 
 ---
 
 ## 2. Register the Block
 
-Add an entry to `registry/registry.json`.
+Add an entry to `registry/index.json`.
 
-Every entry **must** conform to `registry-schema.json`.
+Every entry **must** conform to `registry-schema.json`. The schema is generated from `packages/registry/src/schema.ts`; do not hand-edit it.
 
 Example:
 
@@ -113,11 +119,23 @@ Example:
 {
   "name": "Rate Limiter",
   "description": "IP-based rate limiting middleware",
-  "environments": {
+  "version": "1.0.0",
+  "baseFiles": [
+    {
+      "source": "blocks/rate-limiter/core/core.ts",
+      "target": "core/core.ts"
+    }
+  ],
+  "adapters": {
     "express": {
       "variants": {
         "memory": {
-          "files": ["blocks/rate-limiter/express/store-memory.ts.txt"]
+          "files": [
+            {
+              "source": "blocks/rate-limiter/adapters/express.ts",
+              "target": "adapters/express.ts"
+            }
+          ]
         }
       }
     }
@@ -125,7 +143,12 @@ Example:
 }
 ```
 
-Do not modify the registry structure without updating the schema accordingly.
+To change the registry shape, update the Zod schema in `packages/registry/src/schema.ts`, then run:
+
+```bash
+pnpm generate:registry-schemas
+pnpm validate:registry
+```
 
 ---
 
@@ -243,7 +266,7 @@ When contributing a new block:
 - Use `adapters` instead of `environments`.
 - Keep adapters lightweight and free of business logic.
 - Do not introduce new blocks using the legacy `rate-limiter/express/...` directory structure.
-- Ensure all registry entries validate against `registry-schema.json`.
+- Run `pnpm validate:registry` after editing `registry/index.json`.
 
 # Testing
 
@@ -286,7 +309,7 @@ Before submitting a pull request, ensure that:
 - All tests pass.
 - New functionality includes tests where appropriate.
 - Documentation has been updated if necessary.
-- Registry changes conform to `registry-schema.json`.
+- Registry changes pass `pnpm validate:registry` and generated schemas are current.
 
 Please complete the pull request template when opening a PR.
 

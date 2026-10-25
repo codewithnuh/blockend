@@ -80,6 +80,7 @@ const demoFiles = {
 describe("block install - planning", () => {
   it("resolves legacy environments and merges block, adapter, and variant dependencies", async () => {
     const registry: RegistryManifest = {
+      version: "1.0.0",
       blocks: {
         "rate-limit": {
           name: "Rate Limiter",
@@ -124,6 +125,7 @@ describe("block install - planning", () => {
     await writeFile(path.join(dir, "variants", "redis-store.ts"), "marker", "utf-8");
 
     const registry: RegistryManifest = {
+      version: "1.0.0",
       blocks: {
         "rate-limit": {
           name: "Rate Limiter",
@@ -149,6 +151,7 @@ describe("block install - planning", () => {
 
   it("returns no-adapter for a block whose frameworks list promises support but has no context", async () => {
     const registry: RegistryManifest = {
+      version: "1.0.0",
       blocks: {
         "token-service": {
           name: "Token Service",
@@ -171,6 +174,7 @@ describe("block install - planning", () => {
 
   it("does not advertise blocks that cannot produce a plan for the environment", async () => {
     const registry: RegistryManifest = {
+      version: "1.0.0",
       blocks: {
         "express-only": {
           name: "Express Only",

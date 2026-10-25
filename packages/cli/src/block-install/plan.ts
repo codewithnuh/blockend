@@ -39,7 +39,7 @@ function resolveAdapterContext(
   );
 }
 
-function normalizeFiles(files: string[] | AssetMapping[] | undefined): AssetMapping[] {
+function normalizeFiles(files: Array<string | AssetMapping> | undefined): AssetMapping[] {
   if (!files) return [];
   return files.map((entry) =>
     typeof entry === "string" ? { source: entry, target: path.basename(entry) } : entry
