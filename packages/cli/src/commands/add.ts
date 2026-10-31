@@ -7,15 +7,19 @@ import pc from "picocolors";
 import {
   applyBlock,
   createGitHubRegistrySource,
+  findRecipe,
   findUp,
   getMissingDependencies,
   getVersionConflicts,
   listAvailableBlocks,
+  loadRecipeCollection,
   loadRegistry,
+  orderRecipeBlocks,
   planBlock,
   type BlockPlan,
   type BlockPlanErrorCode,
   type BlockendConfig,
+  type Recipe,
   type RegistryManifest,
   type RegistrySource
 } from "../block-install/index.js";
@@ -42,7 +46,7 @@ interface AddContext {
   aliasBase: string | undefined;
   envKey: string;
   rewriteStrategy: "rewrite" | "remove";
-  options: { yes?: boolean; json?: boolean };
+  options: { yes?: boolean; json?: boolean; recipe?: string };
 }
 
 // ─── output helpers ──────────────────────────────────────────────────────────
@@ -312,13 +316,76 @@ async function addSingleBlock(
   }
 }
 
+// ─── recipe mode ─────────────────────────────────────────────────────────────
+
+/**
+ * Add every block of a published recipe, in the recipe's integration order.
+ * Reuses the single-block installer so variants, dependency install, conflict
+ * handling, import rewriting, and recorded metadata behave identically.
+ */
+async function addRecipe(recipeSlug: string, context: AddContext): Promise<void> {
+  const { yes = false, json = false } = context.options;
+  const { source } = context;
+
+  let recipe: Recipe | undefined;
+  try {
+    const collection = await loadRecipeCollection(source);
+    recipe = findRecipe(collection, recipeSlug);
+  } catch (err) {
+    outputError(json, "Failed to load the recipe collection from the registry.");
+    if (!json) log.error(pc.dim(String(err)));
+    return;
+  }
+
+  if (!recipe) {
+    outputError(json, `Recipe "${recipeSlug}" not found in the registry.`);
+    return;
+  }
+
+  let selectedOptional: string[] = [];
+  if (recipe.optionalBlocks.length > 0 && !yes && !json) {
+    const picked = await multiselect({
+      message: `Optional blocks to include with ${pc.cyan(recipeSlug)}:`,
+      options: recipe.optionalBlocks.map((block) => ({ value: block, label: block })),
+      required: false
+    });
+    handleCancel(picked);
+    selectedOptional = picked as string[];
+  }
+
+  const blocks = orderRecipeBlocks(recipe, selectedOptional);
+
+  if (!json) log.info(`\nAdding ${blocks.length} block(s) from recipe "${recipe.title}"...\n`);
+
+  const added: string[] = [];
+  const failed: string[] = [];
+
+  for (const block of blocks) {
+    const result = await addSingleBlock(block, context);
+    if (result.success) added.push(block);
+    else failed.push(block);
+  }
+
+  if (json) {
+    process.stdout.write(
+      JSON.stringify({ success: failed.length === 0, recipe: recipeSlug, blocks: added, failed }) +
+        "\n"
+    );
+  } else {
+    outro(
+      pc.green(`\n✨ ${added.length} of ${blocks.length} block(s) added from "${recipe.title}"`) +
+        (failed.length ? `\n${pc.yellow(`Skipped: ${failed.join(", ")}`)}` : "")
+    );
+  }
+}
+
 // ─── main add entry point ───────────────────────────────────────────────────
 
 export async function addCommand(
   blockName: string | undefined,
-  options: { yes?: boolean; json?: boolean; multi?: boolean } = {}
+  options: { yes?: boolean; json?: boolean; multi?: boolean; recipe?: string } = {}
 ): Promise<void> {
-  const { yes = false, json = false, multi = false } = options;
+  const { yes = false, json = false, multi = false, recipe } = options;
 
   if (!json) {
     console.log("");
@@ -393,8 +460,25 @@ export async function addCommand(
 
   // ── Block selection ─────────────────────────────────────────────────────
 
-  if (yes && !blockName) {
+  if (yes && !blockName && !recipe) {
     outputError(json, "Block name required with --yes. Usage: blockend add <block> --yes");
+    return;
+  }
+
+  if (recipe && multi) {
+    outputError(json, "Use either --recipe or --multi, not both.");
+    return;
+  }
+
+  if (recipe && blockName) {
+    outputError(json, "Provide either a block name or --recipe, not both.");
+    return;
+  }
+
+  // ── Recipe mode ─────────────────────────────────────────────────────────
+
+  if (recipe) {
+    await addRecipe(recipe, context);
     return;
   }
 

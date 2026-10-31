@@ -181,6 +181,10 @@
       ],
       "commands": [
         {
+          "label": "Add the whole recipe",
+          "command": "pnpm dlx blockend-cli add --recipe production-api-foundation"
+        },
+        {
           "label": "Environment configuration",
           "command": "pnpm dlx blockend-cli add env-config"
         },
@@ -422,6 +426,10 @@
         }
       ],
       "commands": [
+        {
+          "label": "Add the whole recipe",
+          "command": "pnpm dlx blockend-cli add --recipe idempotent-webhook-ingestion"
+        },
         {
           "label": "Environment configuration",
           "command": "pnpm dlx blockend-cli add env-config"
@@ -697,6 +705,10 @@
       ],
       "commands": [
         {
+          "label": "Add the whole recipe",
+          "command": "pnpm dlx blockend-cli add --recipe authenticated-api"
+        },
+        {
           "label": "Environment configuration",
           "command": "pnpm dlx blockend-cli add env-config"
         },
@@ -923,6 +935,10 @@
         }
       ],
       "commands": [
+        {
+          "label": "Add the whole recipe",
+          "command": "pnpm dlx blockend-cli add --recipe edge-hardened-public-api"
+        },
         {
           "label": "Environment configuration",
           "command": "pnpm dlx blockend-cli add env-config"

@@ -123,10 +123,19 @@ const add = defineCommand({
       alias: "m",
       default: false,
       description: "Select and add multiple blocks at once via interactive multiselect"
+    },
+    recipe: {
+      type: "string",
+      description: "Add every block in a published recipe, in the recipe's integration order"
     }
   },
   async run({ args }) {
-    await addCommand(args.block, { yes: args.yes, json: args.json, multi: args.multi });
+    await addCommand(args.block, {
+      yes: args.yes,
+      json: args.json,
+      multi: args.multi,
+      recipe: args.recipe
+    });
   }
 });
 

@@ -24,6 +24,8 @@ export type {
   PlanBlockOptions,
   PreviewBlockOptions,
   PreviewFile,
+  Recipe,
+  RecipeCollection,
   RegistryManifest,
   RegistrySource
 } from "./types.js";
@@ -39,6 +41,7 @@ export { listAvailableBlocks, planBlock } from "./plan.js";
 export { previewBlock } from "./preview.js";
 export { applyBlock } from "./apply.js";
 export { findUp } from "./config.js";
+export { findRecipe, loadRecipeCollection, orderRecipeBlocks } from "./recipes.js";
 export { resolvePreferredVariant, selectVariant } from "./variants.js";
 export {
   getMissingDependencies,
