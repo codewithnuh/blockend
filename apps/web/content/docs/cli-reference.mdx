@@ -96,17 +96,18 @@ Behavior:
 
 ## `list`
 
-List blocks available for the configured framework.
+List blocks available for the configured framework, or list published recipes.
 
 ```bash
 pnpm dlx blockend-cli list [options]
 ```
 
-| Option   | Default | Description                                       |
-| -------- | ------- | ------------------------------------------------- |
-| `--json` | `false` | Write `{ success, environment, blocks }` as JSON. |
+| Option      | Default | Description                                       |
+| ----------- | ------- | ------------------------------------------------- |
+| `--json`    | `false` | Write `{ success, environment, blocks }` as JSON. |
+| `--recipes` | `false` | List published recipes instead of blocks.         |
 
-`list` requires `blockend.json` and network access to GitHub.
+`--recipes` writes `{ success, recipes }` in JSON mode and does not require `blockend.json`. The block listing requires `blockend.json` and network access to GitHub.
 
 ## `detect`
 

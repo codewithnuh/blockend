@@ -90,10 +90,15 @@ const list = defineCommand({
       type: "boolean",
       default: false,
       description: "Output machine-readable blocks configuration array stream"
+    },
+    recipes: {
+      type: "boolean",
+      default: false,
+      description: "List published recipes instead of blocks"
     }
   },
   async run({ args }) {
-    await listCommand({ json: args.json });
+    await listCommand({ json: args.json, recipes: args.recipes });
   }
 });
 const add = defineCommand({
@@ -126,7 +131,8 @@ const add = defineCommand({
     },
     recipe: {
       type: "string",
-      description: "Add every block in a published recipe, in the recipe's integration order"
+      description:
+        "Add every block in a published recipe, in its integration order (see 'blockend list --recipes')"
     }
   },
   async run({ args }) {

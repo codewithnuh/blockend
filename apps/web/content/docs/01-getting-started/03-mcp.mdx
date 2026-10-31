@@ -102,16 +102,18 @@ Starts the stdio server. Your AI client normally runs this command for you.
 
 ## Tools
 
-| Tool             | What it does                                                                           |
-| ---------------- | -------------------------------------------------------------------------------------- |
-| `list_blocks`    | Lists block names, descriptions, and variants.                                         |
-| `detect_project` | Returns framework, language, package manager, and project structure.                   |
-| `add_block`      | Installs one block into a project. Requires `blockName` and an absolute `projectPath`. |
-| `add_blocks`     | Installs several blocks. Requires `blockNames` and an absolute `projectPath`.          |
-| `diff_block`     | Previews new, modified, and unchanged files without writing.                           |
-| `doctor`         | Checks `blockend.json`, framework detection, and project layout.                       |
-| `update_check`   | Compares installed blocks with registry versions.                                      |
-| `update_apply`   | Applies available updates and rewrites imports.                                        |
+| Tool             | What it does                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| `list_blocks`    | Lists block names, descriptions, and variants.                                               |
+| `list_recipes`   | Lists published recipes: curated, ordered stacks of blocks.                                  |
+| `detect_project` | Returns framework, language, package manager, and project structure.                         |
+| `add_block`      | Installs one block into a project. Requires `blockName` and an absolute `projectPath`.       |
+| `add_blocks`     | Installs several blocks. Requires `blockNames` and an absolute `projectPath`.                |
+| `add_recipe`     | Installs every block in a recipe, in integration order. Requires `recipe` and `projectPath`. |
+| `diff_block`     | Previews new, modified, and unchanged files without writing.                                 |
+| `doctor`         | Checks `blockend.json`, framework detection, and project layout.                             |
+| `update_check`   | Compares installed blocks with registry versions.                                            |
+| `update_apply`   | Applies available updates and rewrites imports.                                              |
 
 `add_block` runs the equivalent of:
 
@@ -121,9 +123,19 @@ blockend add <block> --yes --json
 
 That means it installs missing dependencies and overwrites conflicting files without asking. Use `diff_block` first. `projectPath` must be an absolute path to the project root. `add_blocks` runs the same command once per name, in order, and returns one result per block.
 
+`list_recipes` lists the published recipes. `add_recipe` runs the equivalent of:
+
+```bash
+blockend add --recipe <recipe> --yes --json
+```
+
+It installs every block in the recipe in integration order. Optional blocks are skipped in this non-interactive mode.
+
 Example prompts:
 
 - "List the blocks available for this project."
+- "What recipes are available?"
+- "Set up the authenticated-api recipe."
 - "Preview the logger block."
 - "Add the rate-limiter block with its memory store."
 - "Check whether installed blocks have updates."
