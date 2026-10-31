@@ -5,6 +5,15 @@ All notable changes to the `blockend-cli` package are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-10-31
+
+### Added
+
+- Added `add --recipe <slug>` to install every block in a published recipe, in the recipe's integration order, reusing the shared install pipeline.
+- Added `list --recipes` to list published recipes in text or JSON. It does not require `blockend.json`.
+- Added the MCP tools `list_recipes` and `add_recipe` so AI clients can discover and install recipes.
+- The `add --recipe` help text points at `blockend list --recipes`.
+
 ## [2.1.1] - 2026-10-25
 
 ### Changed
