@@ -6,6 +6,8 @@ import type {
   BlockManifest as RegistryBlockManifest,
   EnvironmentConfig as RegistryEnvironmentConfig,
   FrameworkName as RegistryFrameworkName,
+  Recipe as RegistryRecipe,
+  RecipeCollection as RegistryRecipeCollection,
   RegistryManifest as RegistryManifestType
 } from "@blockend/registry";
 
@@ -15,6 +17,8 @@ export type EnvironmentConfig = RegistryEnvironmentConfig;
 export type FrameworkName = RegistryFrameworkName;
 export type BlockManifest = RegistryBlockManifest;
 export type RegistryManifest = RegistryManifestType;
+export type Recipe = RegistryRecipe;
+export type RecipeCollection = RegistryRecipeCollection;
 
 // ─── registry source seam ────────────────────────────────────────────────────
 

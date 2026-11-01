@@ -1,5 +1,1018 @@
 {
   "$schema": "./recipe-schema.json",
   "version": "1.0.0",
-  "recipes": []
+  "recipes": [
+    {
+      "slug": "production-api-foundation",
+      "title": "Production-Ready API Foundation",
+      "outcome": "A framework-agnostic HTTP service with validated startup configuration, structured request logging, normalized error responses, schema-checked input, one response envelope, health reporting, and clean shutdown.",
+      "includedBlocks": [
+        "env-config",
+        "logger",
+        "error-handler",
+        "request-validator",
+        "response-formatter",
+        "health-check",
+        "graceful-shutdown"
+      ],
+      "optionalBlocks": ["rate-limiter"],
+      "integrationOrder": [
+        "env-config",
+        "logger",
+        "error-handler",
+        "request-validator",
+        "response-formatter",
+        "rate-limiter",
+        "health-check",
+        "graceful-shutdown"
+      ],
+      "architecture": {
+        "overview": "Initialize configuration before anything else so a bad environment fails at startup, not on the first request. The logger and error boundary come next so every later layer logs and reports the same way. Validation and response formatting shape the request and response contract, the optional limiter guards the edge, and health checks plus graceful shutdown own the process lifecycle.",
+        "components": [
+          {
+            "name": "Configuration",
+            "description": "parseEnv validates process.env against the Zod schema you supply, once at startup, and throws EnvValidationError listing every invalid field.",
+            "block": "env-config"
+          },
+          {
+            "name": "Logger",
+            "description": "One Pino instance attaches a requestId to each request and redacts Authorization, token, and password by default.",
+            "block": "logger"
+          },
+          {
+            "name": "Error boundary",
+            "description": "createErrorBoundary classifies thrown values, sanitizes sensitive keys, and returns the shared success/data/error envelope.",
+            "block": "error-handler"
+          },
+          {
+            "name": "Request validation",
+            "description": "Zod schemas on body, query, and params reject invalid input with a 400 before the handler runs.",
+            "block": "request-validator"
+          },
+          {
+            "name": "Response formatting",
+            "description": "The framework response classes send the shared success, error, and pagination shapes.",
+            "block": "response-formatter"
+          },
+          {
+            "name": "Edge protection",
+            "description": "Optional fixed-window limiter. Required in the edge-hardened-public-api recipe.",
+            "block": "rate-limiter"
+          },
+          {
+            "name": "Health reporting",
+            "description": "createHealth runs critical and non-critical checks and maps an unhealthy report to 503 while degraded stays 200.",
+            "block": "health-check"
+          },
+          {
+            "name": "Lifecycle",
+            "description": "GracefulShutdown drains in-flight requests, then runs shutdown tasks in priority order under a hard timeout.",
+            "block": "graceful-shutdown"
+          }
+        ]
+      },
+      "assumptions": [
+        "Node.js 20 or newer. Every block declares runtimes.node of >=20.",
+        "One HTTP framework: Express, Fastify, or Hono. The CLI copies the matching adapter.",
+        "Environment variables are injected by the platform. The env-config block reads process.env and does not load .env files.",
+        "The env-config block ships no schema. You write the Zod schema it validates, so installing it enables no checks or defaults on its own.",
+        "pino-pretty is installed as a dev dependency, otherwise the logger fails to start outside production."
+      ],
+      "configuration": [
+        {
+          "name": "NODE_ENV",
+          "description": "Declared in your env-config schema as a Zod enum. It selects the logger level (debug outside production, info in production) and the development transport.",
+          "required": false,
+          "default": "development"
+        },
+        {
+          "name": "PORT",
+          "description": "Declared and coerced to a number in your env-config schema, then passed to your framework listen call.",
+          "required": false,
+          "default": "3000"
+        },
+        {
+          "name": "health-check defaultTimeoutMs",
+          "description": "Per-check timeout used when a check does not set its own timeoutMs.",
+          "required": false,
+          "default": "5000"
+        },
+        {
+          "name": "graceful-shutdown drainTimeoutMs",
+          "description": "How long the tracker waits for in-flight requests before shutdown tasks run.",
+          "required": false,
+          "default": "10000"
+        },
+        {
+          "name": "graceful-shutdown hardTimeoutMs",
+          "description": "Forced process exit after this long. Keep it below the platform stop timeout.",
+          "required": false,
+          "default": "30000"
+        },
+        {
+          "name": "rate-limiter windowMs",
+          "description": "Fixed window length used when the optional limiter is added.",
+          "required": false,
+          "default": "60000"
+        },
+        {
+          "name": "rate-limiter max",
+          "description": "Requests allowed per key per window before the limiter returns 429.",
+          "required": false,
+          "default": "100"
+        }
+      ],
+      "tradeoffs": [
+        {
+          "choice": "Validate the environment at startup",
+          "tradeoff": "A missing or malformed variable stops the process before it serves traffic, but the parsed object is never re-read when the environment changes."
+        },
+        {
+          "choice": "Structured JSON logs",
+          "tradeoff": "Production logs stay machine-parseable, but development needs the extra pino-pretty dependency for readable output."
+        },
+        {
+          "choice": "One response envelope",
+          "tradeoff": "Clients can rely on success, data, and error, but every endpoint must conform and cannot stream arbitrary shapes."
+        },
+        {
+          "choice": "Graceful shutdown with a hard timeout",
+          "tradeoff": "Deploys finish cleanly, but a task that overruns the hard timeout is cut off by a forced exit."
+        },
+        {
+          "choice": "Optional edge limiter",
+          "tradeoff": "The limiter is not enforced by default. Add rate-limiter before exposing the API publicly."
+        }
+      ],
+      "alternatives": [
+        {
+          "title": "edge-hardened-public-api",
+          "description": "Use this sibling recipe when the service is reachable from the internet and the rate limiter must be required rather than optional."
+        },
+        {
+          "title": "Install blocks individually",
+          "description": "Run blockend-cli add per block if you only need a subset, such as the logger and error handler for an existing service."
+        },
+        {
+          "title": "Keep your existing pipeline",
+          "description": "If you already have logging, error handling, and a response envelope, add only the blocks you are missing."
+        }
+      ],
+      "failureBehavior": [
+        {
+          "scenario": "An environment variable is missing or invalid",
+          "behavior": "For the fields your schema declares, parseEnv throws EnvValidationError at startup and lists every failing field, so the process never serves a misconfigured request."
+        },
+        {
+          "scenario": "A route throws an unexpected error",
+          "behavior": "The error boundary returns status 500 with a generic message and omits internals. Operational AppError instances keep their status code and details."
+        },
+        {
+          "scenario": "A request fails schema validation",
+          "behavior": "The validator returns 400 with a validation envelope and the route handler never runs."
+        },
+        {
+          "scenario": "A critical health check fails",
+          "behavior": "GET /health returns 503. A non-critical failure returns 200 with status degraded so the instance keeps serving."
+        },
+        {
+          "scenario": "SIGTERM arrives during a deploy",
+          "behavior": "New requests get 503, in-flight work drains up to drainTimeoutMs, then tasks run and the process exits 0, or 1 if a task failed or the hard timeout was reached."
+        }
+      ],
+      "commands": [
+        {
+          "label": "Add the whole recipe",
+          "command": "pnpm dlx blockend-cli add --recipe production-api-foundation"
+        },
+        {
+          "label": "Environment configuration",
+          "command": "pnpm dlx blockend-cli add env-config"
+        },
+        {
+          "label": "Logger",
+          "command": "pnpm dlx blockend-cli add logger"
+        },
+        {
+          "label": "Error handler",
+          "command": "pnpm dlx blockend-cli add error-handler"
+        },
+        {
+          "label": "Request validator",
+          "command": "pnpm dlx blockend-cli add request-validator"
+        },
+        {
+          "label": "Response formatter",
+          "command": "pnpm dlx blockend-cli add response-formatter"
+        },
+        {
+          "label": "Health check",
+          "command": "pnpm dlx blockend-cli add health-check"
+        },
+        {
+          "label": "Graceful shutdown",
+          "command": "pnpm dlx blockend-cli add graceful-shutdown"
+        },
+        {
+          "label": "Optional: rate limiting",
+          "command": "pnpm dlx blockend-cli add rate-limiter"
+        }
+      ],
+      "relatedContent": [
+        {
+          "title": "Environment configuration",
+          "href": "/docs/02-blocks/06-env-config"
+        },
+        {
+          "title": "Logger",
+          "href": "/docs/02-blocks/03-pino-logger"
+        },
+        {
+          "title": "Error handler",
+          "href": "/docs/02-blocks/02-global-error-handler"
+        },
+        {
+          "title": "Request validator",
+          "href": "/docs/02-blocks/04-request-validator"
+        },
+        {
+          "title": "Response formatter",
+          "href": "/docs/02-blocks/05-response-formatter"
+        },
+        {
+          "title": "Health check",
+          "href": "/docs/02-blocks/07-health-check"
+        },
+        {
+          "title": "Graceful shutdown",
+          "href": "/docs/02-blocks/08-graceful-shutdown"
+        },
+        {
+          "title": "Production health checks and graceful shutdown",
+          "href": "/docs/03-guides/01-production-health-checks-and-graceful-shutdown"
+        },
+        {
+          "title": "CLI reference",
+          "href": "/docs/cli-reference"
+        },
+        {
+          "title": "Recipe: Edge-Hardened Public API",
+          "href": "/recipes/edge-hardened-public-api"
+        },
+        {
+          "title": "Recipe: Idempotent Webhook Ingestion",
+          "href": "/recipes/idempotent-webhook-ingestion"
+        }
+      ]
+    },
+    {
+      "slug": "idempotent-webhook-ingestion",
+      "title": "Idempotent Webhook Ingestion",
+      "outcome": "A webhook and payment endpoint that runs each state-changing operation at most once per idempotency key, replays the stored result on retries, and returns a conflict when a key is reused with different input.",
+      "includedBlocks": [
+        "env-config",
+        "logger",
+        "error-handler",
+        "request-validator",
+        "response-formatter",
+        "idempotency",
+        "health-check",
+        "graceful-shutdown"
+      ],
+      "optionalBlocks": ["rate-limiter"],
+      "integrationOrder": [
+        "env-config",
+        "logger",
+        "error-handler",
+        "request-validator",
+        "response-formatter",
+        "idempotency",
+        "rate-limiter",
+        "health-check",
+        "graceful-shutdown"
+      ],
+      "architecture": {
+        "overview": "Start from the production API foundation, then add the idempotency handler in front of every state-changing route. The handler scopes a request by user, operation, and idempotency key, creates an atomic PROCESSING lock, and stores the route result so a retry returns the stored response instead of charging the customer twice. The optional limiter sits in front to blunt retry storms.",
+        "components": [
+          {
+            "name": "Configuration",
+            "description": "You define the env-config schema, including the database URL the idempotency store uses; parseEnv validates it once at startup.",
+            "block": "env-config"
+          },
+          {
+            "name": "Request pipeline",
+            "description": "Logger, error boundary, validator, and response formatter provide consistent logging, errors, and envelopes.",
+            "block": "error-handler"
+          },
+          {
+            "name": "Idempotency handler",
+            "description": "IdempotencyHandler wraps a state-changing route, hashes the body, and deduplicates on the user, operation, and key triple.",
+            "block": "idempotency"
+          },
+          {
+            "name": "Idempotency store",
+            "description": "You supply an IdempotencyStore backed by shared storage. Its create must be atomic, such as a unique constraint on operation, userId, and key."
+          },
+          {
+            "name": "Retry shield",
+            "description": "Optional rate limiter protects the endpoint while a large batch of retries arrives.",
+            "block": "rate-limiter"
+          },
+          {
+            "name": "Health and lifecycle",
+            "description": "Health checks report store reachability and graceful shutdown drains in-flight processing before closing the pool.",
+            "block": "graceful-shutdown"
+          }
+        ]
+      },
+      "assumptions": [
+        "A persistent IdempotencyStore is provided and shared by every app instance. A per-process map cannot deduplicate across replicas.",
+        "Store.create is atomic. Two concurrent inserts must not both report success.",
+        "Clients send an Idempotency-Key header on write requests.",
+        "getUserId resolves a real authenticated user id. The default anonymous scope would let one client read another client's stored response.",
+        "The internal idempotency record TTL is 24 hours and is not configurable.",
+        "The env-config block ships no schema. You write the Zod schema it validates, including the store's connection settings."
+      ],
+      "configuration": [
+        {
+          "name": "Idempotency-Key header",
+          "description": "The default key source. The value is trimmed and limited to 128 characters of letters, numbers, dot, underscore, hyphen, and colon.",
+          "required": true
+        },
+        {
+          "name": "requireKey",
+          "description": "Set true to reject a missing key with 400 KEY_REQUIRED instead of running the route unprotected.",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "getUserId",
+          "description": "Resolves the authenticated user id used to scope the key. Read it after your auth middleware runs.",
+          "required": true
+        },
+        {
+          "name": "getOperation",
+          "description": "Scopes the key to an operation. Defaults to the method and path; Fastify uses the registered route pattern.",
+          "required": false,
+          "default": "method + path"
+        },
+        {
+          "name": "isPermanentError",
+          "description": "Decides whether a failure poisons the key. The default treats every error as permanent, so narrow it to your validation errors.",
+          "required": false,
+          "default": "every error is permanent"
+        },
+        {
+          "name": "getBody",
+          "description": "Selects the payload fields hashed for key reuse detection. Exclude fields that change on every retry, such as timestamps.",
+          "required": false,
+          "default": "request body"
+        }
+      ],
+      "tradeoffs": [
+        {
+          "choice": "Store the route result, not the HTTP status",
+          "tradeoff": "Replays are simple and consistent, but a middleware replay is sent with status 200 even when the original returned 201."
+        },
+        {
+          "choice": "A fixed 24 hour key lifetime",
+          "tradeoff": "Retries inside the window are safe without extra state, but retry windows longer than 24 hours are not covered."
+        },
+        {
+          "choice": "Hash a stable subset of the body",
+          "tradeoff": "Key reuse detection stays accurate, but a body containing non-serializable values fails, so pass only JSON-compatible data."
+        },
+        {
+          "choice": "Fail closed on a store outage",
+          "tradeoff": "A store error returns 503 rather than running the operation twice, which favors correctness over availability."
+        }
+      ],
+      "alternatives": [
+        {
+          "title": "production-api-foundation",
+          "description": "Start from the base recipe when your write endpoints are already safe or you do not yet need deduplication."
+        },
+        {
+          "title": "Add idempotency to a single route",
+          "description": "Run blockend-cli add idempotency and wrap only the payment or webhook route if the rest of the API is read-only."
+        },
+        {
+          "title": "Provider-side deduplication",
+          "description": "If your payment provider already deduplicates by key, you may only need request validation and rate limiting."
+        }
+      ],
+      "failureBehavior": [
+        {
+          "scenario": "Missing key with requireKey true",
+          "behavior": "Returns 400 KEY_REQUIRED and the route does not run."
+        },
+        {
+          "scenario": "Same key and same payload",
+          "behavior": "The stored success result is replayed and the operation is not run again."
+        },
+        {
+          "scenario": "Same key and different payload",
+          "behavior": "Returns 409 KEY_REUSED_WITH_DIFFERENT_REQUEST."
+        },
+        {
+          "scenario": "Same key while the first request is still running",
+          "behavior": "Returns 409 REQUEST_IN_PROGRESS."
+        },
+        {
+          "scenario": "Same key after a permanent failure",
+          "behavior": "Returns 409 REQUEST_FAILED until cleanup deletes the record."
+        },
+        {
+          "scenario": "The store throws",
+          "behavior": "Returns 503 STORE_UNAVAILABLE. A transient error deletes the lock so the client can retry, and the third transient failure marks the key FAILED."
+        }
+      ],
+      "commands": [
+        {
+          "label": "Add the whole recipe",
+          "command": "pnpm dlx blockend-cli add --recipe idempotent-webhook-ingestion"
+        },
+        {
+          "label": "Environment configuration",
+          "command": "pnpm dlx blockend-cli add env-config"
+        },
+        {
+          "label": "Logger",
+          "command": "pnpm dlx blockend-cli add logger"
+        },
+        {
+          "label": "Error handler",
+          "command": "pnpm dlx blockend-cli add error-handler"
+        },
+        {
+          "label": "Request validator",
+          "command": "pnpm dlx blockend-cli add request-validator"
+        },
+        {
+          "label": "Response formatter",
+          "command": "pnpm dlx blockend-cli add response-formatter"
+        },
+        {
+          "label": "Idempotency",
+          "command": "pnpm dlx blockend-cli add idempotency"
+        },
+        {
+          "label": "Health check",
+          "command": "pnpm dlx blockend-cli add health-check"
+        },
+        {
+          "label": "Graceful shutdown",
+          "command": "pnpm dlx blockend-cli add graceful-shutdown"
+        },
+        {
+          "label": "Optional: retry-storm shield",
+          "command": "pnpm dlx blockend-cli add rate-limiter"
+        }
+      ],
+      "relatedContent": [
+        {
+          "title": "Idempotency",
+          "href": "/docs/02-blocks/09-idempotency"
+        },
+        {
+          "title": "Idempotency in production",
+          "href": "/docs/03-guides/02-idempotency-in-production"
+        },
+        {
+          "title": "Environment configuration",
+          "href": "/docs/02-blocks/06-env-config"
+        },
+        {
+          "title": "Error handler",
+          "href": "/docs/02-blocks/02-global-error-handler"
+        },
+        {
+          "title": "Logger",
+          "href": "/docs/02-blocks/03-pino-logger"
+        },
+        {
+          "title": "Rate limiter",
+          "href": "/docs/02-blocks/01-rate-limiter"
+        },
+        {
+          "title": "CLI reference",
+          "href": "/docs/cli-reference"
+        },
+        {
+          "title": "Recipe: Production-Ready API Foundation",
+          "href": "/recipes/production-api-foundation"
+        },
+        {
+          "title": "Recipe: Authenticated API",
+          "href": "/recipes/authenticated-api"
+        }
+      ]
+    },
+    {
+      "slug": "authenticated-api",
+      "title": "Authenticated API with Credential and Token Flows",
+      "outcome": "A service that stores credentials safely with peppered Argon2id hashing and issues short-lived JWT access tokens with rotating, revocable refresh tokens.",
+      "includedBlocks": [
+        "env-config",
+        "logger",
+        "error-handler",
+        "request-validator",
+        "response-formatter",
+        "password-hash",
+        "token-service",
+        "health-check",
+        "graceful-shutdown"
+      ],
+      "optionalBlocks": ["rate-limiter"],
+      "integrationOrder": [
+        "env-config",
+        "logger",
+        "error-handler",
+        "request-validator",
+        "response-formatter",
+        "password-hash",
+        "token-service",
+        "rate-limiter",
+        "health-check",
+        "graceful-shutdown"
+      ],
+      "architecture": {
+        "overview": "Build on the production API foundation, then add credential hashing and token issuance. The password hasher stores an Argon2id hash with a server-side pepper; the token service issues an access token and a rotating refresh token after a successful login. Your app still owns login, cookies, CSRF, and authorization policy. Persist refresh state in PostgreSQL or Redis so revocation survives restarts and is shared across instances.",
+        "components": [
+          {
+            "name": "Configuration",
+            "description": "You declare the pepper, issuer, and audience in the env-config schema so parseEnv fails fast at startup on a bad security setting. The block validates only what your schema declares.",
+            "block": "env-config"
+          },
+          {
+            "name": "Request pipeline",
+            "description": "Logger, error boundary, validator, and response formatter give login and token routes consistent errors and envelopes.",
+            "block": "request-validator"
+          },
+          {
+            "name": "Credential hashing",
+            "description": "PasswordHasher hashes and verifies passwords with Argon2id, a random salt, and an HMAC-SHA256 pepper, and reports when a hash needs rehashing.",
+            "block": "password-hash"
+          },
+          {
+            "name": "Token issuance",
+            "description": "createTokenService signs access tokens and rotates single-use refresh tokens, verifying issuer, audience, expiry, and an optional JTI denylist.",
+            "block": "token-service"
+          },
+          {
+            "name": "Refresh token store",
+            "description": "You supply a TokenStore. Use PostgresTokenStore or RedisTokenStore in production; MemoryTokenStore loses state on restart."
+          },
+          {
+            "name": "Login rate limiting",
+            "description": "Optional limiter that protects login, refresh, and password reset endpoints from brute force and spikes.",
+            "block": "rate-limiter"
+          },
+          {
+            "name": "Health and lifecycle",
+            "description": "Health checks verify the token store and graceful shutdown drains in-flight requests before closing resources.",
+            "block": "graceful-shutdown"
+          }
+        ]
+      },
+      "assumptions": [
+        "APP_PASSWORD_PEPPER is a base64 secret that decodes to at least 32 bytes, loaded from a secret manager and unique per environment.",
+        "Refresh tokens are persisted with PostgresTokenStore or RedisTokenStore. MemoryTokenStore is for tests and single-process development only.",
+        "Your application authenticates users, sets cookies and CSRF, and decides authorization. These blocks handle hashing and token mechanics only.",
+        "Production requires an https issuer or a urn, plus at least one audience value.",
+        "The token-service entry point is @/blocks/token-service/src. The block has no root index.ts.",
+        "The env-config block ships no schema. You write the Zod schema it validates, including the pepper, issuer, and audience."
+      ],
+      "configuration": [
+        {
+          "name": "APP_PASSWORD_PEPPER",
+          "description": "Base64 secret mixed into every password before Argon2 runs. Missing, invalid, or shorter than 32 bytes throws InvalidPepperError.",
+          "required": true
+        },
+        {
+          "name": "ARGON2_MEMORY_COST",
+          "description": "Argon2id memory cost in KiB. Measure latency and total memory on your production hardware.",
+          "required": false,
+          "default": "65536"
+        },
+        {
+          "name": "ARGON2_TIME_COST",
+          "description": "Argon2id iteration count. Lower it only after measuring verify latency.",
+          "required": false,
+          "default": "3"
+        },
+        {
+          "name": "ARGON2_PARALLELISM",
+          "description": "Argon2id lanes. Capped at 255 by the native binding.",
+          "required": false,
+          "default": "1"
+        },
+        {
+          "name": "PASSWORD_MAX_INPUT_BYTES",
+          "description": "Maximum password length. Oversized input throws PasswordTooLongError.",
+          "required": false,
+          "default": "128"
+        },
+        {
+          "name": "issuer",
+          "description": "Token issuer. Production requires an https URL or a urn.",
+          "required": true
+        },
+        {
+          "name": "audience",
+          "description": "Allowed audience values. Required in production.",
+          "required": true
+        },
+        {
+          "name": "accessTokenTtlSeconds",
+          "description": "Access token lifetime, clamped to 60 through 3600 seconds.",
+          "required": false,
+          "default": "900"
+        },
+        {
+          "name": "refreshTokenTtlSeconds",
+          "description": "Refresh token lifetime, clamped to 3600 through 2592000 seconds.",
+          "required": false,
+          "default": "604800"
+        },
+        {
+          "name": "clockSkewSeconds",
+          "description": "JWT clock tolerance, 0 through 300 seconds.",
+          "required": false,
+          "default": "30"
+        },
+        {
+          "name": "algorithms",
+          "description": "Signing algorithms. Production rejects HS star and requires asymmetric keys.",
+          "required": false,
+          "default": "RS256 and ES256"
+        }
+      ],
+      "tradeoffs": [
+        {
+          "choice": "Peppered Argon2id hashing",
+          "tradeoff": "A stolen database cannot be tested offline without the pepper, but rotating the pepper invalidates every existing hash and needs a planned migration."
+        },
+        {
+          "choice": "Short access tokens with rotating refresh tokens",
+          "tradeoff": "Revocation stays fast and reuse is detected, but clients must handle rotation and a 401 refresh flow."
+        },
+        {
+          "choice": "PostgreSQL or Redis refresh store",
+          "tradeoff": "State is shared and durable across instances, at the cost of running and monitoring another dependency."
+        },
+        {
+          "choice": "Opt-in issue and revoke routes",
+          "tradeoff": "Refresh is exposed by default, but issue and revoke require an authorize callback, since minting tokens without one is unsafe."
+        },
+        {
+          "choice": "Argon2 memory per concurrent hash",
+          "tradeoff": "Memory-hard hashing resists guessing, but each concurrent verify holds memoryCost of RAM, so budget container memory above it."
+        }
+      ],
+      "alternatives": [
+        {
+          "title": "Managed identity provider",
+          "description": "Use an external provider when you want passwordless, OAuth, or hosted account recovery instead of running credential and token flows yourself."
+        },
+        {
+          "title": "token-service only",
+          "description": "If an upstream service already verifies credentials, add only the token service and skip password-hash."
+        },
+        {
+          "title": "password-hash only",
+          "description": "If you use session cookies instead of JWTs, add only password-hash and manage sessions in your app."
+        }
+      ],
+      "failureBehavior": [
+        {
+          "scenario": "The pepper is missing or invalid",
+          "behavior": "new PasswordHasher() throws InvalidPepperError, so the service fails to start rather than store weak hashes."
+        },
+        {
+          "scenario": "A password exceeds the maximum length",
+          "behavior": "Hashing and verification throw PasswordTooLongError. Treat it as a 400 bad request, not a failed login."
+        },
+        {
+          "scenario": "Credentials are wrong or the account is unknown",
+          "behavior": "Return the same 401 for both cases. Verify against a dummy hash for unknown accounts to reduce timing differences."
+        },
+        {
+          "scenario": "An access token is expired or has the wrong audience",
+          "behavior": "Verification fails with TOKEN_EXPIRED or INVALID_TOKEN and the request is rejected with 401."
+        },
+        {
+          "scenario": "A refresh token is reused",
+          "behavior": "The service revokes the entire refresh family and returns REFRESH_REUSED, so a stolen token cannot outlive detection."
+        },
+        {
+          "scenario": "The token store or a signing key is unavailable",
+          "behavior": "The operation fails with STORE_UNAVAILABLE or KEY_UNAVAILABLE and returns 503."
+        }
+      ],
+      "commands": [
+        {
+          "label": "Add the whole recipe",
+          "command": "pnpm dlx blockend-cli add --recipe authenticated-api"
+        },
+        {
+          "label": "Environment configuration",
+          "command": "pnpm dlx blockend-cli add env-config"
+        },
+        {
+          "label": "Logger",
+          "command": "pnpm dlx blockend-cli add logger"
+        },
+        {
+          "label": "Error handler",
+          "command": "pnpm dlx blockend-cli add error-handler"
+        },
+        {
+          "label": "Request validator",
+          "command": "pnpm dlx blockend-cli add request-validator"
+        },
+        {
+          "label": "Response formatter",
+          "command": "pnpm dlx blockend-cli add response-formatter"
+        },
+        {
+          "label": "Password hash",
+          "command": "pnpm dlx blockend-cli add password-hash"
+        },
+        {
+          "label": "Token service",
+          "command": "pnpm dlx blockend-cli add token-service"
+        },
+        {
+          "label": "Health check",
+          "command": "pnpm dlx blockend-cli add health-check"
+        },
+        {
+          "label": "Graceful shutdown",
+          "command": "pnpm dlx blockend-cli add graceful-shutdown"
+        },
+        {
+          "label": "PostgreSQL token schema",
+          "command": "psql \"$DATABASE_URL\" -f src/blocks/token-service/sql/postgres.sql"
+        },
+        {
+          "label": "Optional: protect credential endpoints",
+          "command": "pnpm dlx blockend-cli add rate-limiter"
+        }
+      ],
+      "relatedContent": [
+        {
+          "title": "Password hash",
+          "href": "/docs/02-blocks/10-password-hash"
+        },
+        {
+          "title": "Token service",
+          "href": "/docs/02-blocks/11-token-service"
+        },
+        {
+          "title": "Environment configuration",
+          "href": "/docs/02-blocks/06-env-config"
+        },
+        {
+          "title": "Rate limiter",
+          "href": "/docs/02-blocks/01-rate-limiter"
+        },
+        {
+          "title": "Request validator",
+          "href": "/docs/02-blocks/04-request-validator"
+        },
+        {
+          "title": "CLI reference",
+          "href": "/docs/cli-reference"
+        },
+        {
+          "title": "Recipe: Production-Ready API Foundation",
+          "href": "/recipes/production-api-foundation"
+        },
+        {
+          "title": "Recipe: Edge-Hardened Public API",
+          "href": "/recipes/edge-hardened-public-api"
+        }
+      ]
+    },
+    {
+      "slug": "edge-hardened-public-api",
+      "title": "Edge-Hardened Public API",
+      "outcome": "A public-facing API that enforces a shared rate limit across every instance, with optional idempotency on write endpoints.",
+      "includedBlocks": [
+        "env-config",
+        "logger",
+        "error-handler",
+        "request-validator",
+        "response-formatter",
+        "rate-limiter",
+        "health-check",
+        "graceful-shutdown"
+      ],
+      "optionalBlocks": ["idempotency"],
+      "integrationOrder": [
+        "env-config",
+        "logger",
+        "error-handler",
+        "request-validator",
+        "response-formatter",
+        "rate-limiter",
+        "idempotency",
+        "health-check",
+        "graceful-shutdown"
+      ],
+      "architecture": {
+        "overview": "This is the production API foundation with the rate limiter promoted from optional to required, because the API is reachable from the internet. The limiter sits before expensive routes and before the work you want to protect. Use the Redis store so all instances share one counter, and place the app behind a proxy that overwrites forwarding headers so the default client-IP key cannot be spoofed. Idempotency is offered as an optional addition for retry-heavy write endpoints.",
+        "components": [
+          {
+            "name": "Request pipeline",
+            "description": "Configuration, logging, error handling, validation, and response formatting from the foundation.",
+            "block": "env-config"
+          },
+          {
+            "name": "Shared rate limiter",
+            "description": "A fixed-window limiter backed by RedisStore so every instance counts against the same key.",
+            "block": "rate-limiter"
+          },
+          {
+            "name": "Trusted key source",
+            "description": "The default key is the client IP from x-forwarded-for, x-real-ip, or the socket. Supply a keyGenerator for authenticated per-user limits."
+          },
+          {
+            "name": "Optional idempotency",
+            "description": "Add the idempotency handler on write routes so retries after a 429 or a timeout do not run twice.",
+            "block": "idempotency"
+          },
+          {
+            "name": "Health and lifecycle",
+            "description": "Health checks and graceful shutdown keep the instance observable and drainable during rollout.",
+            "block": "graceful-shutdown"
+          }
+        ]
+      },
+      "assumptions": [
+        "The API runs as more than one process or container, so the RedisStore is required. MemoryStore gives each instance its own counter and effectively multiplies the limit.",
+        "A trusted proxy overwrites x-forwarded-for and x-real-ip, or you pass a keyGenerator based on a value you control.",
+        "Redis runs with maxmemory-policy noeviction and store errors are alerted on, because the limiter fails open.",
+        "Endpoint-specific limits for login and password reset are added by the application. A global limit is not a brute-force defense."
+      ],
+      "configuration": [
+        {
+          "name": "rate-limiter store",
+          "description": "Required. Use RedisStore for a shared limit and MemoryStore only for single-process development.",
+          "required": true
+        },
+        {
+          "name": "rate-limiter windowMs",
+          "description": "Fixed window length. Start from your traffic profile rather than a blanket value.",
+          "required": false,
+          "default": "60000"
+        },
+        {
+          "name": "rate-limiter max",
+          "description": "Requests allowed per key per window. Request max plus one is blocked with 429.",
+          "required": false,
+          "default": "100"
+        },
+        {
+          "name": "RedisStore keyPrefix",
+          "description": "Separates rate limit keys from other data in the same Redis database.",
+          "required": false,
+          "default": "rl:"
+        },
+        {
+          "name": "rate-limiter keyGenerator",
+          "description": "Returns the key to count. Default is the client IP; use a user or tenant id for authenticated routes.",
+          "required": false,
+          "default": "client IP"
+        }
+      ],
+      "tradeoffs": [
+        {
+          "choice": "Fixed-window counting",
+          "tradeoff": "It is cheap and predictable, but traffic can burst at a window boundary because it is not a sliding window or token bucket."
+        },
+        {
+          "choice": "Fail open on store errors",
+          "tradeoff": "A Redis outage does not take the API down, but the limit is not enforced during the outage and the routes are unprotected."
+        },
+        {
+          "choice": "Client-IP default key",
+          "tradeoff": "It works without auth, but it trusts forwarding headers, so the app must sit behind a proxy that overwrites them or a spoofing client can rotate its own key."
+        },
+        {
+          "choice": "One shared Redis counter",
+          "tradeoff": "Limits are consistent across instances, but Redis becomes a dependency and a potential single point of failure."
+        }
+      ],
+      "alternatives": [
+        {
+          "title": "production-api-foundation",
+          "description": "Use the base recipe when the API is internal and rate limiting is not required."
+        },
+        {
+          "title": "Gateway-level limiting",
+          "description": "If your API gateway already enforces per-IP limits, you may only need the foundation plus idempotency."
+        },
+        {
+          "title": "Per-route limits only",
+          "description": "Add the limiter to specific routes, such as login and search, instead of globally, to avoid blocking batch clients."
+        }
+      ],
+      "failureBehavior": [
+        {
+          "scenario": "A key exceeds its limit",
+          "behavior": "The adapter returns 429 with RateLimit and Retry-After headers and stops the request before it reaches the route."
+        },
+        {
+          "scenario": "The Redis store is unavailable",
+          "behavior": "The adapter logs a rate limiter failure and lets the request continue. The route is unprotected until the store recovers."
+        },
+        {
+          "scenario": "The app is reachable without a trusted proxy",
+          "behavior": "A client can send its own x-forwarded-for header and pick a new key per request, bypassing the default IP limit."
+        },
+        {
+          "scenario": "A burst arrives at a window boundary",
+          "behavior": "Up to max requests near the end of one window and max at the start of the next are both allowed because the window is fixed."
+        },
+        {
+          "scenario": "A write endpoint is retried after a 429 or timeout",
+          "behavior": "With the optional idempotency handler, the retry replays the stored result instead of running the operation again."
+        }
+      ],
+      "commands": [
+        {
+          "label": "Add the whole recipe",
+          "command": "pnpm dlx blockend-cli add --recipe edge-hardened-public-api"
+        },
+        {
+          "label": "Environment configuration",
+          "command": "pnpm dlx blockend-cli add env-config"
+        },
+        {
+          "label": "Logger",
+          "command": "pnpm dlx blockend-cli add logger"
+        },
+        {
+          "label": "Error handler",
+          "command": "pnpm dlx blockend-cli add error-handler"
+        },
+        {
+          "label": "Request validator",
+          "command": "pnpm dlx blockend-cli add request-validator"
+        },
+        {
+          "label": "Response formatter",
+          "command": "pnpm dlx blockend-cli add response-formatter"
+        },
+        {
+          "label": "Rate limiter (choose the Redis store)",
+          "command": "pnpm dlx blockend-cli add rate-limiter"
+        },
+        {
+          "label": "Health check",
+          "command": "pnpm dlx blockend-cli add health-check"
+        },
+        {
+          "label": "Graceful shutdown",
+          "command": "pnpm dlx blockend-cli add graceful-shutdown"
+        },
+        {
+          "label": "Optional: retry-safe writes",
+          "command": "pnpm dlx blockend-cli add idempotency"
+        }
+      ],
+      "relatedContent": [
+        {
+          "title": "Rate limiter",
+          "href": "/docs/02-blocks/01-rate-limiter"
+        },
+        {
+          "title": "Idempotency",
+          "href": "/docs/02-blocks/09-idempotency"
+        },
+        {
+          "title": "Error handler",
+          "href": "/docs/02-blocks/02-global-error-handler"
+        },
+        {
+          "title": "Production health checks and graceful shutdown",
+          "href": "/docs/03-guides/01-production-health-checks-and-graceful-shutdown"
+        },
+        {
+          "title": "CLI reference",
+          "href": "/docs/cli-reference"
+        },
+        {
+          "title": "Recipe: Production-Ready API Foundation",
+          "href": "/recipes/production-api-foundation"
+        },
+        {
+          "title": "Recipe: Idempotent Webhook Ingestion",
+          "href": "/recipes/idempotent-webhook-ingestion"
+        }
+      ]
+    }
+  ]
 }

@@ -7,15 +7,19 @@ import pc from "picocolors";
 import {
   applyBlock,
   createGitHubRegistrySource,
+  findRecipe,
   findUp,
   getMissingDependencies,
   getVersionConflicts,
   listAvailableBlocks,
+  loadRecipeCollection,
   loadRegistry,
+  orderRecipeBlocks,
   planBlock,
   type BlockPlan,
   type BlockPlanErrorCode,
   type BlockendConfig,
+  type Recipe,
   type RegistryManifest,
   type RegistrySource
 } from "../block-install/index.js";
@@ -42,7 +46,7 @@ interface AddContext {
   aliasBase: string | undefined;
   envKey: string;
   rewriteStrategy: "rewrite" | "remove";
-  options: { yes?: boolean; json?: boolean };
+  options: { yes?: boolean; json?: boolean; recipe?: string };
 }
 
 // ─── output helpers ──────────────────────────────────────────────────────────
@@ -95,7 +99,8 @@ function failureMessage(code: BlockPlanErrorCode, blockName: string): string {
  */
 async function addSingleBlock(
   targetBlock: string,
-  context: AddContext
+  context: AddContext,
+  options: { suppressErrorOutput?: boolean } = {}
 ): Promise<{ success: boolean; filesWritten: string[]; message: string }> {
   const { yes = false, json = false } = context.options;
   const {
@@ -111,10 +116,13 @@ async function addSingleBlock(
     rewriteStrategy
   } = context;
   const s = spinner();
+  const reportError = (message: string) => {
+    if (!options.suppressErrorOutput) outputError(json, message);
+  };
 
   const initialPlan = await planBlock(registry, targetBlock, envKey);
   if (!initialPlan.ok) {
-    outputError(json, initialPlan.error.message);
+    reportError(initialPlan.error.message);
     return {
       success: false,
       filesWritten: [],
@@ -148,7 +156,7 @@ async function addSingleBlock(
       variant: selectedVariant
     });
     if (!selectedPlan.ok) {
-      outputError(json, selectedPlan.error.message);
+      reportError(selectedPlan.error.message);
       return {
         success: false,
         filesWritten: [],
@@ -164,7 +172,7 @@ async function addSingleBlock(
 
   const packageJsonPath = await findUp("package.json", rootDir);
   if (!packageJsonPath) {
-    outputError(json, "Could not locate package.json.");
+    reportError("Could not locate package.json.");
     return { success: false, filesWritten: [], message: "package.json not found" };
   }
   const packageJsonDir = dirname(packageJsonPath);
@@ -173,7 +181,7 @@ async function addSingleBlock(
   try {
     packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf-8")) as LocalPackageJson;
   } catch (err) {
-    outputError(json, "Failed to parse package.json.");
+    reportError("Failed to parse package.json.");
     if (!json) log.error(pc.dim(String(err)));
     return { success: false, filesWritten: [], message: "Failed to parse package.json" };
   }
@@ -252,7 +260,7 @@ async function addSingleBlock(
         if (!json) {
           s.stop("Installation failed.");
           log.error(pc.dim(String(err)));
-        } else outputError(json, "Dependency installation failed.");
+        } else reportError("Dependency installation failed.");
         return { success: false, filesWritten: [], message: "Dependency installation failed" };
       }
     }
@@ -307,8 +315,77 @@ async function addSingleBlock(
     if (!json) {
       s.stop("Failed.");
       log.error(pc.dim(String(err)));
-    } else outputError(json, "Fatal error while writing block files.");
+    } else reportError("Fatal error while writing block files.");
     return { success: false, filesWritten: [], message: `Failed to add ${targetBlock}` };
+  }
+}
+
+// ─── recipe mode ─────────────────────────────────────────────────────────────
+
+/**
+ * Add every block of a published recipe, in the recipe's integration order.
+ * Reuses the single-block installer so variants, dependency install, conflict
+ * handling, import rewriting, and recorded metadata behave identically.
+ */
+async function addRecipe(recipeSlug: string, context: AddContext): Promise<void> {
+  const { yes = false, json = false } = context.options;
+  const { source } = context;
+
+  let recipe: Recipe | undefined;
+  try {
+    const collection = await loadRecipeCollection(source);
+    recipe = findRecipe(collection, recipeSlug);
+  } catch (err) {
+    outputError(json, "Failed to load the recipe collection from the registry.");
+    if (!json) log.error(pc.dim(String(err)));
+    process.exitCode = 1;
+    return;
+  }
+
+  if (!recipe) {
+    outputError(json, `Recipe "${recipeSlug}" not found in the registry.`);
+    process.exitCode = 1;
+    return;
+  }
+
+  let selectedOptional: string[] = [];
+  if (recipe.optionalBlocks.length > 0 && !yes && !json) {
+    const picked = await multiselect({
+      message: `Optional blocks to include with ${pc.cyan(recipeSlug)}:`,
+      options: recipe.optionalBlocks.map((block) => ({ value: block, label: block })),
+      required: false
+    });
+    handleCancel(picked);
+    selectedOptional = picked as string[];
+  }
+
+  const blocks = orderRecipeBlocks(recipe, selectedOptional);
+
+  if (!json) log.info(`\nAdding ${blocks.length} block(s) from recipe "${recipe.title}"...\n`);
+
+  const added: string[] = [];
+  const failed: Array<{ block: string; message: string }> = [];
+
+  for (const block of blocks) {
+    const result = await addSingleBlock(block, context, { suppressErrorOutput: json });
+    if (result.success) added.push(block);
+    else failed.push({ block, message: result.message });
+  }
+
+  if (failed.length > 0) process.exitCode = 1;
+
+  if (json) {
+    process.stdout.write(
+      JSON.stringify({ success: failed.length === 0, recipe: recipeSlug, blocks: added, failed }) +
+        "\n"
+    );
+  } else {
+    outro(
+      pc.green(`\n✨ ${added.length} of ${blocks.length} block(s) added from "${recipe.title}"`) +
+        (failed.length
+          ? `\n${pc.yellow(`Skipped: ${failed.map((entry) => entry.block).join(", ")}`)}`
+          : "")
+    );
   }
 }
 
@@ -316,9 +393,9 @@ async function addSingleBlock(
 
 export async function addCommand(
   blockName: string | undefined,
-  options: { yes?: boolean; json?: boolean; multi?: boolean } = {}
+  options: { yes?: boolean; json?: boolean; multi?: boolean; recipe?: string } = {}
 ): Promise<void> {
-  const { yes = false, json = false, multi = false } = options;
+  const { yes = false, json = false, multi = false, recipe } = options;
 
   if (!json) {
     console.log("");
@@ -393,8 +470,25 @@ export async function addCommand(
 
   // ── Block selection ─────────────────────────────────────────────────────
 
-  if (yes && !blockName) {
+  if (yes && !blockName && !recipe) {
     outputError(json, "Block name required with --yes. Usage: blockend add <block> --yes");
+    return;
+  }
+
+  if (recipe && multi) {
+    outputError(json, "Use either --recipe or --multi, not both.");
+    return;
+  }
+
+  if (recipe && blockName) {
+    outputError(json, "Provide either a block name or --recipe, not both.");
+    return;
+  }
+
+  // ── Recipe mode ─────────────────────────────────────────────────────────
+
+  if (recipe) {
+    await addRecipe(recipe, context);
     return;
   }
 

@@ -93,7 +93,8 @@ export async function mcpStartCommand(): Promise<void> {
   const server = new McpServer({
     name: "blockend",
     version: "0.1.0",
-    description: "Blockend MCP server — install production-ready backend blocks into any project"
+    description:
+      "Blockend MCP server — install production-ready backend blocks or whole recipes into any project"
   });
 
   async function safeExec(
@@ -117,6 +118,22 @@ export async function mcpStartCommand(): Promise<void> {
     {},
     async () => {
       const result = await safeExec("npx", ["--no-install", "blockend", "list", "--json"]);
+      return { content: [{ type: "text", text: result.text }], isError: result.isError };
+    }
+  );
+
+  server.tool(
+    "list_recipes",
+    "Lists published Blockend recipes: curated, ordered stacks of blocks with the blocks each one installs",
+    {},
+    async () => {
+      const result = await safeExec("npx", [
+        "--no-install",
+        "blockend",
+        "list",
+        "--recipes",
+        "--json"
+      ]);
       return { content: [{ type: "text", text: result.text }], isError: result.isError };
     }
   );
@@ -240,6 +257,25 @@ export async function mcpStartCommand(): Promise<void> {
         content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
         isError: results.some((result) => result.isError)
       };
+    }
+  );
+
+  server.tool(
+    "add_recipe",
+    "Installs every block in a published recipe, in the recipe's integration order. Optional blocks are skipped in non-interactive mode. Use list_recipes to discover recipe slugs.",
+    {
+      recipe: z.string().describe("Recipe slug, e.g. production-api-foundation, authenticated-api"),
+      projectPath: z
+        .string()
+        .describe("Absolute path to the project root where blockend should install")
+    },
+    async ({ recipe, projectPath }) => {
+      const result = await safeExec(
+        "npx",
+        ["--no-install", "blockend", "add", "--recipe", recipe, "--yes", "--json"],
+        { cwd: projectPath }
+      );
+      return { content: [{ type: "text", text: result.text }], isError: result.isError };
     }
   );
 

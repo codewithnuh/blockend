@@ -60,14 +60,27 @@ Write a block into the project.
 pnpm dlx blockend-cli add [block] [options]
 ```
 
-| Option    | Alias | Default | Description                                                          |
-| --------- | ----- | ------- | -------------------------------------------------------------------- |
-| `[block]` |       |         | Registry key, such as `rate-limiter` or `logger`.                    |
-| `--yes`   | `-y`  | `false` | Skip prompts, install missing dependencies, and overwrite conflicts. |
-| `--json`  |       | `false` | Write a JSON result.                                                 |
-| `--multi` | `-m`  | `false` | Select multiple blocks in one session.                               |
+| Option     | Alias | Default | Description                                                          |
+| ---------- | ----- | ------- | -------------------------------------------------------------------- |
+| `[block]`  |       |         | Registry key, such as `rate-limiter` or `logger`.                    |
+| `--yes`    | `-y`  | `false` | Skip prompts, install missing dependencies, and overwrite conflicts. |
+| `--json`   |       | `false` | Write a JSON result.                                                 |
+| `--multi`  | `-m`  | `false` | Select multiple blocks in one session.                               |
+| `--recipe` |       |         | Add every block in a published recipe, in its integration order.     |
 
 Without a block name, the CLI shows a selector. With `--multi`, it shows a multiselect. Space toggles a block and Enter confirms.
+
+### Adding a recipe
+
+A recipe is a published, ordered stack of blocks. One command installs the whole set:
+
+```bash
+pnpm dlx blockend-cli add --recipe authenticated-api
+```
+
+The CLI installs the recipe's required blocks in the recipe's integration order. If the recipe lists optional blocks and you are not using `--yes` or `--json`, it asks which to include. Each block is installed with its normal variant selection, dependency installation, and import rewriting, so the result matches adding the blocks one by one. Blocks that do not support the configured framework are skipped and reported.
+
+`--recipe` and `--multi` cannot be combined, and a recipe cannot be passed with a positional block name.
 
 Behavior:
 
@@ -83,17 +96,18 @@ Behavior:
 
 ## `list`
 
-List blocks available for the configured framework.
+List blocks available for the configured framework, or list published recipes.
 
 ```bash
 pnpm dlx blockend-cli list [options]
 ```
 
-| Option   | Default | Description                                       |
-| -------- | ------- | ------------------------------------------------- |
-| `--json` | `false` | Write `{ success, environment, blocks }` as JSON. |
+| Option      | Default | Description                                       |
+| ----------- | ------- | ------------------------------------------------- |
+| `--json`    | `false` | Write `{ success, environment, blocks }` as JSON. |
+| `--recipes` | `false` | List published recipes instead of blocks.         |
 
-`list` requires `blockend.json` and network access to GitHub.
+`--recipes` writes `{ success, recipes }` in JSON mode and does not require `blockend.json`. The block listing requires `blockend.json` and network access to GitHub.
 
 ## `detect`
 

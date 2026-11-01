@@ -48,26 +48,35 @@ Detects the framework, language, package manager, Redis, and import alias, then 
 npx blockend-cli add [block] [options]
 ```
 
-| Option    | Alias | Description                                                  |
-| --------- | ----- | ------------------------------------------------------------ |
-| `[block]` |       | Registry key, such as `rate-limiter` or `logger`.            |
-| `--yes`   | `-y`  | Skip prompts, install dependencies, and overwrite conflicts. |
-| `--json`  |       | Write machine-readable output.                               |
-| `--multi` | `-m`  | Select multiple blocks.                                      |
+| Option     | Alias | Description                                                  |
+| ---------- | ----- | ------------------------------------------------------------ |
+| `[block]`  |       | Registry key, such as `rate-limiter` or `logger`.            |
+| `--yes`    | `-y`  | Skip prompts, install dependencies, and overwrite conflicts. |
+| `--json`   |       | Write machine-readable output.                               |
+| `--multi`  | `-m`  | Select multiple blocks.                                      |
+| `--recipe` |       | Add every block in a published recipe, in integration order. |
 
 Without a block name, the CLI opens a selector. For blocks with storage options, it asks for a variant. In interactive mode, `includeRedis: true` selects the Redis variant when one exists. With `--yes`, it selects memory when available, otherwise the first variant.
 
 `add --yes` without a block name is an error.
+
+`--recipe` installs a curated, ordered stack from the registry in one command:
+
+```bash
+npx blockend-cli add --recipe authenticated-api
+```
+
+It installs the recipe's required blocks in integration order. Optional blocks are offered interactively and skipped with `--yes` or `--json`. `--recipe` cannot be combined with `--multi` or a positional block name.
 
 Dependency installation runs `pnpm add` when `packageManager` is `pnpm`, and `npm install` for every other value. Yarn and bun projects should decline the install prompt and add the listed packages themselves.
 
 ### `list`
 
 ```bash
-npx blockend-cli list [--json]
+npx blockend-cli list [--json] [--recipes]
 ```
 
-Lists blocks compatible with the framework in `blockend.json`.
+Lists blocks compatible with the framework in `blockend.json`. With `--recipes`, it lists published recipes instead and does not require `blockend.json`.
 
 ### `detect`
 

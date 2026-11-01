@@ -6,14 +6,72 @@ import {
   createGitHubRegistrySource,
   findUp,
   listAvailableBlocks,
+  loadRecipeCollection,
   loadRegistry,
   type BlockendConfig,
   type RegistryManifest
 } from "../block-install/index.js";
 
-export async function listCommand(options: { json?: boolean } = {}): Promise<void> {
-  const { json = false } = options;
+export async function listCommand(
+  options: { json?: boolean; recipes?: boolean } = {}
+): Promise<void> {
+  const { json = false, recipes: listRecipes = false } = options;
   const cwd = process.cwd();
+  const source = createGitHubRegistrySource();
+  const s = spinner();
+
+  // ── Recipes ─────────────────────────────────────────────────────────────
+  // Recipes are project-independent, so this path does not need blockend.json.
+
+  if (listRecipes) {
+    if (!json) s.start("Fetching published recipes...");
+
+    try {
+      const collection = await loadRecipeCollection(source);
+      if (!json) s.stop(pc.green("✔ Synced published recipes."));
+
+      const recipes = collection.recipes.map((recipe) => ({
+        slug: recipe.slug,
+        title: recipe.title,
+        outcome: recipe.outcome,
+        includedBlocks: recipe.includedBlocks,
+        optionalBlocks: recipe.optionalBlocks
+      }));
+
+      if (json) {
+        process.stdout.write(JSON.stringify({ success: true, recipes }) + "\n");
+      } else {
+        console.log(`\nPublished recipes:`);
+        if (recipes.length === 0) {
+          console.log(pc.dim("  No recipes published yet."));
+        } else {
+          recipes.forEach((recipe) => {
+            console.log(`\n  ${pc.cyan(recipe.slug)} ${pc.dim(`— ${recipe.title}`)}`);
+            console.log(`    ${pc.dim(recipe.outcome)}`);
+            console.log(
+              `    Blocks: ${recipe.includedBlocks.map((block) => pc.yellow(block)).join(", ")}`
+            );
+            if (recipe.optionalBlocks.length > 0) {
+              console.log(
+                `    Optional: ${recipe.optionalBlocks.map((block) => pc.yellow(block)).join(", ")}`
+              );
+            }
+          });
+          console.log(`\n${pc.dim("  Add one with: blockend add --recipe <slug>")}\n`);
+        }
+      }
+    } catch (error) {
+      if (json) {
+        process.stdout.write(
+          JSON.stringify({ success: false, error: "Failed to fetch recipes from GitHub." }) + "\n"
+        );
+      } else {
+        s.stop(pc.red("✖ Failed to fetch the recipe collection from GitHub."));
+        console.error(pc.dim(String(error)));
+      }
+    }
+    return;
+  }
 
   const configPath = await findUp("blockend.json", cwd);
   if (!configPath) {
@@ -43,8 +101,6 @@ export async function listCommand(options: { json?: boolean } = {}): Promise<voi
   }
 
   const envKey = String(config.environment);
-  const source = createGitHubRegistrySource();
-  const s = spinner();
 
   if (!json) {
     s.start("Syncing registry metadata blocks...");

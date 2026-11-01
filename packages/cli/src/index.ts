@@ -90,10 +90,15 @@ const list = defineCommand({
       type: "boolean",
       default: false,
       description: "Output machine-readable blocks configuration array stream"
+    },
+    recipes: {
+      type: "boolean",
+      default: false,
+      description: "List published recipes instead of blocks"
     }
   },
   async run({ args }) {
-    await listCommand({ json: args.json });
+    await listCommand({ json: args.json, recipes: args.recipes });
   }
 });
 const add = defineCommand({
@@ -123,10 +128,20 @@ const add = defineCommand({
       alias: "m",
       default: false,
       description: "Select and add multiple blocks at once via interactive multiselect"
+    },
+    recipe: {
+      type: "string",
+      description:
+        "Add every block in a published recipe, in its integration order (see 'blockend list --recipes')"
     }
   },
   async run({ args }) {
-    await addCommand(args.block, { yes: args.yes, json: args.json, multi: args.multi });
+    await addCommand(args.block, {
+      yes: args.yes,
+      json: args.json,
+      multi: args.multi,
+      recipe: args.recipe
+    });
   }
 });
 
