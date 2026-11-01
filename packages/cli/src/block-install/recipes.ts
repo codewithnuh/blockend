@@ -32,5 +32,14 @@ export function findRecipe(collection: RecipeCollection, slug: string): Recipe |
  */
 export function orderRecipeBlocks(recipe: Recipe, selectedOptional: string[] = []): string[] {
   const selected = new Set([...recipe.includedBlocks, ...selectedOptional]);
-  return recipe.integrationOrder.filter((slug) => selected.has(slug));
+  const ordered = recipe.integrationOrder.filter((slug) => selected.has(slug));
+
+  // A published recipe should list every block in integrationOrder (CI enforces
+  // it), but never silently drop a selected block if one is missing from it.
+  const placed = new Set(ordered);
+  const missing = [...recipe.includedBlocks, ...recipe.optionalBlocks].filter(
+    (slug) => selected.has(slug) && !placed.has(slug)
+  );
+
+  return [...ordered, ...missing];
 }
