@@ -31,7 +31,7 @@
         "components": [
           {
             "name": "Configuration",
-            "description": "parseEnv validates process.env once at startup and throws EnvValidationError listing every invalid field.",
+            "description": "parseEnv validates process.env against the Zod schema you supply, once at startup, and throws EnvValidationError listing every invalid field.",
             "block": "env-config"
           },
           {
@@ -75,18 +75,19 @@
         "Node.js 20 or newer. Every block declares runtimes.node of >=20.",
         "One HTTP framework: Express, Fastify, or Hono. The CLI copies the matching adapter.",
         "Environment variables are injected by the platform. The env-config block reads process.env and does not load .env files.",
+        "The env-config block ships no schema. You write the Zod schema it validates, so installing it enables no checks or defaults on its own.",
         "pino-pretty is installed as a dev dependency, otherwise the logger fails to start outside production."
       ],
       "configuration": [
         {
           "name": "NODE_ENV",
-          "description": "Validated with a Zod enum. It selects the logger level (debug outside production, info in production) and the development transport.",
+          "description": "Declared in your env-config schema as a Zod enum. It selects the logger level (debug outside production, info in production) and the development transport.",
           "required": false,
           "default": "development"
         },
         {
           "name": "PORT",
-          "description": "Coerced to a number by the env-config schema and passed to your framework listen call.",
+          "description": "Declared and coerced to a number in your env-config schema, then passed to your framework listen call.",
           "required": false,
           "default": "3000"
         },
@@ -160,7 +161,7 @@
       "failureBehavior": [
         {
           "scenario": "An environment variable is missing or invalid",
-          "behavior": "parseEnv throws EnvValidationError at startup and lists every failing field, so the process never serves a misconfigured request."
+          "behavior": "For the fields your schema declares, parseEnv throws EnvValidationError at startup and lists every failing field, so the process never serves a misconfigured request."
         },
         {
           "scenario": "A route throws an unexpected error",
@@ -295,7 +296,7 @@
         "components": [
           {
             "name": "Configuration",
-            "description": "parseEnv validates startup configuration, including the database URL the idempotency store uses.",
+            "description": "You define the env-config schema, including the database URL the idempotency store uses; parseEnv validates it once at startup.",
             "block": "env-config"
           },
           {
@@ -329,7 +330,8 @@
         "Store.create is atomic. Two concurrent inserts must not both report success.",
         "Clients send an Idempotency-Key header on write requests.",
         "getUserId resolves a real authenticated user id. The default anonymous scope would let one client read another client's stored response.",
-        "The internal idempotency record TTL is 24 hours and is not configurable."
+        "The internal idempotency record TTL is 24 hours and is not configurable.",
+        "The env-config block ships no schema. You write the Zod schema it validates, including the store's connection settings."
       ],
       "configuration": [
         {
@@ -477,6 +479,10 @@
           "href": "/docs/03-guides/02-idempotency-in-production"
         },
         {
+          "title": "Environment configuration",
+          "href": "/docs/02-blocks/06-env-config"
+        },
+        {
           "title": "Error handler",
           "href": "/docs/02-blocks/02-global-error-handler"
         },
@@ -535,7 +541,7 @@
         "components": [
           {
             "name": "Configuration",
-            "description": "parseEnv validates the pepper, the issuer, and the audience at startup so a bad security setting fails fast.",
+            "description": "You declare the pepper, issuer, and audience in the env-config schema so parseEnv fails fast at startup on a bad security setting. The block validates only what your schema declares.",
             "block": "env-config"
           },
           {
@@ -574,7 +580,8 @@
         "Refresh tokens are persisted with PostgresTokenStore or RedisTokenStore. MemoryTokenStore is for tests and single-process development only.",
         "Your application authenticates users, sets cookies and CSRF, and decides authorization. These blocks handle hashing and token mechanics only.",
         "Production requires an https issuer or a urn, plus at least one audience value.",
-        "The token-service entry point is @/blocks/token-service/src. The block has no root index.ts."
+        "The token-service entry point is @/blocks/token-service/src. The block has no root index.ts.",
+        "The env-config block ships no schema. You write the Zod schema it validates, including the pepper, issuer, and audience."
       ],
       "configuration": [
         {
