@@ -99,7 +99,8 @@ function failureMessage(code: BlockPlanErrorCode, blockName: string): string {
  */
 async function addSingleBlock(
   targetBlock: string,
-  context: AddContext
+  context: AddContext,
+  options: { suppressErrorOutput?: boolean } = {}
 ): Promise<{ success: boolean; filesWritten: string[]; message: string }> {
   const { yes = false, json = false } = context.options;
   const {
@@ -115,10 +116,13 @@ async function addSingleBlock(
     rewriteStrategy
   } = context;
   const s = spinner();
+  const reportError = (message: string) => {
+    if (!options.suppressErrorOutput) outputError(json, message);
+  };
 
   const initialPlan = await planBlock(registry, targetBlock, envKey);
   if (!initialPlan.ok) {
-    outputError(json, initialPlan.error.message);
+    reportError(initialPlan.error.message);
     return {
       success: false,
       filesWritten: [],
@@ -152,7 +156,7 @@ async function addSingleBlock(
       variant: selectedVariant
     });
     if (!selectedPlan.ok) {
-      outputError(json, selectedPlan.error.message);
+      reportError(selectedPlan.error.message);
       return {
         success: false,
         filesWritten: [],
@@ -168,7 +172,7 @@ async function addSingleBlock(
 
   const packageJsonPath = await findUp("package.json", rootDir);
   if (!packageJsonPath) {
-    outputError(json, "Could not locate package.json.");
+    reportError("Could not locate package.json.");
     return { success: false, filesWritten: [], message: "package.json not found" };
   }
   const packageJsonDir = dirname(packageJsonPath);
@@ -177,7 +181,7 @@ async function addSingleBlock(
   try {
     packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf-8")) as LocalPackageJson;
   } catch (err) {
-    outputError(json, "Failed to parse package.json.");
+    reportError("Failed to parse package.json.");
     if (!json) log.error(pc.dim(String(err)));
     return { success: false, filesWritten: [], message: "Failed to parse package.json" };
   }
@@ -256,7 +260,7 @@ async function addSingleBlock(
         if (!json) {
           s.stop("Installation failed.");
           log.error(pc.dim(String(err)));
-        } else outputError(json, "Dependency installation failed.");
+        } else reportError("Dependency installation failed.");
         return { success: false, filesWritten: [], message: "Dependency installation failed" };
       }
     }
@@ -311,7 +315,7 @@ async function addSingleBlock(
     if (!json) {
       s.stop("Failed.");
       log.error(pc.dim(String(err)));
-    } else outputError(json, "Fatal error while writing block files.");
+    } else reportError("Fatal error while writing block files.");
     return { success: false, filesWritten: [], message: `Failed to add ${targetBlock}` };
   }
 }
@@ -334,11 +338,13 @@ async function addRecipe(recipeSlug: string, context: AddContext): Promise<void>
   } catch (err) {
     outputError(json, "Failed to load the recipe collection from the registry.");
     if (!json) log.error(pc.dim(String(err)));
+    process.exitCode = 1;
     return;
   }
 
   if (!recipe) {
     outputError(json, `Recipe "${recipeSlug}" not found in the registry.`);
+    process.exitCode = 1;
     return;
   }
 
@@ -358,13 +364,15 @@ async function addRecipe(recipeSlug: string, context: AddContext): Promise<void>
   if (!json) log.info(`\nAdding ${blocks.length} block(s) from recipe "${recipe.title}"...\n`);
 
   const added: string[] = [];
-  const failed: string[] = [];
+  const failed: Array<{ block: string; message: string }> = [];
 
   for (const block of blocks) {
-    const result = await addSingleBlock(block, context);
+    const result = await addSingleBlock(block, context, { suppressErrorOutput: json });
     if (result.success) added.push(block);
-    else failed.push(block);
+    else failed.push({ block, message: result.message });
   }
+
+  if (failed.length > 0) process.exitCode = 1;
 
   if (json) {
     process.stdout.write(
@@ -374,7 +382,9 @@ async function addRecipe(recipeSlug: string, context: AddContext): Promise<void>
   } else {
     outro(
       pc.green(`\n✨ ${added.length} of ${blocks.length} block(s) added from "${recipe.title}"`) +
-        (failed.length ? `\n${pc.yellow(`Skipped: ${failed.join(", ")}`)}` : "")
+        (failed.length
+          ? `\n${pc.yellow(`Skipped: ${failed.map((entry) => entry.block).join(", ")}`)}`
+          : "")
     );
   }
 }

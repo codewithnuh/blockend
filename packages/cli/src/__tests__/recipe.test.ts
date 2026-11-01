@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { addCommand } from "../commands/add.js";
 import { join } from "path";
 import fs from "fs/promises";
@@ -122,6 +122,21 @@ describe("addCommand - recipe mode", () => {
         failureBehavior: [],
         commands: [],
         relatedContent: []
+      },
+      {
+        slug: "broken-recipe",
+        title: "Broken Recipe",
+        outcome: "References a block that is not in the registry.",
+        includedBlocks: ["alpha-block", "missing-block"],
+        optionalBlocks: [],
+        integrationOrder: ["alpha-block", "missing-block"],
+        architecture: { overview: "Broken.", components: [] },
+        assumptions: [],
+        configuration: [],
+        tradeoffs: [],
+        failureBehavior: [],
+        commands: [],
+        relatedContent: []
       }
     ]
   };
@@ -175,6 +190,10 @@ describe("addCommand - recipe mode", () => {
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
   });
 
+  afterEach(() => {
+    process.exitCode = 0;
+  });
+
   const writtenBlockPaths = () =>
     vi
       .mocked(fs.writeFile)
@@ -204,6 +223,7 @@ describe("addCommand - recipe mode", () => {
 
     expect(writtenBlockPaths()).toHaveLength(0);
     expect(prompts.log.error).toHaveBeenCalledWith(expect.stringContaining("not found"));
+    expect(process.exitCode).toBe(1);
   });
 
   it("installs a selected optional block in the recipe's integration order", async () => {
@@ -246,5 +266,31 @@ describe("addCommand - recipe mode", () => {
     expect(payload.blocks).toContain("alpha-block");
     expect(payload.blocks).toContain("beta-block");
     expect(payload.blocks).not.toContain("gamma-block");
+  });
+
+  it("emits a single JSON summary with failure messages and fails the run", async () => {
+    await addCommand(undefined, { recipe: "broken-recipe", json: true });
+
+    const writeMock = vi.mocked(process.stdout.write);
+    const jsonLines = writeMock.mock.calls
+      .map((call) => String(call[0]).trim())
+      .filter((line) => line.startsWith("{"));
+
+    expect(jsonLines).toHaveLength(1);
+
+    const payload = JSON.parse(jsonLines[0]);
+    expect(payload.success).toBe(false);
+    expect(payload.blocks).toContain("alpha-block");
+    expect(payload.failed).toEqual([
+      { block: "missing-block", message: expect.stringContaining("not found") }
+    ]);
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("still reports block errors in text mode", async () => {
+    await addCommand(undefined, { recipe: "broken-recipe" });
+
+    expect(prompts.log.error).toHaveBeenCalledWith(expect.stringContaining("not found"));
+    expect(process.exitCode).toBe(1);
   });
 });
