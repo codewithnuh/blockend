@@ -85,7 +85,8 @@ describe("addCommand - recipe mode", () => {
     version: "1.0.0",
     blocks: {
       "alpha-block": blockFixture("alpha-block"),
-      "beta-block": blockFixture("beta-block")
+      "beta-block": blockFixture("beta-block"),
+      "gamma-block": blockFixture("gamma-block")
     }
   };
 
@@ -99,6 +100,21 @@ describe("addCommand - recipe mode", () => {
         includedBlocks: ["alpha-block", "beta-block"],
         optionalBlocks: [],
         integrationOrder: ["beta-block", "alpha-block"],
+        architecture: { overview: "Ordered blocks.", components: [] },
+        assumptions: [],
+        configuration: [],
+        tradeoffs: [],
+        failureBehavior: [],
+        commands: [],
+        relatedContent: []
+      },
+      {
+        slug: "optional-recipe",
+        title: "Optional Recipe",
+        outcome: "Two required blocks and one optional block.",
+        includedBlocks: ["alpha-block", "beta-block"],
+        optionalBlocks: ["gamma-block"],
+        integrationOrder: ["beta-block", "alpha-block", "gamma-block"],
         architecture: { overview: "Ordered blocks.", components: [] },
         assumptions: [],
         configuration: [],
@@ -155,16 +171,20 @@ describe("addCommand - recipe mode", () => {
     });
 
     vi.mocked(prompts.confirm).mockResolvedValue(true);
+    vi.mocked(prompts.multiselect).mockResolvedValue([]);
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
   });
 
-  it("installs every included block in the recipe's integration order", async () => {
-    await addCommand(undefined, { recipe: "test-recipe" });
-
-    const written = vi
+  const writtenBlockPaths = () =>
+    vi
       .mocked(fs.writeFile)
       .mock.calls.map((call) => String(call[0]).replace(/\\/g, "/"))
       .filter((p) => p.includes("src/blocks"));
 
+  it("installs every included block in the recipe's integration order", async () => {
+    await addCommand(undefined, { recipe: "test-recipe" });
+
+    const written = writtenBlockPaths();
     const betaIndex = written.findIndex((p) => p.includes("beta-block"));
     const alphaIndex = written.findIndex((p) => p.includes("alpha-block"));
 
@@ -182,12 +202,49 @@ describe("addCommand - recipe mode", () => {
   it("reports an error for an unknown recipe without writing files", async () => {
     await addCommand(undefined, { recipe: "missing-recipe" });
 
-    const wroteBlockFile = vi
-      .mocked(fs.writeFile)
-      .mock.calls.map((call) => String(call[0]).replace(/\\/g, "/"))
-      .some((p) => p.includes("src/blocks"));
-
-    expect(wroteBlockFile).toBe(false);
+    expect(writtenBlockPaths()).toHaveLength(0);
     expect(prompts.log.error).toHaveBeenCalledWith(expect.stringContaining("not found"));
+  });
+
+  it("installs a selected optional block in the recipe's integration order", async () => {
+    vi.mocked(prompts.multiselect).mockResolvedValue(["gamma-block"]);
+
+    await addCommand(undefined, { recipe: "optional-recipe" });
+
+    expect(prompts.multiselect).toHaveBeenCalledWith(expect.objectContaining({ required: false }));
+
+    const written = writtenBlockPaths();
+    const betaIndex = written.findIndex((p) => p.includes("beta-block"));
+    const alphaIndex = written.findIndex((p) => p.includes("alpha-block"));
+    const gammaIndex = written.findIndex((p) => p.includes("gamma-block"));
+
+    expect(gammaIndex).toBeGreaterThanOrEqual(0);
+    expect(betaIndex).toBeLessThan(alphaIndex);
+    expect(alphaIndex).toBeLessThan(gammaIndex);
+  });
+
+  it("skips optional blocks and does not prompt with --yes", async () => {
+    await addCommand(undefined, { recipe: "optional-recipe", yes: true });
+
+    expect(prompts.multiselect).not.toHaveBeenCalled();
+
+    const written = writtenBlockPaths();
+    expect(written.some((p) => p.includes("gamma-block"))).toBe(false);
+    expect(written.some((p) => p.includes("alpha-block"))).toBe(true);
+  });
+
+  it("skips optional blocks in --json mode and reports the installed blocks", async () => {
+    await addCommand(undefined, { recipe: "optional-recipe", json: true });
+
+    expect(prompts.multiselect).not.toHaveBeenCalled();
+    expect(writtenBlockPaths().some((p) => p.includes("gamma-block"))).toBe(false);
+
+    const writeMock = vi.mocked(process.stdout.write);
+    const payload = JSON.parse(String(writeMock.mock.calls[writeMock.mock.calls.length - 1]?.[0]));
+
+    expect(payload.recipe).toBe("optional-recipe");
+    expect(payload.blocks).toContain("alpha-block");
+    expect(payload.blocks).toContain("beta-block");
+    expect(payload.blocks).not.toContain("gamma-block");
   });
 });
