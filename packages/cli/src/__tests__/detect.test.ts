@@ -240,4 +240,25 @@ describe("detectProject - ProjectContext detection interface", () => {
     // base-b is the later entry, so its root-relative "b/" is rebased here.
     expect(context.aliasMap).toEqual({ "@/": "../../b/" });
   });
+
+  it("reads the tsconfig field of a bare extends package", async () => {
+    const root = await createProject({
+      "node_modules/base-config/package.json": JSON.stringify({
+        name: "base-config",
+        tsconfig: "./base.json"
+      }),
+      "node_modules/base-config/base.json": JSON.stringify({
+        compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext" }
+      }),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({ extends: "base-config" }),
+      "apps/api/src/index.ts": ""
+    });
+
+    const context = await detectProject(join(root, "apps", "api"), { blocksDir: "src/blocks" });
+
+    // The package has no main/index, so the `tsconfig` field must be used.
+    expect(context.importRewriteStrategy).toBe("rewrite");
+  });
 });

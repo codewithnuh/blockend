@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises";
-import { existsSync, statSync } from "fs";
+import { existsSync, readFileSync, statSync } from "fs";
 import { createRequire } from "module";
 import { dirname, join, relative, resolve } from "path";
 
@@ -172,23 +172,68 @@ function resolveExtendsTarget(spec: string, fromDir: string): string | null {
     return firstExisting([base, `${base}.json`, join(base, "tsconfig.json")]);
   }
 
+  const require = createRequire(join(fromDir, "package.json"));
+
   try {
-    const require = createRequire(join(fromDir, "package.json"));
     const resolved = require.resolve(spec);
-    return existsSync(resolved) ? resolved : null;
+    if (isFile(resolved)) return resolved;
+  } catch {
+    // Fall through to the package's `tsconfig` field.
+  }
+
+  // A config-only package may expose nothing resolvable via `main`/`exports`,
+  // so fall back to the file named by its `tsconfig` field (TypeScript's rule).
+  const packageJsonPath = resolvePackageJson(require, spec);
+  if (packageJsonPath) {
+    const pkg = readJsonSync<{ tsconfig?: unknown }>(packageJsonPath);
+    if (typeof pkg?.tsconfig === "string") {
+      const configPath = resolve(dirname(packageJsonPath), pkg.tsconfig);
+      if (isFile(configPath)) return configPath;
+    }
+  }
+
+  return null;
+}
+
+/** Resolves a bare specifier's package.json, tolerating an `exports` map. */
+function resolvePackageJson(require: NodeRequire, spec: string): string | null {
+  const name = spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0];
+
+  try {
+    const resolved = require.resolve(`${name}/package.json`);
+    if (isFile(resolved)) return resolved;
+  } catch {
+    // `exports` may block direct package.json access; search node_modules below.
+  }
+
+  for (const base of require.resolve.paths(name) ?? []) {
+    const candidate = join(base, name, "package.json");
+    if (isFile(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+function readJsonSync<T>(filePath: string): T | null {
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8")) as T;
   } catch {
     return null;
+  }
+}
+
+function isFile(candidate: string): boolean {
+  try {
+    return statSync(candidate).isFile();
+  } catch {
+    return false;
   }
 }
 
 /** Returns the first candidate that is an existing file, preserving order. */
 function firstExisting(candidates: string[]): string | null {
   for (const candidate of candidates) {
-    try {
-      if (statSync(candidate).isFile()) return candidate;
-    } catch {
-      // Not a file — try the next candidate.
-    }
+    if (isFile(candidate)) return candidate;
   }
   return null;
 }
