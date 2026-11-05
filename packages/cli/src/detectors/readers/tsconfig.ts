@@ -182,32 +182,37 @@ function resolveExtendsTarget(spec: string, fromDir: string): string | null {
   }
 
   // A config-only package may expose nothing resolvable via `main`/`exports`,
-  // so fall back to the file named by its `tsconfig` field (TypeScript's rule).
-  const packageJsonPath = resolvePackageJson(require, spec);
-  if (packageJsonPath) {
-    const pkg = readJsonSync<{ tsconfig?: unknown }>(packageJsonPath);
-    if (typeof pkg?.tsconfig === "string") {
-      const configPath = resolve(dirname(packageJsonPath), pkg.tsconfig);
-      if (isFile(configPath)) return configPath;
+  // so fall back to its `tsconfig` field. Only a bare package name may use this:
+  // an explicit subpath must not silently resolve to a different file.
+  const packageName = spec.startsWith("@")
+    ? spec.split("/").slice(0, 2).join("/")
+    : spec.split("/")[0];
+
+  if (spec === packageName) {
+    const packageJsonPath = resolvePackageJson(require, packageName);
+    if (packageJsonPath) {
+      const pkg = readJsonSync<{ tsconfig?: unknown }>(packageJsonPath);
+      if (typeof pkg?.tsconfig === "string") {
+        const configPath = resolve(dirname(packageJsonPath), pkg.tsconfig);
+        if (isFile(configPath)) return configPath;
+      }
     }
   }
 
   return null;
 }
 
-/** Resolves a bare specifier's package.json, tolerating an `exports` map. */
-function resolvePackageJson(require: NodeRequire, spec: string): string | null {
-  const name = spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0];
-
+/** Resolves a package's package.json, tolerating an `exports` map. */
+function resolvePackageJson(require: NodeRequire, packageName: string): string | null {
   try {
-    const resolved = require.resolve(`${name}/package.json`);
+    const resolved = require.resolve(`${packageName}/package.json`);
     if (isFile(resolved)) return resolved;
   } catch {
     // `exports` may block direct package.json access; search node_modules below.
   }
 
-  for (const base of require.resolve.paths(name) ?? []) {
-    const candidate = join(base, name, "package.json");
+  for (const base of require.resolve.paths(packageName) ?? []) {
+    const candidate = join(base, packageName, "package.json");
     if (isFile(candidate)) return candidate;
   }
 

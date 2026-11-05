@@ -261,4 +261,29 @@ describe("detectProject - ProjectContext detection interface", () => {
     // The package has no main/index, so the `tsconfig` field must be used.
     expect(context.importRewriteStrategy).toBe("rewrite");
   });
+
+  it("does not substitute the root tsconfig for a hidden subpath", async () => {
+    const root = await createProject({
+      "node_modules/base-config/package.json": JSON.stringify({
+        name: "base-config",
+        tsconfig: "./root.json",
+        exports: { ".": "./root.json" }
+      }),
+      "node_modules/base-config/root.json": JSON.stringify({
+        compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext" }
+      }),
+      "node_modules/base-config/node.json": JSON.stringify({
+        compilerOptions: { module: "ESNext", moduleResolution: "bundler" }
+      }),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({ extends: "base-config/node.json" }),
+      "apps/api/src/index.ts": ""
+    });
+
+    const context = await detectProject(join(root, "apps", "api"), { blocksDir: "src/blocks" });
+
+    // The subpath is hidden by `exports`, so no base loads (and not root.json).
+    expect(context.importRewriteStrategy).toBe("remove");
+  });
 });
