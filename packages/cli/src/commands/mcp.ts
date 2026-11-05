@@ -68,6 +68,16 @@ const BLOCKEND_SERVER: McpServerConfig = {
   args: ["-y", "blockend-cli", "mcp"]
 };
 
+// In a monorepo every package has its own blockend.json, so tools must be
+// pointed at a package rather than the workspace root.
+const PROJECT_PATH_DESCRIPTION =
+  "Absolute path to the target project. In a monorepo, point this at a workspace package, not the repo root (each package has its own blockend.json; use detect_project to list them).";
+
+// detect_project is the exception: it accepts the workspace root and reports the
+// discovered packages, so the model can pick one for the other tools.
+const DETECT_PATH_DESCRIPTION =
+  "Absolute path to the project or monorepo root to analyze. At a workspace root, detection returns the manager, root, and discovered packages.";
+
 /**
  * Creates a valid, minimized TOML block for file generation or logging
  */
@@ -115,9 +125,15 @@ export async function mcpStartCommand(): Promise<void> {
   server.tool(
     "list_blocks",
     "Lists all available Blockend blocks with names, descriptions, and variants",
-    {},
-    async () => {
-      const result = await safeExec("npx", ["--no-install", "blockend", "list", "--json"]);
+    {
+      projectPath: z.string().optional().describe(PROJECT_PATH_DESCRIPTION)
+    },
+    async ({ projectPath }) => {
+      const result = await safeExec(
+        "npx",
+        ["--no-install", "blockend", "list", "--json"],
+        projectPath ? { cwd: projectPath } : undefined
+      );
       return { content: [{ type: "text", text: result.text }], isError: result.isError };
     }
   );
@@ -143,9 +159,7 @@ export async function mcpStartCommand(): Promise<void> {
     "Installs a Blockend block into a project.",
     {
       blockName: z.string().describe("Block name, e.g. rate-limiter, error-handler, logger"),
-      projectPath: z
-        .string()
-        .describe("Absolute path to the project root where blockend should install")
+      projectPath: z.string().describe(PROJECT_PATH_DESCRIPTION)
     },
     async ({ blockName, projectPath }) => {
       const result = await safeExec(
@@ -161,7 +175,7 @@ export async function mcpStartCommand(): Promise<void> {
     "detect_project",
     "Analyzes a project context: framework, language, package manager, etc.",
     {
-      projectPath: z.string().describe("Absolute path to the project root")
+      projectPath: z.string().describe(DETECT_PATH_DESCRIPTION)
     },
     async ({ projectPath }) => {
       const result = await safeExec("npx", ["--no-install", "blockend", "detect", "--json"], {
@@ -176,7 +190,7 @@ export async function mcpStartCommand(): Promise<void> {
     "Preview what files a block would generate without writing to disk. Shows new/modified/unchanged files.",
     {
       blockName: z.string().describe("Block name to preview, e.g. rate-limiter, logger"),
-      projectPath: z.string().describe("Absolute path to the project root")
+      projectPath: z.string().describe(PROJECT_PATH_DESCRIPTION)
     },
     async ({ blockName, projectPath }) => {
       const result = await safeExec(
@@ -192,7 +206,7 @@ export async function mcpStartCommand(): Promise<void> {
     "doctor",
     "Check project health: validates blockend.json, detects framework, checks for issues.",
     {
-      projectPath: z.string().describe("Absolute path to the project root")
+      projectPath: z.string().describe(PROJECT_PATH_DESCRIPTION)
     },
     async ({ projectPath }) => {
       const result = await safeExec("npx", ["--no-install", "blockend", "doctor", "--json"], {
@@ -206,7 +220,7 @@ export async function mcpStartCommand(): Promise<void> {
     "update_check",
     "Check for available updates to installed blocks. Shows version comparison and diffs.",
     {
-      projectPath: z.string().describe("Absolute path to the project root")
+      projectPath: z.string().describe(PROJECT_PATH_DESCRIPTION)
     },
     async ({ projectPath }) => {
       const result = await safeExec("npx", ["--no-install", "blockend", "update", "--json"], {
@@ -220,7 +234,7 @@ export async function mcpStartCommand(): Promise<void> {
     "update_apply",
     "Apply updates to all installed blocks. Downloads new versions, rewrites imports, and updates blockend.json.",
     {
-      projectPath: z.string().describe("Absolute path to the project root")
+      projectPath: z.string().describe(PROJECT_PATH_DESCRIPTION)
     },
     async ({ projectPath }) => {
       const result = await safeExec(
@@ -237,9 +251,7 @@ export async function mcpStartCommand(): Promise<void> {
     "Install multiple blocks into a project.",
     {
       blockNames: z.array(z.string()).min(1).describe("Block names, e.g. rate-limiter, logger"),
-      projectPath: z
-        .string()
-        .describe("Absolute path to the project root where blockend should install")
+      projectPath: z.string().describe(PROJECT_PATH_DESCRIPTION)
     },
     async ({ blockNames, projectPath }) => {
       const results: Array<{ blockName: string; output: string; isError: boolean }> = [];
@@ -265,9 +277,7 @@ export async function mcpStartCommand(): Promise<void> {
     "Installs every block in a published recipe, in the recipe's integration order. Optional blocks are skipped in non-interactive mode. Use list_recipes to discover recipe slugs.",
     {
       recipe: z.string().describe("Recipe slug, e.g. production-api-foundation, authenticated-api"),
-      projectPath: z
-        .string()
-        .describe("Absolute path to the project root where blockend should install")
+      projectPath: z.string().describe(PROJECT_PATH_DESCRIPTION)
     },
     async ({ recipe, projectPath }) => {
       const result = await safeExec(

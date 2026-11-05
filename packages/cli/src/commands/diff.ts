@@ -5,13 +5,13 @@ import { intro, outro, spinner, log } from "@clack/prompts";
 import pc from "picocolors";
 import {
   createGitHubRegistrySource,
-  findUp,
   loadRegistry,
   planBlock,
   previewBlock,
   type BlockendConfig,
   type RegistryManifest
 } from "../block-install/index.js";
+import { resolveProjectTarget, targetErrorMessage } from "../workspace/index.js";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -34,7 +34,7 @@ export interface DiffResult {
 
 export async function diffCommand(
   blockName: string | undefined,
-  options: { json?: boolean } = {}
+  options: { json?: boolean; cwd?: string } = {}
 ): Promise<DiffResult> {
   const { json = false } = options;
 
@@ -47,13 +47,20 @@ export async function diffCommand(
     return { block: "", files: [], error: "Block name is required. Usage: blockend diff <block>" };
   }
 
-  const cwd = process.cwd();
+  const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
 
-  // ── Read blockend.json ──────────────────────────────────────────────────
+  // ── Resolve target project / workspace package ──────────────────────────
 
-  const configPath = await findUp("blockend.json", cwd);
-  if (!configPath) {
-    const error = "blockend.json not found. Run 'npx blockend init' first.";
+  const target = await resolveProjectTarget(cwd, {
+    command: "diff",
+    interactive: !json && Boolean(process.stdin.isTTY)
+  });
+  if (target.kind === "cancelled") {
+    outro(pc.dim("Operation cancelled."));
+    return { block: blockName, files: [] };
+  }
+  if (target.kind !== "package") {
+    const error = targetErrorMessage(target) ?? "Could not resolve a target project.";
     if (json) {
       process.stdout.write(JSON.stringify({ block: blockName, files: [], error }) + "\n");
     } else {
@@ -62,7 +69,7 @@ export async function diffCommand(
     return { block: blockName, files: [], error };
   }
 
-  const rootDir = path.dirname(configPath);
+  const { configPath, rootDir } = target;
 
   let config: BlockendConfig;
   try {

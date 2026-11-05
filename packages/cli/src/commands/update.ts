@@ -6,7 +6,6 @@ import pc from "picocolors";
 import {
   applyBlock,
   createGitHubRegistrySource,
-  findUp,
   loadRegistry,
   planBlock,
   previewBlock,
@@ -15,6 +14,7 @@ import {
   type InstalledBlockRecord,
   type RegistryManifest
 } from "../block-install/index.js";
+import { resolveProjectTarget, targetErrorMessage } from "../workspace/index.js";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -213,7 +213,7 @@ function outputUpdateResult(json: boolean, result: UpdateResult): void {
 // ─── update command ──────────────────────────────────────────────────────────
 
 export async function updateCommand(
-  options: { json?: boolean; diff?: boolean; apply?: boolean } = {}
+  options: { json?: boolean; diff?: boolean; apply?: boolean; cwd?: string } = {}
 ): Promise<UpdateResult> {
   const { json = false, diff = true, apply = false } = options;
 
@@ -222,19 +222,26 @@ export async function updateCommand(
     intro(`${pc.bgCyan(pc.black(" blockend "))} ${pc.dim("update")}`);
   }
 
-  const cwd = process.cwd();
+  const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
 
-  // ── Read blockend.json ──────────────────────────────────────────────────
+  // ── Resolve target project / workspace package ──────────────────────────
 
-  const configPath = await findUp("blockend.json", cwd);
-  if (!configPath) {
-    const error = "blockend.json not found. Run 'npx blockend init' first.";
+  const target = await resolveProjectTarget(cwd, {
+    command: "update",
+    interactive: !json && Boolean(process.stdin.isTTY)
+  });
+  if (target.kind === "cancelled") {
+    outro(pc.dim("Operation cancelled."));
+    return { blocks: [] };
+  }
+  if (target.kind !== "package") {
+    const error = targetErrorMessage(target) ?? "Could not resolve a target project.";
     if (json) process.stdout.write(JSON.stringify({ blocks: [], error }) + "\n");
     else log.error(error);
     return { blocks: [], error };
   }
 
-  const rootDir = path.dirname(configPath);
+  const { configPath, rootDir } = target;
 
   let config: BlockendConfig;
   try {

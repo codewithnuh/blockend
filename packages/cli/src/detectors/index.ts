@@ -7,6 +7,7 @@ import { detectFramework } from "./framework.js";
 import { detectRuntime } from "./runtime.js";
 import { detectPackageManager } from "./package-manager.js";
 import { deriveBlocksAlias, flattenTsPaths } from "./alias.js";
+import { detectWorkspace } from "../workspace/detect.js";
 
 export interface DetectProjectOptions {
   /**
@@ -51,13 +52,14 @@ export async function detectProject(
     : join(srcDir, "lib", "blocks");
   const relativeBlocksDir = path.relative(cwd, blocksDir).replace(/\\/g, "/");
   const tsPaths = compilerOptions?.paths;
+  const workspace = await detectWorkspace(cwd);
 
   return {
     root: cwd,
     language: compilerConfig?.kind === "tsconfig" ? "typescript" : "javascript",
     runtime: detectRuntime(allDeps),
     framework: detectFramework(allDeps),
-    packageManager: detectPackageManager(cwd),
+    packageManager: detectPackageManager(cwd, workspace?.root ?? cwd),
     hasRedis: "ioredis" in allDeps || "redis" in allDeps,
     hasPrisma: "@prisma/client" in allDeps,
     hasDrizzle: "drizzle-orm" in allDeps,
@@ -65,6 +67,7 @@ export async function detectProject(
     srcDir,
     blocksDir,
     blocksAlias: tsPaths ? deriveBlocksAlias(tsPaths, relativeBlocksDir) : undefined,
-    importRewriteStrategy
+    importRewriteStrategy,
+    workspace: workspace ?? undefined
   };
 }

@@ -23,6 +23,7 @@ import {
   type RegistryManifest,
   type RegistrySource
 } from "../block-install/index.js";
+import { resolveProjectTarget, targetErrorMessage } from "../workspace/index.js";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -393,7 +394,7 @@ async function addRecipe(recipeSlug: string, context: AddContext): Promise<void>
 
 export async function addCommand(
   blockName: string | undefined,
-  options: { yes?: boolean; json?: boolean; multi?: boolean; recipe?: string } = {}
+  options: { yes?: boolean; json?: boolean; multi?: boolean; recipe?: string; cwd?: string } = {}
 ): Promise<void> {
   const { yes = false, json = false, multi = false, recipe } = options;
 
@@ -402,17 +403,25 @@ export async function addCommand(
     intro(`${pc.bgCyan(pc.black(" blockend "))} ${pc.dim("add")}`);
   }
 
-  const cwd = process.cwd();
+  const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
 
-  // ── Read blockend.json ──────────────────────────────────────────────────
+  // ── Resolve target project / workspace package ──────────────────────────
 
-  const configPath = await findUp("blockend.json", cwd);
-  if (!configPath) {
-    outputError(json, "blockend.json not found. Run 'npx blockend init' first.");
+  const target = await resolveProjectTarget(cwd, {
+    command: "add",
+    interactive: !json && !yes && Boolean(process.stdin.isTTY)
+  });
+  if (target.kind === "cancelled") {
+    outro(pc.dim("Operation cancelled."));
+    return;
+  }
+  if (target.kind !== "package") {
+    outputError(json, targetErrorMessage(target) ?? "Could not resolve a target project.");
+    process.exitCode = 1;
     return;
   }
 
-  const rootDir = dirname(configPath);
+  const { configPath, rootDir } = target;
 
   let config: BlockendExtendedConfig;
   try {

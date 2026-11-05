@@ -114,7 +114,7 @@ describe("initCommand - Path Layout & Alias Edge Cases", () => {
     await initCommand();
 
     expect(mockDetectProject).toHaveBeenCalledWith(cwd, { blocksDir: "src/modules/blocks" });
-    expect(fs.readFile).not.toHaveBeenCalled();
+    expect(fs.readFile).not.toHaveBeenCalledWith(join(cwd, "blockend.json"), "utf-8");
     expect(fs.writeFile).toHaveBeenCalledWith(
       join(cwd, "blockend.json"),
       expect.stringContaining('"blocks": "~/modules/blocks"'),
@@ -143,7 +143,7 @@ describe("initCommand - Path Layout & Alias Edge Cases", () => {
     expect(mockDetectProject).toHaveBeenCalledWith(cwd, {
       blocksDir: "src\\infrastructure\\blocks"
     });
-    expect(fs.readFile).not.toHaveBeenCalled();
+    expect(fs.readFile).not.toHaveBeenCalledWith(join(cwd, "blockend.json"), "utf-8");
     // When no path mapping exists, no alias is derived - aliases should be empty
     expect(fs.writeFile).toHaveBeenCalledWith(
       join(cwd, "blockend.json"),

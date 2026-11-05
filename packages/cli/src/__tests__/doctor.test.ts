@@ -1,11 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { doctorCommand } from "../commands/doctor.js";
+import { detectWorkspace } from "../workspace/detect.js";
+import { join } from "path";
 import fs from "fs/promises";
 import { existsSync } from "fs";
 
 vi.mock("fs/promises");
 vi.mock("fs", () => ({
   existsSync: vi.fn()
+}));
+
+// Defaults to a single project; individual tests can return a workspace.
+vi.mock("../workspace/detect.js", () => ({
+  detectWorkspace: vi.fn(async () => null)
 }));
 
 vi.mock("@clack/prompts", () => ({
@@ -233,5 +240,19 @@ describe("doctorCommand - Configuration & Project Health", () => {
     const result = await doctorCommand();
 
     expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it("runs package checks against the resolved package directory", async () => {
+    const apiDir = join(cwd, "apps", "api");
+    vi.mocked(detectWorkspace).mockResolvedValueOnce({
+      manager: "pnpm",
+      root: cwd,
+      patterns: ["apps/*"],
+      packages: [{ name: "api", dir: "apps/api", absDir: apiDir, hasConfig: true }]
+    });
+
+    await doctorCommand();
+
+    expect(mockDetectProject).toHaveBeenCalledWith(apiDir);
   });
 });

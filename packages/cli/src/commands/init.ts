@@ -6,6 +6,7 @@ import { intro, outro, select, text, confirm, spinner, isCancel, log } from "@cl
 import pc from "picocolors";
 
 import { detectProject } from "../detectors/index.js";
+import { resolveProjectTarget } from "../workspace/index.js";
 import { format } from "../ui/format.js";
 import { theme } from "../ui/theme.js";
 import type { BlockendConfig } from "../block-install/index.js";
@@ -38,16 +39,44 @@ export async function initCommand(
   options: {
     yes?: boolean;
     json?: boolean;
+    cwd?: string;
   } = {}
 ): Promise<void> {
   const { yes = false, json = false } = options;
-  const cwd = process.cwd();
-  const configPath = join(cwd, "blockend.json");
 
   if (!json) {
     console.log("");
     intro(`${pc.bgCyan(pc.black(" blockend "))} ${theme.text.muted("setup")}`);
   }
+
+  // ── Resolve target project / workspace package ────────────────────────────
+
+  const baseDir = options.cwd ? path.resolve(options.cwd) : process.cwd();
+  const target = await resolveProjectTarget(baseDir, {
+    command: "init",
+    interactive: !json && !yes && Boolean(process.stdin.isTTY)
+  });
+
+  if (target.kind === "cancelled") {
+    if (json) {
+      outputInitResult(json, { success: false, message: "Setup cancelled." });
+    } else {
+      outro(format.muted("Setup cancelled."));
+    }
+    return;
+  }
+
+  if (target.kind === "guidance") {
+    outputInitError(json, target.message);
+    return;
+  }
+
+  // A workspace package is targeted explicitly; otherwise init always writes
+  // to the given directory itself, matching single-project behaviour.
+  const inWorkspace =
+    target.kind === "needs-init" || (target.kind === "package" && target.workspace !== null);
+  const cwd = inWorkspace ? target.rootDir : baseDir;
+  const configPath = join(cwd, "blockend.json");
 
   // ── Handle existing config ────────────────────────────────────────────────
 

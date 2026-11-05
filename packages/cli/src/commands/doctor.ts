@@ -5,7 +5,17 @@ import { existsSync } from "fs";
 import { intro, outro, spinner } from "@clack/prompts";
 import pc from "picocolors";
 import { detectProject } from "../detectors/index.js";
+import { findUp } from "../utils/find-up.js";
+import { resolveProjectTarget, targetErrorMessage } from "../workspace/index.js";
 import type { BlockendConfig } from "../block-install/index.js";
+
+// Lockfiles are searched in this order, matching the package-manager precedence.
+const LOCKFILES: Array<{ file: string; manager: string }> = [
+  { file: "pnpm-lock.yaml", manager: "pnpm" },
+  { file: "yarn.lock", manager: "yarn" },
+  { file: "bun.lockb", manager: "bun" },
+  { file: "package-lock.json", manager: "npm" }
+];
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -62,27 +72,30 @@ function outputDoctorResult(json: boolean, result: DoctorResult): void {
   }
 }
 
-// ─── filesystem helpers ──────────────────────────────────────────────────────
-
-async function findUp(filename: string, startDir: string): Promise<string | null> {
+/**
+ * Finds the nearest known lockfile between `startDir` and `boundary`, so a
+ * workspace package can inherit the workspace root's lockfile.
+ */
+function findLockfile(startDir: string, boundary: string): string | null {
+  const stop = path.resolve(boundary);
   let dir = startDir;
+
   while (true) {
-    const candidate = join(dir, filename);
-    try {
-      await fs.access(candidate);
-      return candidate;
-    } catch {
-      const parent = dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
+    for (const { file, manager } of LOCKFILES) {
+      if (existsSync(join(dir, file))) return manager;
     }
+    if (path.resolve(dir) === stop) return null;
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
   }
-  return null;
 }
 
 // ─── doctor command ──────────────────────────────────────────────────────────
 
-export async function doctorCommand(options: { json?: boolean } = {}): Promise<DoctorResult> {
+export async function doctorCommand(
+  options: { json?: boolean; cwd?: string } = {}
+): Promise<DoctorResult> {
   const { json = false } = options;
 
   if (!json) {
@@ -90,7 +103,7 @@ export async function doctorCommand(options: { json?: boolean } = {}): Promise<D
     intro(`${pc.bgCyan(pc.black(" blockend "))} ${pc.dim("doctor")}`);
   }
 
-  const cwd = process.cwd();
+  const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
   const checks: DoctorCheck[] = [];
   const warnings: DoctorCheck[] = [];
   const errors: DoctorCheck[] = [];
@@ -104,9 +117,19 @@ export async function doctorCommand(options: { json?: boolean } = {}): Promise<D
   const s = spinner();
   if (!json) s.start("Scanning project health...");
 
+  // ── Resolve the target package, mirroring the install commands ───────────
+
+  const target = await resolveProjectTarget(cwd, { command: "doctor", interactive: false });
+  const configPath = target.kind === "package" ? target.configPath : null;
+  const boundary = "workspace" in target ? (target.workspace?.root ?? cwd) : cwd;
+  // Package-scoped checks use the resolved package; the lockfile boundary stays
+  // the workspace root so a package can inherit the root lockfile.
+  const projectDir =
+    target.kind === "package" || target.kind === "needs-init" ? target.rootDir : cwd;
+
   // ── Check: package.json exists ───────────────────────────────────────────
 
-  const packageJsonPath = await findUp("package.json", cwd);
+  const packageJsonPath = await findUp("package.json", projectDir);
   if (packageJsonPath) {
     addCheck({ name: "package.json", status: "ok", message: "Found" });
   } else {
@@ -119,20 +142,19 @@ export async function doctorCommand(options: { json?: boolean } = {}): Promise<D
 
   // ── Check: blockend.json exists ──────────────────────────────────────────
 
-  const configPath = await findUp("blockend.json", cwd);
   if (configPath) {
     addCheck({ name: "blockend.json", status: "ok", message: "Found" });
   } else {
     addCheck({
       name: "blockend.json",
       status: "error",
-      message: "Not found. Run 'npx blockend init' first."
+      message: targetErrorMessage(target) ?? "Not found. Run 'npx blockend init' first."
     });
   }
 
   // ── Check: tsconfig.json (optional, warning for TS projects) ─────────────
 
-  const tsConfigPath = await findUp("tsconfig.json", cwd);
+  const tsConfigPath = await findUp("tsconfig.json", projectDir);
   if (tsConfigPath) {
     addCheck({ name: "tsconfig.json", status: "ok", message: "Found" });
   } else {
@@ -143,16 +165,11 @@ export async function doctorCommand(options: { json?: boolean } = {}): Promise<D
     });
   }
 
-  // ── Check: lockfile exists ───────────────────────────────────────────────
+  // ── Check: lockfile exists (searching up to the workspace root) ──────────
 
-  const hasPnpmLock = existsSync(join(cwd, "pnpm-lock.yaml"));
-  const hasYarnLock = existsSync(join(cwd, "yarn.lock"));
-  const hasBunLock = existsSync(join(cwd, "bun.lockb"));
-  const hasNpmLock = existsSync(join(cwd, "package-lock.json"));
-
-  if (hasPnpmLock || hasYarnLock || hasBunLock || hasNpmLock) {
-    const pmName = hasPnpmLock ? "pnpm" : hasYarnLock ? "yarn" : hasBunLock ? "bun" : "npm";
-    addCheck({ name: "Lockfile", status: "ok", message: `${pmName} lockfile found` });
+  const lockfileManager = findLockfile(cwd, boundary);
+  if (lockfileManager) {
+    addCheck({ name: "Lockfile", status: "ok", message: `${lockfileManager} lockfile found` });
   } else {
     addCheck({
       name: "Lockfile",
@@ -164,7 +181,7 @@ export async function doctorCommand(options: { json?: boolean } = {}): Promise<D
   // ── Check: project detection ─────────────────────────────────────────────
 
   try {
-    const context = await detectProject(cwd);
+    const context = await detectProject(projectDir);
 
     if (context.framework !== "none") {
       addCheck({
@@ -186,6 +203,16 @@ export async function doctorCommand(options: { json?: boolean } = {}): Promise<D
       status: "ok",
       message: `Detected: ${context.packageManager}`
     });
+
+    if (context.workspace) {
+      addCheck({
+        name: "Workspace",
+        status: "ok",
+        message: `${context.workspace.manager} monorepo · ${context.workspace.packages.length} package(s)`
+      });
+    } else {
+      addCheck({ name: "Workspace", status: "ok", message: "Single project" });
+    }
 
     if (context.hasRedis) {
       addCheck({ name: "Redis", status: "ok", message: "Redis client detected" });

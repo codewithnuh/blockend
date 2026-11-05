@@ -30,6 +30,28 @@ bunx blockend-cli init
 
 The `add` command rejects JavaScript projects.
 
+## Monorepos
+
+The CLI understands workspace layouts: pnpm workspaces, npm/yarn `workspaces`, Lerna, and Nx. Each workspace package keeps its own `blockend.json`, and a block installs into the package that config belongs to.
+
+Run commands from inside a package:
+
+```bash
+cd apps/api
+npx blockend-cli add rate-limiter
+```
+
+Run `init` at the repo root and the CLI asks which package to target. You can also point at one explicitly with `-c, --cwd`:
+
+```bash
+npx blockend-cli init -c apps/api
+npx blockend-cli add rate-limiter -c apps/api
+```
+
+If the target package has no `blockend.json`, run `init` in it first. When a workspace root is used non-interactively (for example with `--json`) and no target can be chosen, the CLI lists the packages with the `--cwd` command to run instead.
+
+`-c, --cwd <path>` is available on `init`, `add`, `list`, `diff`, `doctor`, `update`, and `detect`.
+
 ## Commands
 
 ### `init`
@@ -84,7 +106,7 @@ Lists blocks compatible with the framework in `blockend.json`. With `--recipes`,
 npx blockend-cli detect [--json]
 ```
 
-Reports framework, language, package manager, source directory, import rewrite strategy, and detected Redis, Prisma, and Drizzle usage. It does not require `blockend.json`.
+Reports framework, language, package manager, source directory, import rewrite strategy, and detected Redis, Prisma, and Drizzle usage. Inside a monorepo it also reports the workspace manager, root, and packages. It does not require `blockend.json`.
 
 ### `diff`
 
@@ -120,6 +142,8 @@ npx blockend-cli mcp init [options]
 Starts the MCP server or writes a client config. `mcp init` supports `--client`, `--dry-run`, `--force`, and `--yes`.
 
 Supported clients: `claude`, `codex`, `cursor`, `vscode`, and `windsurf`.
+
+MCP tools take an absolute `projectPath`. In a monorepo, point it at the workspace package (each package has its own `blockend.json`); `detect_project` returns the available packages.
 
 ## Config
 

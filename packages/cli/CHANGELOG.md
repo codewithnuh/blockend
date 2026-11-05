@@ -5,6 +5,35 @@ All notable changes to the `blockend-cli` package are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-11-05
+
+### Added
+
+- Monorepo support: the CLI now detects pnpm, npm/yarn `workspaces`, Lerna, and Nx layouts and enumerates their packages.
+- `init` and `add` prompt for a target package when run at a workspace root.
+- Added a `-c, --cwd <path>` flag to `init`, `add`, `list`, `diff`, `doctor`, `update`, and `detect`.
+- `detect` reports the workspace manager, root, and packages.
+- MCP tools now target a workspace package: `list_blocks` takes an optional `projectPath`, and the tool schemas point at a package rather than the repo root.
+
+### Changed
+
+- Package-manager detection now walks up to the workspace root, so a leaf package inherits the root's package manager.
+- `tsconfig`/`jsconfig` reading resolves the `extends` chain, so packages inheriting a shared base keep its path aliases.
+
+### Fixed
+
+- Resolve the containing workspace package before accepting a config, so a nested package no longer inherits its parent's `blockend.json`, and a config above the workspace root is ignored.
+- Parse the inline (`packages: ['apps/*']`) and flush (`packages:` followed by unindented `- apps/*`) forms of `pnpm-workspace.yaml`.
+- Discover integrated Nx projects from their `project.json` files instead of only marking the workspace as Nx.
+- Rebase path aliases inherited through `extends` to the inheriting package before deriving block imports.
+- Keep `#` inside quoted workspace patterns, and parse inline `packages` lists without splitting on commas inside quotes or brace globs.
+- Classify a bare Yarn workspace from `yarn.lock`, and add Lerna's `packages/*` default only when `package.json` declares no workspaces.
+- Bound package-manager and lockfile discovery to the workspace root instead of walking to the filesystem root.
+- Prefer a real file over a directory when resolving a relative `extends`, and skip non-string `extends` values.
+- `doctor` resolves the same target package as the install commands and searches lockfiles upward; `add` exits non-zero for an unresolved target, and commands only prompt for a package on a TTY.
+- Use the last `extends` entry's `paths` (TypeScript's merge order) when deriving the block alias, and run `doctor`'s package-scoped checks against the resolved package directory.
+- Load a bare `extends` package via its `tsconfig` field when `require.resolve` cannot reach its config; an explicit subpath is never substituted, so inherited compiler options are not dropped.
+
 ## [2.2.0] - 2026-10-31
 
 ### Added

@@ -160,4 +160,130 @@ describe("detectProject - ProjectContext detection interface", () => {
 
     expect(context.blocksAlias).toBeUndefined();
   });
+
+  it("attaches workspace context when the project sits inside a monorepo", async () => {
+    const root = await createProject({
+      "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n',
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({ compilerOptions: {} })
+    });
+
+    const context = await detectProject(join(root, "apps", "api"));
+
+    expect(context.workspace?.manager).toBe("pnpm");
+    expect(context.workspace?.root).toBe(root);
+    expect(context.workspace?.packages.map((pkg) => pkg.dir)).toEqual(["apps/api"]);
+  });
+
+  it("rebases an inherited path alias to the inheriting package", async () => {
+    const root = await createProject({
+      "tsconfig.base.json": JSON.stringify({
+        compilerOptions: { baseUrl: ".", paths: { "@/*": ["./src/*"] } }
+      }),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({ extends: "../../tsconfig.base.json" }),
+      "apps/api/src/index.ts": ""
+    });
+
+    const context = await detectProject(join(root, "apps", "api"), { blocksDir: "src/blocks" });
+
+    // The base maps "@/..." to the root's src, so it cannot describe this package.
+    expect(context.blocksAlias).toBeUndefined();
+  });
+
+  it("keeps a locally declared path alias for the package", async () => {
+    const root = await createProject({
+      "package.json": JSON.stringify({ name: "solo" }),
+      "tsconfig.json": JSON.stringify({ compilerOptions: { paths: { "@/*": ["./src/*"] } } }),
+      "src/index.ts": ""
+    });
+
+    const context = await detectProject(root, { blocksDir: "src/blocks" });
+
+    expect(context.blocksAlias).toBe("@/blocks");
+  });
+
+  it("lets the child override an inherited compiler option", async () => {
+    const root = await createProject({
+      "tsconfig.base.json": JSON.stringify({
+        compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext" }
+      }),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({
+        extends: "../../tsconfig.base.json",
+        compilerOptions: { module: "ESNext", moduleResolution: "bundler" }
+      })
+    });
+
+    const context = await detectProject(join(root, "apps", "api"), { blocksDir: "src/blocks" });
+
+    expect(context.importRewriteStrategy).toBe("remove");
+  });
+
+  it("uses the last extends entry when several declare paths", async () => {
+    const root = await createProject({
+      "tsconfig.base-a.json": JSON.stringify({ compilerOptions: { paths: { "@/*": ["a/*"] } } }),
+      "tsconfig.base-b.json": JSON.stringify({ compilerOptions: { paths: { "@/*": ["b/*"] } } }),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({
+        extends: ["../../tsconfig.base-a.json", "../../tsconfig.base-b.json"]
+      }),
+      "apps/api/src/index.ts": ""
+    });
+
+    const context = await detectProject(join(root, "apps", "api"), { blocksDir: "src/blocks" });
+
+    // base-b is the later entry, so its root-relative "b/" is rebased here.
+    expect(context.aliasMap).toEqual({ "@/": "../../b/" });
+  });
+
+  it("reads the tsconfig field of a bare extends package", async () => {
+    const root = await createProject({
+      "node_modules/base-config/package.json": JSON.stringify({
+        name: "base-config",
+        tsconfig: "./base.json"
+      }),
+      "node_modules/base-config/base.json": JSON.stringify({
+        compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext" }
+      }),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({ extends: "base-config" }),
+      "apps/api/src/index.ts": ""
+    });
+
+    const context = await detectProject(join(root, "apps", "api"), { blocksDir: "src/blocks" });
+
+    // The package has no main/index, so the `tsconfig` field must be used.
+    expect(context.importRewriteStrategy).toBe("rewrite");
+  });
+
+  it("does not substitute the root tsconfig for a hidden subpath", async () => {
+    const root = await createProject({
+      "node_modules/base-config/package.json": JSON.stringify({
+        name: "base-config",
+        tsconfig: "./root.json",
+        exports: { ".": "./root.json" }
+      }),
+      "node_modules/base-config/root.json": JSON.stringify({
+        compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext" }
+      }),
+      "node_modules/base-config/node.json": JSON.stringify({
+        compilerOptions: { module: "ESNext", moduleResolution: "bundler" }
+      }),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({ extends: "base-config/node.json" }),
+      "apps/api/src/index.ts": ""
+    });
+
+    const context = await detectProject(join(root, "apps", "api"), { blocksDir: "src/blocks" });
+
+    // The subpath is hidden by `exports`, so no base loads (and not root.json).
+    expect(context.importRewriteStrategy).toBe("remove");
+  });
 });

@@ -1,8 +1,11 @@
 import { readFile } from "fs/promises";
-import { existsSync } from "fs";
-import { join } from "path";
+import { existsSync, readFileSync, statSync } from "fs";
+import { createRequire } from "module";
+import { dirname, join, relative, resolve } from "path";
 
+/** A parsed tsconfig/jsconfig, including its resolved `extends` chain. */
 export interface TsConfig {
+  extends?: string | string[];
   compilerOptions?: {
     baseUrl?: string;
     paths?: Record<string, string[]>;
@@ -12,6 +15,7 @@ export interface TsConfig {
   };
 }
 
+/** The compiler config used for detection, tagged by source file kind. */
 export interface CompilerConfig {
   kind: "tsconfig" | "jsconfig";
   config: TsConfig;
@@ -22,8 +26,11 @@ const CONFIG_FILES = [
   { filename: "jsconfig.json", kind: "jsconfig" }
 ] as const;
 
+const MAX_EXTENDS_DEPTH = 5;
+
 /**
- * Reads the project's tsconfig.json or jsconfig.json.
+ * Reads the project's tsconfig.json or jsconfig.json, resolving any `extends`
+ * chain so packages inheriting a shared base still expose its compilerOptions.
  * Returns null when neither exists or neither can be parsed.
  */
 export async function readCompilerConfig(cwd: string): Promise<CompilerConfig | null> {
@@ -31,19 +38,208 @@ export async function readCompilerConfig(cwd: string): Promise<CompilerConfig | 
     const configPath = join(cwd, filename);
     if (!existsSync(configPath)) continue;
 
-    try {
-      const content = await readFile(configPath, "utf-8");
-      const clean = stripTrailingCommas(stripJsonComments(content));
+    const config = await parseConfigFile(configPath);
+    if (!config) continue;
 
-      return {
-        kind,
-        config: JSON.parse(clean) as TsConfig
-      };
-    } catch {
-      // Malformed config - fall through to the next candidate.
+    const compilerOptions = await resolveCompilerOptions(configPath, new Set());
+    const paths = await resolveEffectivePaths(configPath, dirname(configPath));
+    if (paths) compilerOptions.paths = paths;
+
+    return { kind, config: { ...config, compilerOptions } };
+  }
+
+  return null;
+}
+
+async function parseConfigFile(filePath: string): Promise<TsConfig | null> {
+  try {
+    const content = await readFile(filePath, "utf-8");
+    return JSON.parse(stripTrailingCommas(stripJsonComments(content))) as TsConfig;
+  } catch {
+    return null;
+  }
+}
+
+/** Merges compilerOptions from the whole `extends` chain, child winning. */
+async function resolveCompilerOptions(
+  filePath: string,
+  seen: Set<string>
+): Promise<NonNullable<TsConfig["compilerOptions"]>> {
+  if (seen.has(filePath)) return {};
+  seen.add(filePath);
+
+  const config = await parseConfigFile(filePath);
+  if (!config) {
+    seen.delete(filePath);
+    return {};
+  }
+
+  let merged: NonNullable<TsConfig["compilerOptions"]> = {};
+  for (const spec of toArray(config.extends)) {
+    const target = resolveExtendsTarget(spec, dirname(filePath));
+    if (!target) continue;
+    merged = { ...merged, ...(await resolveCompilerOptions(target, seen)) };
+  }
+
+  seen.delete(filePath);
+  return { ...merged, ...config.compilerOptions };
+}
+
+/**
+ * Path aliases are relative to the config that declares them, so a mapping
+ * inherited from another directory must be re-expressed relative to the
+ * inheriting package before it can describe that package's files.
+ */
+async function resolveEffectivePaths(
+  configPath: string,
+  packageDir: string
+): Promise<Record<string, string[]> | undefined> {
+  const declaration = await findPathsDeclaration(configPath, new Set(), 0);
+  if (!declaration) return undefined;
+  if (resolve(declaration.dir) === resolve(packageDir)) return declaration.paths;
+
+  const fromDir = declaration.baseUrl
+    ? resolve(declaration.dir, declaration.baseUrl)
+    : declaration.dir;
+
+  const rebased: Record<string, string[]> = {};
+  for (const [alias, targets] of Object.entries(declaration.paths)) {
+    rebased[alias] = Array.isArray(targets)
+      ? targets.map((target) =>
+          typeof target === "string" ? rebaseTarget(target, fromDir, packageDir) : target
+        )
+      : targets;
+  }
+  return rebased;
+}
+
+/**
+ * Finds the config that effectively supplies `paths`: the child's own, else the
+ * last `extends` entry (later entries win), searched in reverse.
+ */
+async function findPathsDeclaration(
+  filePath: string,
+  seen: Set<string>,
+  depth: number
+): Promise<{ paths: Record<string, string[]>; dir: string; baseUrl?: string } | null> {
+  if (depth > MAX_EXTENDS_DEPTH || seen.has(filePath)) return null;
+  seen.add(filePath);
+
+  const config = await parseConfigFile(filePath);
+  if (!config) return null;
+
+  if (config.compilerOptions?.paths) {
+    return {
+      paths: config.compilerOptions.paths,
+      dir: dirname(filePath),
+      baseUrl: config.compilerOptions.baseUrl
+    };
+  }
+
+  for (const spec of toArray(config.extends).reverse()) {
+    const target = resolveExtendsTarget(spec, dirname(filePath));
+    if (!target) continue;
+    const found = await findPathsDeclaration(target, seen, depth + 1);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function rebaseTarget(target: string, fromDir: string, toDir: string): string {
+  const starIndex = target.indexOf("*");
+  const dirPart = starIndex >= 0 ? target.slice(0, starIndex) : target;
+  const tail = starIndex >= 0 ? target.slice(starIndex) : "";
+
+  const rebased = relative(toDir, resolve(fromDir, dirPart)).replace(/\\/g, "/");
+  const prefix = rebased === "" ? "" : rebased + (dirPart.endsWith("/") ? "/" : "");
+
+  return `${prefix}${tail}`;
+}
+
+function toArray(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+  }
+  return typeof value === "string" && value.length > 0 ? [value] : [];
+}
+
+function resolveExtendsTarget(spec: string, fromDir: string): string | null {
+  const isRelative = spec.startsWith(".") || spec.startsWith("/") || /^[A-Za-z]:/.test(spec);
+
+  if (isRelative) {
+    const base = resolve(fromDir, spec);
+    return firstExisting([base, `${base}.json`, join(base, "tsconfig.json")]);
+  }
+
+  const require = createRequire(join(fromDir, "package.json"));
+
+  try {
+    const resolved = require.resolve(spec);
+    if (isFile(resolved)) return resolved;
+  } catch {
+    // Fall through to the package's `tsconfig` field.
+  }
+
+  // A config-only package may expose nothing resolvable via `main`/`exports`,
+  // so fall back to its `tsconfig` field. Only a bare package name may use this:
+  // an explicit subpath must not silently resolve to a different file.
+  const packageName = spec.startsWith("@")
+    ? spec.split("/").slice(0, 2).join("/")
+    : spec.split("/")[0];
+
+  if (spec === packageName) {
+    const packageJsonPath = resolvePackageJson(require, packageName);
+    if (packageJsonPath) {
+      const pkg = readJsonSync<{ tsconfig?: unknown }>(packageJsonPath);
+      if (typeof pkg?.tsconfig === "string") {
+        const configPath = resolve(dirname(packageJsonPath), pkg.tsconfig);
+        if (isFile(configPath)) return configPath;
+      }
     }
   }
 
+  return null;
+}
+
+/** Resolves a package's package.json, tolerating an `exports` map. */
+function resolvePackageJson(require: NodeRequire, packageName: string): string | null {
+  try {
+    const resolved = require.resolve(`${packageName}/package.json`);
+    if (isFile(resolved)) return resolved;
+  } catch {
+    // `exports` may block direct package.json access; search node_modules below.
+  }
+
+  for (const base of require.resolve.paths(packageName) ?? []) {
+    const candidate = join(base, packageName, "package.json");
+    if (isFile(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+function readJsonSync<T>(filePath: string): T | null {
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8")) as T;
+  } catch {
+    return null;
+  }
+}
+
+function isFile(candidate: string): boolean {
+  try {
+    return statSync(candidate).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/** Returns the first candidate that is an existing file, preserving order. */
+function firstExisting(candidates: string[]): string | null {
+  for (const candidate of candidates) {
+    if (isFile(candidate)) return candidate;
+  }
   return null;
 }
 

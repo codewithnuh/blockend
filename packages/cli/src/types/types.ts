@@ -1,3 +1,5 @@
+import type { WorkspaceContext } from "../workspace/types.js";
+
 /**
  * The full context of a user's project, detected by @blockend/detector.
  * This is the single source of truth read by all downstream packages.
@@ -41,6 +43,9 @@ export interface ProjectContext {
 
   /** Import rewriting strategy for module resolution  */
   importRewriteStrategy: "rewrite" | "remove";
+
+  /** Monorepo context, when the project sits inside a workspace. */
+  workspace?: WorkspaceContext;
 }
 
 /**
@@ -72,20 +77,4 @@ export interface RegistryFile {
 export interface TransformedFile {
   outputPath: string;
   content: string;
-}
-
-/**
- * The blockend.json config file written to the user's project root.
- */
-export interface BlockendConfig {
-  $schema: string;
-  framework: ProjectContext["framework"];
-  language: ProjectContext["language"];
-  blocksDir: string;
-  aliases: Record<string, string>;
-  installed: Array<{
-    name: string;
-    version: string;
-    installedAt: string;
-  }>;
 }
