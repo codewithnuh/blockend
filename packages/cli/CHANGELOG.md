@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bound package-manager and lockfile discovery to the workspace root instead of walking to the filesystem root.
 - Prefer a real file over a directory when resolving a relative `extends`, and skip non-string `extends` values.
 - `doctor` resolves the same target package as the install commands and searches lockfiles upward; `add` exits non-zero for an unresolved target, and commands only prompt for a package on a TTY.
+- Use the last `extends` entry's `paths` (TypeScript's merge order) when deriving the block alias, and run `doctor`'s package-scoped checks against the resolved package directory.
 
 ## [2.2.0] - 2026-10-31
 

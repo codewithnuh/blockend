@@ -122,10 +122,14 @@ export async function doctorCommand(
   const target = await resolveProjectTarget(cwd, { command: "doctor", interactive: false });
   const configPath = target.kind === "package" ? target.configPath : null;
   const boundary = "workspace" in target ? (target.workspace?.root ?? cwd) : cwd;
+  // Package-scoped checks use the resolved package; the lockfile boundary stays
+  // the workspace root so a package can inherit the root lockfile.
+  const projectDir =
+    target.kind === "package" || target.kind === "needs-init" ? target.rootDir : cwd;
 
   // ── Check: package.json exists ───────────────────────────────────────────
 
-  const packageJsonPath = await findUp("package.json", cwd);
+  const packageJsonPath = await findUp("package.json", projectDir);
   if (packageJsonPath) {
     addCheck({ name: "package.json", status: "ok", message: "Found" });
   } else {
@@ -150,7 +154,7 @@ export async function doctorCommand(
 
   // ── Check: tsconfig.json (optional, warning for TS projects) ─────────────
 
-  const tsConfigPath = await findUp("tsconfig.json", cwd);
+  const tsConfigPath = await findUp("tsconfig.json", projectDir);
   if (tsConfigPath) {
     addCheck({ name: "tsconfig.json", status: "ok", message: "Found" });
   } else {
@@ -177,7 +181,7 @@ export async function doctorCommand(
   // ── Check: project detection ─────────────────────────────────────────────
 
   try {
-    const context = await detectProject(cwd);
+    const context = await detectProject(projectDir);
 
     if (context.framework !== "none") {
       addCheck({

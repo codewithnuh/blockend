@@ -113,7 +113,10 @@ async function resolveEffectivePaths(
   return rebased;
 }
 
-/** Finds the nearest config in the chain that declares `paths`. */
+/**
+ * Finds the config that effectively supplies `paths`: the child's own, else the
+ * last `extends` entry (later entries win), searched in reverse.
+ */
 async function findPathsDeclaration(
   filePath: string,
   seen: Set<string>,
@@ -133,7 +136,7 @@ async function findPathsDeclaration(
     };
   }
 
-  for (const spec of toArray(config.extends)) {
+  for (const spec of toArray(config.extends).reverse()) {
     const target = resolveExtendsTarget(spec, dirname(filePath));
     if (!target) continue;
     const found = await findPathsDeclaration(target, seen, depth + 1);

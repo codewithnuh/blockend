@@ -222,4 +222,22 @@ describe("detectProject - ProjectContext detection interface", () => {
 
     expect(context.importRewriteStrategy).toBe("remove");
   });
+
+  it("uses the last extends entry when several declare paths", async () => {
+    const root = await createProject({
+      "tsconfig.base-a.json": JSON.stringify({ compilerOptions: { paths: { "@/*": ["a/*"] } } }),
+      "tsconfig.base-b.json": JSON.stringify({ compilerOptions: { paths: { "@/*": ["b/*"] } } }),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({
+        extends: ["../../tsconfig.base-a.json", "../../tsconfig.base-b.json"]
+      }),
+      "apps/api/src/index.ts": ""
+    });
+
+    const context = await detectProject(join(root, "apps", "api"), { blocksDir: "src/blocks" });
+
+    // base-b is the later entry, so its root-relative "b/" is rebased here.
+    expect(context.aliasMap).toEqual({ "@/": "../../b/" });
+  });
 });
