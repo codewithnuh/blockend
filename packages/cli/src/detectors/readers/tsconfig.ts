@@ -1,8 +1,10 @@
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
-import { join } from "path";
+import { createRequire } from "module";
+import { dirname, join, resolve } from "path";
 
 export interface TsConfig {
+  extends?: string | string[];
   compilerOptions?: {
     baseUrl?: string;
     paths?: Record<string, string[]>;
@@ -22,8 +24,11 @@ const CONFIG_FILES = [
   { filename: "jsconfig.json", kind: "jsconfig" }
 ] as const;
 
+const MAX_EXTENDS_DEPTH = 5;
+
 /**
- * Reads the project's tsconfig.json or jsconfig.json.
+ * Reads the project's tsconfig.json or jsconfig.json, resolving any `extends`
+ * chain so packages inheriting a shared base still expose its compilerOptions.
  * Returns null when neither exists or neither can be parsed.
  */
 export async function readCompilerConfig(cwd: string): Promise<CompilerConfig | null> {
@@ -31,20 +36,71 @@ export async function readCompilerConfig(cwd: string): Promise<CompilerConfig | 
     const configPath = join(cwd, filename);
     if (!existsSync(configPath)) continue;
 
-    try {
-      const content = await readFile(configPath, "utf-8");
-      const clean = stripTrailingCommas(stripJsonComments(content));
+    const config = await parseConfigFile(configPath);
+    if (!config) continue;
 
-      return {
-        kind,
-        config: JSON.parse(clean) as TsConfig
-      };
-    } catch {
-      // Malformed config - fall through to the next candidate.
-    }
+    const inherited = await resolveCompilerOptions(configPath, new Set(), 0);
+    return { kind, config: { ...config, compilerOptions: inherited } };
   }
 
   return null;
+}
+
+async function parseConfigFile(filePath: string): Promise<TsConfig | null> {
+  try {
+    const content = await readFile(filePath, "utf-8");
+    return JSON.parse(stripTrailingCommas(stripJsonComments(content))) as TsConfig;
+  } catch {
+    return null;
+  }
+}
+
+/** Merges compilerOptions from the whole `extends` chain, child winning. */
+async function resolveCompilerOptions(
+  filePath: string,
+  seen: Set<string>,
+  depth: number
+): Promise<TsConfig["compilerOptions"]> {
+  if (depth > MAX_EXTENDS_DEPTH || seen.has(filePath)) return {};
+  seen.add(filePath);
+
+  const config = await parseConfigFile(filePath);
+  if (!config) return {};
+
+  let merged: NonNullable<TsConfig["compilerOptions"]> = {};
+  for (const spec of toArray(config.extends)) {
+    const target = resolveExtendsTarget(spec, dirname(filePath));
+    if (!target) continue;
+    merged = { ...merged, ...(await resolveCompilerOptions(target, seen, depth + 1)) };
+  }
+
+  return { ...merged, ...config.compilerOptions };
+}
+
+function toArray(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value;
+  return value ? [value] : [];
+}
+
+function resolveExtendsTarget(spec: string, fromDir: string): string | null {
+  const isRelative = spec.startsWith(".") || spec.startsWith("/") || /^[A-Za-z]:/.test(spec);
+
+  if (isRelative) {
+    const base = resolve(fromDir, spec);
+    return firstExisting([base, `${base}.json`, join(base, "tsconfig.json")]);
+  }
+
+  try {
+    const require = createRequire(join(fromDir, "package.json"));
+    const resolved = require.resolve(spec);
+    return existsSync(resolved) ? resolved : null;
+  } catch {
+    return null;
+  }
+}
+
+function firstExisting(candidates: string[]): string | null {
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
 /**

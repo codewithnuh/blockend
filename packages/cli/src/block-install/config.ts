@@ -1,25 +1,7 @@
-import { dirname, join } from "path";
 import fs from "fs/promises";
 import type { BlockendConfig, InstalledBlockRecord } from "./types.js";
 
-/**
- * Walk up from `startDir` until `filename` is found.
- */
-export async function findUp(filename: string, startDir: string): Promise<string | null> {
-  let dir = startDir;
-  while (true) {
-    const candidate = join(dir, filename);
-    try {
-      await fs.access(candidate);
-      return candidate;
-    } catch {
-      const parent = dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
-    }
-  }
-  return null;
-}
+export { findUp } from "../utils/find-up.js";
 
 /**
  * Replace the installed record for a block. Tracking failures are non-fatal:

@@ -1,14 +1,15 @@
 /* oxlint-disable no-console */
 
+import path from "path";
 import { detectProject } from "../detectors/index.js";
 import { outro } from "@clack/prompts";
 import pc from "picocolors";
 
-export async function detectCommand(options: { json?: boolean } = {}): Promise<void> {
+export async function detectCommand(options: { json?: boolean; cwd?: string } = {}): Promise<void> {
   const { json = false } = options;
 
   try {
-    const context = await detectProject(process.cwd());
+    const context = await detectProject(options.cwd ? path.resolve(options.cwd) : process.cwd());
 
     if (json) {
       process.stdout.write(JSON.stringify(context, null, 2) + "\n");
@@ -39,6 +40,15 @@ export async function detectCommand(options: { json?: boolean } = {}): Promise<v
     console.log(
       `  Drizzle:          ${context.hasDrizzle ? pc.green("detected") : pc.dim("not found")}`
     );
+
+    if (context.workspace) {
+      const { manager, root, packages } = context.workspace;
+      console.log(`  Workspace:        ${pc.cyan(manager)} ${pc.dim(`(${root})`)}`);
+      console.log(
+        `  Packages:         ${packages.length > 0 ? packages.map((pkg) => pkg.dir).join(", ") : pc.dim("none")}`
+      );
+    }
+
     console.log();
   } catch (error) {
     if (json) {

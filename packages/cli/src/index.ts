@@ -73,10 +73,15 @@ const init = defineCommand({
       type: "boolean",
       default: false,
       description: "Output machine-readable configuration write states"
+    },
+    cwd: {
+      type: "string",
+      alias: "c",
+      description: "Working directory. Defaults to the current directory."
     }
   },
   async run({ args }) {
-    await initCommand({ yes: args.yes, json: args.json });
+    await initCommand({ yes: args.yes, json: args.json, cwd: args.cwd });
   }
 });
 const list = defineCommand({
@@ -95,10 +100,15 @@ const list = defineCommand({
       type: "boolean",
       default: false,
       description: "List published recipes instead of blocks"
+    },
+    cwd: {
+      type: "string",
+      alias: "c",
+      description: "Working directory. Defaults to the current directory."
     }
   },
   async run({ args }) {
-    await listCommand({ json: args.json, recipes: args.recipes });
+    await listCommand({ json: args.json, recipes: args.recipes, cwd: args.cwd });
   }
 });
 const add = defineCommand({
@@ -133,6 +143,11 @@ const add = defineCommand({
       type: "string",
       description:
         "Add every block in a published recipe, in its integration order (see 'blockend list --recipes')"
+    },
+    cwd: {
+      type: "string",
+      alias: "c",
+      description: "Working directory. Defaults to the current directory."
     }
   },
   async run({ args }) {
@@ -140,7 +155,8 @@ const add = defineCommand({
       yes: args.yes,
       json: args.json,
       multi: args.multi,
-      recipe: args.recipe
+      recipe: args.recipe,
+      cwd: args.cwd
     });
   }
 });
@@ -155,10 +171,15 @@ const detect = defineCommand({
       type: "boolean",
       default: false,
       description: "Output full detected project workspace context delta maps directly as JSON"
+    },
+    cwd: {
+      type: "string",
+      alias: "c",
+      description: "Working directory. Defaults to the current directory."
     }
   },
   async run({ args }) {
-    await detectCommand({ json: args.json });
+    await detectCommand({ json: args.json, cwd: args.cwd });
   }
 });
 
@@ -177,10 +198,15 @@ const diff = defineCommand({
       type: "boolean",
       default: false,
       description: "Output diff results as JSON"
+    },
+    cwd: {
+      type: "string",
+      alias: "c",
+      description: "Working directory. Defaults to the current directory."
     }
   },
   async run({ args }) {
-    await diffCommand(args.block, { json: args.json });
+    await diffCommand(args.block, { json: args.json, cwd: args.cwd });
   }
 });
 
@@ -194,10 +220,15 @@ const doctor = defineCommand({
       type: "boolean",
       default: false,
       description: "Output health check results as JSON"
+    },
+    cwd: {
+      type: "string",
+      alias: "c",
+      description: "Working directory. Defaults to the current directory."
     }
   },
   async run({ args }) {
-    await doctorCommand({ json: args.json });
+    await doctorCommand({ json: args.json, cwd: args.cwd });
   }
 });
 
@@ -221,10 +252,15 @@ const update = defineCommand({
       type: "boolean",
       default: false,
       description: "Select blocks to update (multiselect) and apply updates with import rewriting"
+    },
+    cwd: {
+      type: "string",
+      alias: "c",
+      description: "Working directory. Defaults to the current directory."
     }
   },
   async run({ args }) {
-    await updateCommand({ json: args.json, diff: args.diff, apply: args.apply });
+    await updateCommand({ json: args.json, diff: args.diff, apply: args.apply, cwd: args.cwd });
   }
 });
 

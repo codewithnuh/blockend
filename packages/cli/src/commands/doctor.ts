@@ -5,6 +5,7 @@ import { existsSync } from "fs";
 import { intro, outro, spinner } from "@clack/prompts";
 import pc from "picocolors";
 import { detectProject } from "../detectors/index.js";
+import { findUp } from "../utils/find-up.js";
 import type { BlockendConfig } from "../block-install/index.js";
 
 // ─── types ───────────────────────────────────────────────────────────────────
@@ -62,27 +63,11 @@ function outputDoctorResult(json: boolean, result: DoctorResult): void {
   }
 }
 
-// ─── filesystem helpers ──────────────────────────────────────────────────────
-
-async function findUp(filename: string, startDir: string): Promise<string | null> {
-  let dir = startDir;
-  while (true) {
-    const candidate = join(dir, filename);
-    try {
-      await fs.access(candidate);
-      return candidate;
-    } catch {
-      const parent = dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
-    }
-  }
-  return null;
-}
-
 // ─── doctor command ──────────────────────────────────────────────────────────
 
-export async function doctorCommand(options: { json?: boolean } = {}): Promise<DoctorResult> {
+export async function doctorCommand(
+  options: { json?: boolean; cwd?: string } = {}
+): Promise<DoctorResult> {
   const { json = false } = options;
 
   if (!json) {
@@ -90,7 +75,7 @@ export async function doctorCommand(options: { json?: boolean } = {}): Promise<D
     intro(`${pc.bgCyan(pc.black(" blockend "))} ${pc.dim("doctor")}`);
   }
 
-  const cwd = process.cwd();
+  const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
   const checks: DoctorCheck[] = [];
   const warnings: DoctorCheck[] = [];
   const errors: DoctorCheck[] = [];
@@ -186,6 +171,16 @@ export async function doctorCommand(options: { json?: boolean } = {}): Promise<D
       status: "ok",
       message: `Detected: ${context.packageManager}`
     });
+
+    if (context.workspace) {
+      addCheck({
+        name: "Workspace",
+        status: "ok",
+        message: `${context.workspace.manager} monorepo · ${context.workspace.packages.length} package(s)`
+      });
+    } else {
+      addCheck({ name: "Workspace", status: "ok", message: "Single project" });
+    }
 
     if (context.hasRedis) {
       addCheck({ name: "Redis", status: "ok", message: "Redis client detected" });

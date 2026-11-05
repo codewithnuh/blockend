@@ -5,6 +5,21 @@ All notable changes to the `blockend-cli` package are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-11-05
+
+### Added
+
+- Monorepo support: the CLI now detects pnpm, npm/yarn `workspaces`, Lerna, and Nx layouts and enumerates their packages.
+- `init` and `add` prompt for a target package when run at a workspace root.
+- Added a `-c, --cwd <path>` flag to `init`, `add`, `list`, `diff`, `doctor`, `update`, and `detect`.
+- `detect` reports the workspace manager, root, and packages.
+- MCP tools now target a workspace package: `list_blocks` takes an optional `projectPath`, and the tool schemas point at a package rather than the repo root.
+
+### Changed
+
+- Package-manager detection now walks up to the workspace root, so a leaf package inherits the root's package manager.
+- `tsconfig`/`jsconfig` reading resolves the `extends` chain, so packages inheriting a shared base keep its path aliases.
+
 ## [2.2.0] - 2026-10-31
 
 ### Added

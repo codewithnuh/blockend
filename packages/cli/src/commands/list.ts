@@ -1,22 +1,23 @@
 /* oxlint-disable no-console */
+import path from "path";
 import fs from "fs/promises";
 import pc from "picocolors";
 import { outro, spinner } from "@clack/prompts";
 import {
   createGitHubRegistrySource,
-  findUp,
   listAvailableBlocks,
   loadRecipeCollection,
   loadRegistry,
   type BlockendConfig,
   type RegistryManifest
 } from "../block-install/index.js";
+import { resolveProjectTarget, targetErrorMessage } from "../workspace/index.js";
 
 export async function listCommand(
-  options: { json?: boolean; recipes?: boolean } = {}
+  options: { json?: boolean; recipes?: boolean; cwd?: string } = {}
 ): Promise<void> {
   const { json = false, recipes: listRecipes = false } = options;
-  const cwd = process.cwd();
+  const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
   const source = createGitHubRegistrySource();
   const s = spinner();
 
@@ -73,17 +74,21 @@ export async function listCommand(
     return;
   }
 
-  const configPath = await findUp("blockend.json", cwd);
-  if (!configPath) {
+  const target = await resolveProjectTarget(cwd, { command: "list", interactive: !json });
+  if (target.kind === "cancelled") {
+    outro(pc.dim("Operation cancelled."));
+    return;
+  }
+  if (target.kind !== "package") {
+    const error = targetErrorMessage(target) ?? "Could not resolve a target project.";
     if (json) {
-      process.stdout.write(
-        JSON.stringify({ success: false, error: "blockend.json not found." }) + "\n"
-      );
+      process.stdout.write(JSON.stringify({ success: false, error }) + "\n");
     } else {
-      outro(pc.red("✖ blockend.json not found. Run 'npx blockend init' first."));
+      outro(pc.red(`✖ ${error}`));
     }
     return;
   }
+  const configPath = target.configPath;
 
   let config: BlockendConfig;
   try {

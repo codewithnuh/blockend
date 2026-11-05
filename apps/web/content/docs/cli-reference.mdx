@@ -23,6 +23,7 @@ pnpm dlx blockend-cli init [options]
 | -------- | ----- | ------- | ---------------------------------------------------------- |
 | `--yes`  | `-y`  | `false` | Accept detected defaults and overwrite an existing config. |
 | `--json` |       | `false` | Write a JSON result instead of terminal output.            |
+| `--cwd`  | `-c`  | cwd     | Target directory or workspace package.                     |
 
 The command detects the framework, language, package manager, Redis, and `tsconfig.json` or `jsconfig.json` path aliases. It prompts for:
 
@@ -67,6 +68,7 @@ pnpm dlx blockend-cli add [block] [options]
 | `--json`   |       | `false` | Write a JSON result.                                                 |
 | `--multi`  | `-m`  | `false` | Select multiple blocks in one session.                               |
 | `--recipe` |       |         | Add every block in a published recipe, in its integration order.     |
+| `--cwd`    | `-c`  | cwd     | Target directory or workspace package.                               |
 
 Without a block name, the CLI shows a selector. With `--multi`, it shows a multiselect. Space toggles a block and Enter confirms.
 
@@ -106,6 +108,7 @@ pnpm dlx blockend-cli list [options]
 | ----------- | ------- | ------------------------------------------------- |
 | `--json`    | `false` | Write `{ success, environment, blocks }` as JSON. |
 | `--recipes` | `false` | List published recipes instead of blocks.         |
+| `--cwd`     | cwd     | Target directory or workspace package.            |
 
 `--recipes` writes `{ success, recipes }` in JSON mode and does not require `blockend.json`. The block listing requires `blockend.json` and network access to GitHub.
 
@@ -120,6 +123,7 @@ pnpm dlx blockend-cli detect [options]
 | Option   | Default | Description                              |
 | -------- | ------- | ---------------------------------------- |
 | `--json` | `false` | Write the full detection result as JSON. |
+| `--cwd`  | cwd     | Target directory or workspace package.   |
 
 | Field                   | Meaning                                                                                |
 | ----------------------- | -------------------------------------------------------------------------------------- |
@@ -131,6 +135,7 @@ pnpm dlx blockend-cli detect [options]
 | `hasRedis`              | Redis client found in dependencies.                                                    |
 | `hasPrisma`             | Prisma found.                                                                          |
 | `hasDrizzle`            | Drizzle found.                                                                         |
+| `workspace`             | Workspace manager, root, and packages, when inside a monorepo.                         |
 
 `detect` does not require `blockend.json`.
 
@@ -142,10 +147,11 @@ Preview files a block would write, without changing the project.
 pnpm dlx blockend-cli diff <block> [options]
 ```
 
-| Option    | Default  | Description                 |
-| --------- | -------- | --------------------------- |
-| `[block]` | Required | Registry key to preview.    |
-| `--json`  | `false`  | Write diff results as JSON. |
+| Option    | Default  | Description                            |
+| --------- | -------- | -------------------------------------- |
+| `[block]` | Required | Registry key to preview.               |
+| `--json`  | `false`  | Write diff results as JSON.            |
+| `--cwd`   | cwd      | Target directory or workspace package. |
 
 The output marks each file as new, modified, or unchanged. Modified files include a line diff.
 
@@ -157,9 +163,10 @@ Check the project and `blockend.json` for problems.
 pnpm dlx blockend-cli doctor [options]
 ```
 
-| Option   | Default | Description                  |
-| -------- | ------- | ---------------------------- |
-| `--json` | `false` | Write check results as JSON. |
+| Option   | Default | Description                            |
+| -------- | ------- | -------------------------------------- |
+| `--json` | `false` | Write check results as JSON.           |
+| `--cwd`  | cwd     | Target directory or workspace package. |
 
 Checks include:
 
@@ -167,6 +174,7 @@ Checks include:
 - `tsconfig.json` presence
 - Lockfile for npm, pnpm, yarn, or bun
 - Framework detection
+- Workspace detection (single project or monorepo manager and package count)
 - Redis, Prisma, and Drizzle detection
 - `environment` and `paths.blocks` fields
 - Whether the blocks directory exists
@@ -186,6 +194,7 @@ pnpm dlx blockend-cli update [options]
 | `--json`  | `false` | Write update status as JSON.             |
 | `--diff`  | `true`  | Show line diffs for blocks with updates. |
 | `--apply` | `false` | Select blocks and apply updates.         |
+| `--cwd`   | cwd     | Target directory or workspace package.   |
 
 Updates use the `installed` entries in `blockend.json`: block name, version, install time, files, and content hash. `--apply` asks which blocks to update, confirms before overwriting, downloads the new files, rewrites imports, and updates the installed metadata. In JSON mode it applies every available update without prompting.
 
@@ -206,6 +215,22 @@ pnpm dlx blockend-cli mcp init [options]
 | `--yes`     | `false` | Skip prompts and default to Claude Code.                |
 
 The MCP server exposes `list_blocks`, `detect_project`, `add_block`, `add_blocks`, `diff_block`, `doctor`, `update_check`, and `update_apply`. See [MCP server](/docs/01-getting-started/03-mcp).
+
+## Monorepos
+
+The CLI detects pnpm workspaces, npm/yarn `workspaces`, Lerna, and Nx layouts and enumerates their packages. Each package keeps its own `blockend.json`, and a block installs into the package that config belongs to.
+
+Run commands from inside a package, or target one with `-c, --cwd`:
+
+```bash
+cd apps/api
+pnpm dlx blockend-cli add rate-limiter
+
+# or, from anywhere:
+pnpm dlx blockend-cli add rate-limiter -c apps/api
+```
+
+Run `init` at the workspace root and the CLI asks which package to target. If the chosen package has no `blockend.json`, run `init` in it first. When a workspace root is used non-interactively (for example with `--json`), the CLI lists the packages and the `--cwd` command to run instead of choosing one for you.
 
 ## Requirements
 

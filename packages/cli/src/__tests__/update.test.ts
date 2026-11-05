@@ -19,6 +19,11 @@ vi.mock("fs/promises", () => {
   };
 });
 
+// These cases model a single-package project, so keep workspace detection out of it.
+vi.mock("../workspace/detect.js", () => ({
+  detectWorkspace: vi.fn(async () => null)
+}));
+
 vi.mock("picocolors", () => {
   const identity = (str: string) => str;
   const handler = { get: () => identity };

@@ -160,4 +160,19 @@ describe("detectProject - ProjectContext detection interface", () => {
 
     expect(context.blocksAlias).toBeUndefined();
   });
+
+  it("attaches workspace context when the project sits inside a monorepo", async () => {
+    const root = await createProject({
+      "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n',
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({ compilerOptions: {} })
+    });
+
+    const context = await detectProject(join(root, "apps", "api"));
+
+    expect(context.workspace?.manager).toBe("pnpm");
+    expect(context.workspace?.root).toBe(root);
+    expect(context.workspace?.packages.map((pkg) => pkg.dir)).toEqual(["apps/api"]);
+  });
 });

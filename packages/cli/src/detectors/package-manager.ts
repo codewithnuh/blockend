@@ -1,30 +1,49 @@
 import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { dirname, join } from "path";
 import type { ProjectContext } from "../types/index.js";
 
+const MANAGERS = ["npm", "pnpm", "yarn", "bun"] as const;
+
+const LOCKFILES: Array<{ file: string; manager: ProjectContext["packageManager"] }> = [
+  { file: "pnpm-lock.yaml", manager: "pnpm" },
+  { file: "bun.lockb", manager: "bun" },
+  { file: "yarn.lock", manager: "yarn" },
+  { file: "package-lock.json", manager: "npm" }
+];
+
+function packageManagerField(dir: string): ProjectContext["packageManager"] | null {
+  const pkgJsonPath = join(dir, "package.json");
+  if (!existsSync(pkgJsonPath)) return null;
+
+  try {
+    const packageJson = JSON.parse(readFileSync(pkgJsonPath, "utf8"));
+    if (typeof packageJson.packageManager !== "string") return null;
+
+    const manager = packageJson.packageManager.split("@")[0];
+    return (MANAGERS as readonly string[]).includes(manager)
+      ? (manager as ProjectContext["packageManager"])
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Detects the package manager by checking for lockfiles.
- * Lockfiles are more reliable than checking for binaries in PATH.
+ * Detects the package manager from the nearest `packageManager` field or
+ * lockfile. Walking up lets a workspace package inherit the root's choice.
  */
 export function detectPackageManager(cwd: string): ProjectContext["packageManager"] {
-  const pkgJsonPath = join(cwd, "package.json");
-  if (existsSync(pkgJsonPath)) {
-    try {
-      const packageJson = JSON.parse(readFileSync(pkgJsonPath, "utf8"));
+  let dir = cwd;
+  while (true) {
+    const declared = packageManagerField(dir);
+    if (declared) return declared;
 
-      if (typeof packageJson.packageManager === "string") {
-        const manager = packageJson.packageManager.split("@")[0];
-
-        if (manager === "npm" || manager === "pnpm" || manager === "yarn" || manager === "bun") {
-          return manager;
-        }
-      }
-    } catch {
-      // Ignore invalid package.json and continue
+    for (const { file, manager } of LOCKFILES) {
+      if (existsSync(join(dir, file))) return manager;
     }
+
+    const parent = dirname(dir);
+    if (parent === dir) return "npm";
+    dir = parent;
   }
-  if (existsSync(join(cwd, "pnpm-lock.yaml"))) return "pnpm";
-  if (existsSync(join(cwd, "bun.lockb"))) return "bun";
-  if (existsSync(join(cwd, "yarn.lock"))) return "yarn";
-  return "npm";
 }

@@ -104,7 +104,7 @@ Starts the stdio server. Your AI client normally runs this command for you.
 
 | Tool             | What it does                                                                                 |
 | ---------------- | -------------------------------------------------------------------------------------------- |
-| `list_blocks`    | Lists block names, descriptions, and variants.                                               |
+| `list_blocks`    | Lists block names, descriptions, and variants. Takes an optional `projectPath`.              |
 | `list_recipes`   | Lists published recipes: curated, ordered stacks of blocks.                                  |
 | `detect_project` | Returns framework, language, package manager, and project structure.                         |
 | `add_block`      | Installs one block into a project. Requires `blockName` and an absolute `projectPath`.       |
@@ -121,7 +121,7 @@ Starts the stdio server. Your AI client normally runs this command for you.
 blockend add <block> --yes --json
 ```
 
-That means it installs missing dependencies and overwrites conflicting files without asking. Use `diff_block` first. `projectPath` must be an absolute path to the project root. `add_blocks` runs the same command once per name, in order, and returns one result per block.
+That means it installs missing dependencies and overwrites conflicting files without asking. Use `diff_block` first. `projectPath` must be an absolute path; in a monorepo, use the workspace package path (see [Monorepos](#monorepos)). `add_blocks` runs the same command once per name, in order, and returns one result per block.
 
 `list_recipes` lists the published recipes. `add_recipe` runs the equivalent of:
 
@@ -142,6 +142,15 @@ Example prompts:
 
 Use registry keys in tool arguments: `rate-limiter`, `logger`, `error-handler`, and so on. `rate-limit` and `pino-logger` are not valid keys.
 
+## Monorepos
+
+In a monorepo, each workspace package has its own `blockend.json`, and a block installs into the package its config belongs to. Point `projectPath` at the specific package, not the repo root.
+
+- `detect_project` on the workspace root returns a `workspace` object with the `manager`, `root`, and a `packages[]` list (each entry has a `dir`).
+- Pass `projectPath` as `<root>/<dir>` (for example `<root>/apps/api`) to `add_block`, `add_blocks`, `add_recipe`, `diff_block`, `doctor`, `update_check`, and `update_apply`.
+- `list_blocks` also takes an optional `projectPath` for this.
+- If a tool targets a workspace root, it returns a message listing the packages and the command to run with `--cwd` instead of guessing.
+
 ## Safety
 
 - Block tools write into your repository. Review the diff before accepting an install.
@@ -158,7 +167,7 @@ If the client cannot start the server, run the generated command directly:
 npx -y blockend-cli mcp
 ```
 
-If it exits immediately, check Node.js 20 or newer and network access to npm and GitHub. Tools that accept `projectPath` need an absolute path. `list_blocks` uses the directory where the MCP server started, so launch the server from the project root.
+If it exits immediately, check Node.js 20 or newer and network access to npm and GitHub. Tools that accept `projectPath` need an absolute path; in a monorepo, pass the workspace package. `list_blocks` falls back to the directory where the MCP server started when `projectPath` is omitted.
 
 Use `--dry-run` to confirm which file the CLI would write. Use `--force` only after backing up an existing MCP config.
 
