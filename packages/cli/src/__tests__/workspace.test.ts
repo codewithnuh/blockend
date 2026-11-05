@@ -62,6 +62,18 @@ describe("parsePnpmWorkspacePackages", () => {
 
     expect(parsePnpmWorkspacePackages(content)).toEqual(["apps/*", "packages/*"]);
   });
+
+  it("keeps # characters inside quoted patterns", () => {
+    const content = ["packages:", '  - "weird#name"'].join("\n");
+
+    expect(parsePnpmWorkspacePackages(content)).toEqual(["weird#name"]);
+  });
+
+  it("reads a flow sequence with quoted entries and comma-bearing brace globs", () => {
+    const content = "packages: ['{apps,packages}/*', \"apps/*\"]";
+
+    expect(parsePnpmWorkspacePackages(content)).toEqual(["{apps,packages}/*", "apps/*"]);
+  });
 });
 
 describe("findWorkspaceRoot", () => {
@@ -110,6 +122,24 @@ describe("findWorkspaceRoot", () => {
       "package.json": JSON.stringify({ name: "root", workspaces: ["apps/*"] })
     });
     expect((await readWorkspacePatterns(nxRoot)).manager).toBe("nx");
+  });
+
+  it("classifies a bare Yarn workspace as yarn via yarn.lock", async () => {
+    const root = await createProject({
+      "package.json": JSON.stringify({ name: "root", workspaces: ["packages/*"] }),
+      "yarn.lock": ""
+    });
+
+    expect((await readWorkspacePatterns(root)).manager).toBe("yarn");
+  });
+
+  it("does not add the Lerna default when package.json declares workspaces", async () => {
+    const root = await createProject({
+      "lerna.json": JSON.stringify({}),
+      "package.json": JSON.stringify({ name: "root", workspaces: ["apps/*"] })
+    });
+
+    expect((await readWorkspacePatterns(root)).patterns).toEqual(["apps/*"]);
   });
 
   it("returns null for a single-package project", async () => {
@@ -170,5 +200,18 @@ describe("listWorkspacePackages", () => {
     expect(workspace?.manager).toBe("nx");
     expect(workspace?.packages.map((pkg) => pkg.dir)).toEqual(["apps/api", "apps/web"]);
     expect(workspace?.packages.map((pkg) => pkg.name)).toEqual(["api", "web"]);
+  });
+
+  it("discovers packages from an inline flow packages list", async () => {
+    const root = await createProject({
+      "pnpm-workspace.yaml": "packages: ['apps/*']\n",
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" })
+    });
+
+    const workspace = await detectWorkspace(root);
+
+    expect(workspace?.patterns).toEqual(["apps/*"]);
+    expect(workspace?.packages.map((pkg) => pkg.dir)).toEqual(["apps/api"]);
   });
 });

@@ -44,11 +44,12 @@ export async function resolveProjectTarget(
     return packageTarget(currentPackage, workspace);
   }
 
-  if (workspace.packages.length === 1) {
+  const atWorkspaceRoot = resolve(cwd) === resolve(workspace.root);
+  if (atWorkspaceRoot && workspace.packages.length === 1) {
     return packageTarget(workspace.packages[0], workspace);
   }
 
-  if (options.interactive) {
+  if (options.interactive && workspace.packages.length > 0) {
     return promptForPackage(workspace);
   }
 

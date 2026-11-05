@@ -1,6 +1,7 @@
 /** The workspace tool that owns the monorepo layout. */
 export type WorkspaceManager = "pnpm" | "npm" | "yarn" | "lerna" | "nx";
 
+/** A workspace package discovered from the layout's globs. */
 export interface WorkspacePackage {
   /** Package name from its package.json, when present. */
   name: string | null;
@@ -12,6 +13,7 @@ export interface WorkspacePackage {
   hasConfig: boolean;
 }
 
+/** The detected monorepo: its manager, root, patterns, and packages. */
 export interface WorkspaceContext {
   manager: WorkspaceManager;
   /** Absolute monorepo root (where the workspace marker lives). */

@@ -54,7 +54,7 @@ export async function initCommand(
   const baseDir = options.cwd ? path.resolve(options.cwd) : process.cwd();
   const target = await resolveProjectTarget(baseDir, {
     command: "init",
-    interactive: !json && !yes
+    interactive: !json && !yes && Boolean(process.stdin.isTTY)
   });
 
   if (target.kind === "cancelled") {

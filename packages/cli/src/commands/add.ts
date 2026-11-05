@@ -409,7 +409,7 @@ export async function addCommand(
 
   const target = await resolveProjectTarget(cwd, {
     command: "add",
-    interactive: !json && !yes
+    interactive: !json && !yes && Boolean(process.stdin.isTTY)
   });
   if (target.kind === "cancelled") {
     outro(pc.dim("Operation cancelled."));
@@ -417,6 +417,7 @@ export async function addCommand(
   }
   if (target.kind !== "package") {
     outputError(json, targetErrorMessage(target) ?? "Could not resolve a target project.");
+    process.exitCode = 1;
     return;
   }
 

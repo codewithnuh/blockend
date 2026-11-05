@@ -204,4 +204,22 @@ describe("detectProject - ProjectContext detection interface", () => {
 
     expect(context.blocksAlias).toBe("@/blocks");
   });
+
+  it("lets the child override an inherited compiler option", async () => {
+    const root = await createProject({
+      "tsconfig.base.json": JSON.stringify({
+        compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext" }
+      }),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({
+        extends: "../../tsconfig.base.json",
+        compilerOptions: { module: "ESNext", moduleResolution: "bundler" }
+      })
+    });
+
+    const context = await detectProject(join(root, "apps", "api"), { blocksDir: "src/blocks" });
+
+    expect(context.importRewriteStrategy).toBe("remove");
+  });
 });

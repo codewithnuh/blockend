@@ -59,7 +59,7 @@ export async function detectProject(
     language: compilerConfig?.kind === "tsconfig" ? "typescript" : "javascript",
     runtime: detectRuntime(allDeps),
     framework: detectFramework(allDeps),
-    packageManager: detectPackageManager(cwd),
+    packageManager: detectPackageManager(cwd, workspace?.root ?? cwd),
     hasRedis: "ioredis" in allDeps || "redis" in allDeps,
     hasPrisma: "@prisma/client" in allDeps,
     hasDrizzle: "drizzle-orm" in allDeps,

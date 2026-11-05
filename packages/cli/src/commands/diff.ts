@@ -51,7 +51,10 @@ export async function diffCommand(
 
   // ── Resolve target project / workspace package ──────────────────────────
 
-  const target = await resolveProjectTarget(cwd, { command: "diff", interactive: !json });
+  const target = await resolveProjectTarget(cwd, {
+    command: "diff",
+    interactive: !json && Boolean(process.stdin.isTTY)
+  });
   if (target.kind === "cancelled") {
     outro(pc.dim("Operation cancelled."));
     return { block: blockName, files: [] };

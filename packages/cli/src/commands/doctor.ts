@@ -6,7 +6,16 @@ import { intro, outro, spinner } from "@clack/prompts";
 import pc from "picocolors";
 import { detectProject } from "../detectors/index.js";
 import { findUp } from "../utils/find-up.js";
+import { resolveProjectTarget, targetErrorMessage } from "../workspace/index.js";
 import type { BlockendConfig } from "../block-install/index.js";
+
+// Lockfiles are searched in this order, matching the package-manager precedence.
+const LOCKFILES: Array<{ file: string; manager: string }> = [
+  { file: "pnpm-lock.yaml", manager: "pnpm" },
+  { file: "yarn.lock", manager: "yarn" },
+  { file: "bun.lockb", manager: "bun" },
+  { file: "package-lock.json", manager: "npm" }
+];
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -63,6 +72,25 @@ function outputDoctorResult(json: boolean, result: DoctorResult): void {
   }
 }
 
+/**
+ * Finds the nearest known lockfile between `startDir` and `boundary`, so a
+ * workspace package can inherit the workspace root's lockfile.
+ */
+function findLockfile(startDir: string, boundary: string): string | null {
+  const stop = path.resolve(boundary);
+  let dir = startDir;
+
+  while (true) {
+    for (const { file, manager } of LOCKFILES) {
+      if (existsSync(join(dir, file))) return manager;
+    }
+    if (path.resolve(dir) === stop) return null;
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
 // ─── doctor command ──────────────────────────────────────────────────────────
 
 export async function doctorCommand(
@@ -89,6 +117,12 @@ export async function doctorCommand(
   const s = spinner();
   if (!json) s.start("Scanning project health...");
 
+  // ── Resolve the target package, mirroring the install commands ───────────
+
+  const target = await resolveProjectTarget(cwd, { command: "doctor", interactive: false });
+  const configPath = target.kind === "package" ? target.configPath : null;
+  const boundary = "workspace" in target ? (target.workspace?.root ?? cwd) : cwd;
+
   // ── Check: package.json exists ───────────────────────────────────────────
 
   const packageJsonPath = await findUp("package.json", cwd);
@@ -104,14 +138,13 @@ export async function doctorCommand(
 
   // ── Check: blockend.json exists ──────────────────────────────────────────
 
-  const configPath = await findUp("blockend.json", cwd);
   if (configPath) {
     addCheck({ name: "blockend.json", status: "ok", message: "Found" });
   } else {
     addCheck({
       name: "blockend.json",
       status: "error",
-      message: "Not found. Run 'npx blockend init' first."
+      message: targetErrorMessage(target) ?? "Not found. Run 'npx blockend init' first."
     });
   }
 
@@ -128,16 +161,11 @@ export async function doctorCommand(
     });
   }
 
-  // ── Check: lockfile exists ───────────────────────────────────────────────
+  // ── Check: lockfile exists (searching up to the workspace root) ──────────
 
-  const hasPnpmLock = existsSync(join(cwd, "pnpm-lock.yaml"));
-  const hasYarnLock = existsSync(join(cwd, "yarn.lock"));
-  const hasBunLock = existsSync(join(cwd, "bun.lockb"));
-  const hasNpmLock = existsSync(join(cwd, "package-lock.json"));
-
-  if (hasPnpmLock || hasYarnLock || hasBunLock || hasNpmLock) {
-    const pmName = hasPnpmLock ? "pnpm" : hasYarnLock ? "yarn" : hasBunLock ? "bun" : "npm";
-    addCheck({ name: "Lockfile", status: "ok", message: `${pmName} lockfile found` });
+  const lockfileManager = findLockfile(cwd, boundary);
+  if (lockfileManager) {
+    addCheck({ name: "Lockfile", status: "ok", message: `${lockfileManager} lockfile found` });
   } else {
     addCheck({
       name: "Lockfile",

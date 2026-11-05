@@ -80,7 +80,7 @@ export function parsePnpmWorkspacePackages(content: string): string[] {
 
     if (!inPackages) continue;
 
-    const itemMatch = line.match(/^(\s*)-\s*(.+?)\s*(?:#.*)?$/);
+    const itemMatch = line.match(/^(\s*)-\s*(.+?)(?:\s+#.*)?\s*$/);
     if (!itemMatch || itemMatch[1].length < packagesIndent) continue;
 
     patterns.push(itemMatch[2].trim().replace(/^["']|["']$/g, ""));
@@ -89,17 +89,60 @@ export function parsePnpmWorkspacePackages(content: string): string[] {
   return patterns;
 }
 
-/** Reads a YAML flow sequence such as `["apps/*", "packages/*"]`. */
+/** Reads a YAML flow sequence such as `["apps/*", "{apps,packages}/*"]`. */
 function parseFlowList(value: string): string[] {
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("[")) return [];
+  const inner = extractFlowSequence(value);
+  if (inner === null) return [];
 
-  return trimmed
-    .replace(/^\[/, "")
-    .replace(/\].*$/, "")
-    .split(",")
-    .map((item) => item.trim().replace(/^["']|["']$/g, ""))
-    .filter((item) => item.length > 0);
+  const entries: string[] = [];
+  let current = "";
+  let quote: string | null = null;
+  let depth = 0;
+
+  for (const char of inner) {
+    if (quote) {
+      if (char === quote) quote = null;
+      current += char;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === "{" || char === "[") depth++;
+    else if (char === "}" || char === "]") depth--;
+
+    if (char === "," && depth === 0) {
+      entries.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  entries.push(current);
+
+  return entries
+    .map((entry) => entry.trim().replace(/^["']|["']$/g, ""))
+    .filter((entry) => entry.length > 0);
+}
+
+/** Returns the contents of an inline `[...]`, or null when there is no array. */
+function extractFlowSequence(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("[")) return null;
+
+  let quote: string | null = null;
+  for (let i = 1; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    if (quote) {
+      if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'") quote = char;
+    else if (char === "]") return trimmed.slice(1, i);
+  }
+  return trimmed.slice(1);
 }
 
 /** Resolves the workspace's package globs and the tool that owns the layout. */
@@ -124,13 +167,19 @@ export async function readWorkspacePatterns(
   if (existsSync(lernaPath)) {
     markers.lerna = true;
     const lerna = await readJson<{ packages?: string[] }>(lernaPath);
-    patterns.push(...(lerna?.packages ?? ["packages/*"]));
+    if (lerna?.packages) patterns.push(...lerna.packages);
+    else if (declaredWorkspaces.length === 0) patterns.push("packages/*");
   }
 
   if (existsSync(join(root, "nx.json"))) markers.nx = true;
 
   return {
-    manager: pickManager(markers, rootPackageJson, declaredWorkspaces),
+    manager: pickManager(
+      markers,
+      rootPackageJson,
+      declaredWorkspaces,
+      existsSync(join(root, "yarn.lock"))
+    ),
     patterns: dedupe(patterns)
   };
 }
@@ -139,13 +188,15 @@ export async function readWorkspacePatterns(
 function pickManager(
   markers: { pnpm: boolean; lerna: boolean; nx: boolean },
   rootPackageJson: WorkspacePackageJson | null,
-  declaredWorkspaces: string[]
+  declaredWorkspaces: string[],
+  hasYarnLock: boolean
 ): WorkspaceManager {
   if (markers.pnpm) return "pnpm";
   if (markers.lerna) return "lerna";
   if (markers.nx) return "nx";
   if (declaredWorkspaces.length > 0) {
-    return rootPackageJson?.packageManager?.startsWith("yarn") ? "yarn" : "npm";
+    if (rootPackageJson?.packageManager?.startsWith("yarn") || hasYarnLock) return "yarn";
+    return "npm";
   }
   return "npm";
 }

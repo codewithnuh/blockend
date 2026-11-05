@@ -74,7 +74,10 @@ export async function listCommand(
     return;
   }
 
-  const target = await resolveProjectTarget(cwd, { command: "list", interactive: !json });
+  const target = await resolveProjectTarget(cwd, {
+    command: "list",
+    interactive: !json && Boolean(process.stdin.isTTY)
+  });
   if (target.kind === "cancelled") {
     outro(pc.dim("Operation cancelled."));
     return;

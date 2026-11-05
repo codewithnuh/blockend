@@ -1,8 +1,9 @@
 import { readFile } from "fs/promises";
-import { existsSync } from "fs";
+import { existsSync, statSync } from "fs";
 import { createRequire } from "module";
 import { dirname, join, relative, resolve } from "path";
 
+/** A parsed tsconfig/jsconfig, including its resolved `extends` chain. */
 export interface TsConfig {
   extends?: string | string[];
   compilerOptions?: {
@@ -14,6 +15,7 @@ export interface TsConfig {
   };
 }
 
+/** The compiler config used for detection, tagged by source file kind. */
 export interface CompilerConfig {
   kind: "tsconfig" | "jsconfig";
   config: TsConfig;
@@ -39,7 +41,7 @@ export async function readCompilerConfig(cwd: string): Promise<CompilerConfig | 
     const config = await parseConfigFile(configPath);
     if (!config) continue;
 
-    const compilerOptions = await resolveCompilerOptions(configPath, new Set(), 0);
+    const compilerOptions = await resolveCompilerOptions(configPath, new Set());
     const paths = await resolveEffectivePaths(configPath, dirname(configPath));
     if (paths) compilerOptions.paths = paths;
 
@@ -61,22 +63,25 @@ async function parseConfigFile(filePath: string): Promise<TsConfig | null> {
 /** Merges compilerOptions from the whole `extends` chain, child winning. */
 async function resolveCompilerOptions(
   filePath: string,
-  seen: Set<string>,
-  depth: number
+  seen: Set<string>
 ): Promise<NonNullable<TsConfig["compilerOptions"]>> {
-  if (depth > MAX_EXTENDS_DEPTH || seen.has(filePath)) return {};
+  if (seen.has(filePath)) return {};
   seen.add(filePath);
 
   const config = await parseConfigFile(filePath);
-  if (!config) return {};
+  if (!config) {
+    seen.delete(filePath);
+    return {};
+  }
 
   let merged: NonNullable<TsConfig["compilerOptions"]> = {};
   for (const spec of toArray(config.extends)) {
     const target = resolveExtendsTarget(spec, dirname(filePath));
     if (!target) continue;
-    merged = { ...merged, ...(await resolveCompilerOptions(target, seen, depth + 1)) };
+    merged = { ...merged, ...(await resolveCompilerOptions(target, seen)) };
   }
 
+  seen.delete(filePath);
   return { ...merged, ...config.compilerOptions };
 }
 
@@ -150,8 +155,10 @@ function rebaseTarget(target: string, fromDir: string, toDir: string): string {
 }
 
 function toArray(value: string | string[] | undefined): string[] {
-  if (Array.isArray(value)) return value;
-  return value ? [value] : [];
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+  }
+  return typeof value === "string" && value.length > 0 ? [value] : [];
 }
 
 function resolveExtendsTarget(spec: string, fromDir: string): string | null {
@@ -171,8 +178,16 @@ function resolveExtendsTarget(spec: string, fromDir: string): string | null {
   }
 }
 
+/** Returns the first candidate that is an existing file, preserving order. */
 function firstExisting(candidates: string[]): string | null {
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+  for (const candidate of candidates) {
+    try {
+      if (statSync(candidate).isFile()) return candidate;
+    } catch {
+      // Not a file — try the next candidate.
+    }
+  }
+  return null;
 }
 
 /**

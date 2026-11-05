@@ -231,4 +231,32 @@ describe("resolveProjectTarget", () => {
       expect(target.package.dir).toBe("apps/api");
     }
   });
+
+  it("returns guidance instead of prompting when a workspace has no packages", async () => {
+    const root = await createProject({
+      "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n',
+      "package.json": JSON.stringify({ name: "root" })
+    });
+
+    const target = await resolveProjectTarget(root, { command: "list", interactive: true });
+
+    expect(select).not.toHaveBeenCalled();
+    expect(target.kind).toBe("guidance");
+  });
+
+  it("does not auto-select the sole package from an unrelated directory", async () => {
+    const root = await createProject({
+      "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n',
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "scripts/readme.md": ""
+    });
+
+    const target = await resolveProjectTarget(join(root, "scripts"), {
+      command: "list",
+      interactive: false
+    });
+
+    expect(target.kind).toBe("guidance");
+  });
 });

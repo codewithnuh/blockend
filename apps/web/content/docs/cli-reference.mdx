@@ -220,17 +220,17 @@ The MCP server exposes `list_blocks`, `detect_project`, `add_block`, `add_blocks
 
 The CLI detects pnpm workspaces, npm/yarn `workspaces`, Lerna, and Nx layouts and enumerates their packages. Each package keeps its own `blockend.json`, and a block installs into the package that config belongs to.
 
-Run commands from inside a package, or target one with `-c, --cwd`:
+Run commands from inside a package, or target one from the workspace root with `-c, --cwd` (the path is resolved from your current directory):
 
 ```bash
 cd apps/api
 pnpm dlx blockend-cli add rate-limiter
 
-# or, from anywhere:
+# or, from the workspace root:
 pnpm dlx blockend-cli add rate-limiter -c apps/api
 ```
 
-Run `init` at the workspace root and the CLI asks which package to target. If the chosen package has no `blockend.json`, run `init` in it first. When a workspace root is used non-interactively (for example with `--json`), the CLI lists the packages and the `--cwd` command to run instead of choosing one for you.
+Run `init` at the workspace root and the CLI asks which package to target. A workspace that has a single package targets it automatically. If the chosen package has no `blockend.json`, run `init` in it first. When the root has several packages and is used non-interactively (for example with `--json`), the CLI lists the packages and the `--cwd` command to run instead of choosing one for you.
 
 ## Requirements
 

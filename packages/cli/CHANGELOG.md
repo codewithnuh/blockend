@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parse the inline (`packages: ['apps/*']`) and flush (`packages:` followed by unindented `- apps/*`) forms of `pnpm-workspace.yaml`.
 - Discover integrated Nx projects from their `project.json` files instead of only marking the workspace as Nx.
 - Rebase path aliases inherited through `extends` to the inheriting package before deriving block imports.
+- Keep `#` inside quoted workspace patterns, and parse inline `packages` lists without splitting on commas inside quotes or brace globs.
+- Classify a bare Yarn workspace from `yarn.lock`, and add Lerna's `packages/*` default only when `package.json` declares no workspaces.
+- Bound package-manager and lockfile discovery to the workspace root instead of walking to the filesystem root.
+- Prefer a real file over a directory when resolving a relative `extends`, and skip non-string `extends` values.
+- `doctor` resolves the same target package as the install commands and searches lockfiles upward; `add` exits non-zero for an unresolved target, and commands only prompt for a package on a TTY.
 
 ## [2.2.0] - 2026-10-31
 

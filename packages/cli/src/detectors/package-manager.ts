@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "fs";
-import { dirname, join } from "path";
+import { dirname, join, resolve } from "path";
 import type { ProjectContext } from "../types/index.js";
 
 const MANAGERS = ["npm", "pnpm", "yarn", "bun"] as const;
@@ -30,10 +30,17 @@ function packageManagerField(dir: string): ProjectContext["packageManager"] | nu
 
 /**
  * Detects the package manager from the nearest `packageManager` field or
- * lockfile. Walking up lets a workspace package inherit the root's choice.
+ * lockfile. The search stops at `boundary` (defaulting to `cwd`) so a workspace
+ * package can inherit the workspace root's choice without reaching unrelated
+ * ancestors beyond it.
  */
-export function detectPackageManager(cwd: string): ProjectContext["packageManager"] {
+export function detectPackageManager(
+  cwd: string,
+  boundary: string = cwd
+): ProjectContext["packageManager"] {
+  const stop = resolve(boundary);
   let dir = cwd;
+
   while (true) {
     const declared = packageManagerField(dir);
     if (declared) return declared;
@@ -42,6 +49,7 @@ export function detectPackageManager(cwd: string): ProjectContext["packageManage
       if (existsSync(join(dir, file))) return manager;
     }
 
+    if (resolve(dir) === stop) return "npm";
     const parent = dirname(dir);
     if (parent === dir) return "npm";
     dir = parent;

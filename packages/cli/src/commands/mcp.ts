@@ -73,6 +73,11 @@ const BLOCKEND_SERVER: McpServerConfig = {
 const PROJECT_PATH_DESCRIPTION =
   "Absolute path to the target project. In a monorepo, point this at a workspace package, not the repo root (each package has its own blockend.json; use detect_project to list them).";
 
+// detect_project is the exception: it accepts the workspace root and reports the
+// discovered packages, so the model can pick one for the other tools.
+const DETECT_PATH_DESCRIPTION =
+  "Absolute path to the project or monorepo root to analyze. At a workspace root, detection returns the manager, root, and discovered packages.";
+
 /**
  * Creates a valid, minimized TOML block for file generation or logging
  */
@@ -170,7 +175,7 @@ export async function mcpStartCommand(): Promise<void> {
     "detect_project",
     "Analyzes a project context: framework, language, package manager, etc.",
     {
-      projectPath: z.string().describe(PROJECT_PATH_DESCRIPTION)
+      projectPath: z.string().describe(DETECT_PATH_DESCRIPTION)
     },
     async ({ projectPath }) => {
       const result = await safeExec("npx", ["--no-install", "blockend", "detect", "--json"], {

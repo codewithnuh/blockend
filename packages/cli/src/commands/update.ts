@@ -226,7 +226,10 @@ export async function updateCommand(
 
   // ── Resolve target project / workspace package ──────────────────────────
 
-  const target = await resolveProjectTarget(cwd, { command: "update", interactive: !json });
+  const target = await resolveProjectTarget(cwd, {
+    command: "update",
+    interactive: !json && Boolean(process.stdin.isTTY)
+  });
   if (target.kind === "cancelled") {
     outro(pc.dim("Operation cancelled."));
     return { blocks: [] };
