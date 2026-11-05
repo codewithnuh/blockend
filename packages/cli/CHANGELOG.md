@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package-manager detection now walks up to the workspace root, so a leaf package inherits the root's package manager.
 - `tsconfig`/`jsconfig` reading resolves the `extends` chain, so packages inheriting a shared base keep its path aliases.
 
+### Fixed
+
+- Resolve the containing workspace package before accepting a config, so a nested package no longer inherits its parent's `blockend.json`, and a config above the workspace root is ignored.
+- Parse the inline (`packages: ['apps/*']`) and flush (`packages:` followed by unindented `- apps/*`) forms of `pnpm-workspace.yaml`.
+- Discover integrated Nx projects from their `project.json` files instead of only marking the workspace as Nx.
+- Rebase path aliases inherited through `extends` to the inheriting package before deriving block imports.
+
 ## [2.2.0] - 2026-10-31
 
 ### Added

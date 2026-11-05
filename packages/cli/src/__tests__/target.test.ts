@@ -156,4 +156,79 @@ describe("resolveProjectTarget", () => {
       expect(target.rootDir).toBe(join(root, "apps", "api"));
     }
   });
+
+  it("initialises a nested workspace package instead of its parent", async () => {
+    const root = await createProject({
+      "pnpm-workspace.yaml": 'packages:\n  - "packages/*"\n  - "packages/*/plugins/*"\n',
+      "package.json": JSON.stringify({ name: "root" }),
+      "packages/foo/package.json": JSON.stringify({ name: "foo" }),
+      "packages/foo/blockend.json": config,
+      "packages/foo/plugins/bar/package.json": JSON.stringify({ name: "bar" })
+    });
+
+    const target = await resolveProjectTarget(join(root, "packages", "foo", "plugins", "bar"), {
+      command: "init",
+      interactive: false
+    });
+
+    expect(target.kind).toBe("needs-init");
+    if (target.kind === "needs-init") {
+      expect(target.package.dir).toBe("packages/foo/plugins/bar");
+    }
+  });
+
+  it("uses a nested package's own config when it has one", async () => {
+    const root = await createProject({
+      "pnpm-workspace.yaml": 'packages:\n  - "packages/*"\n  - "packages/*/plugins/*"\n',
+      "package.json": JSON.stringify({ name: "root" }),
+      "packages/foo/package.json": JSON.stringify({ name: "foo" }),
+      "packages/foo/blockend.json": config,
+      "packages/foo/plugins/bar/package.json": JSON.stringify({ name: "bar" }),
+      "packages/foo/plugins/bar/blockend.json": config
+    });
+
+    const target = await resolveProjectTarget(join(root, "packages", "foo", "plugins", "bar"), {
+      command: "add",
+      interactive: false
+    });
+
+    expect(target.kind).toBe("package");
+    if (target.kind === "package") {
+      expect(target.rootDir).toBe(join(root, "packages", "foo", "plugins", "bar"));
+    }
+  });
+
+  it("ignores a config above the workspace root", async () => {
+    const outer = await createProject({
+      "blockend.json": config,
+      "mono/pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n',
+      "mono/package.json": JSON.stringify({ name: "root" }),
+      "mono/apps/api/package.json": JSON.stringify({ name: "api" })
+    });
+
+    const target = await resolveProjectTarget(join(outer, "mono", "apps", "api"), {
+      command: "init",
+      interactive: false
+    });
+
+    expect(target.kind).toBe("needs-init");
+    if (target.kind === "needs-init") {
+      expect(target.package.dir).toBe("apps/api");
+    }
+  });
+
+  it("targets an Nx project discovered from project.json", async () => {
+    const root = await createProject({
+      "nx.json": JSON.stringify({}),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/project.json": JSON.stringify({ name: "api" })
+    });
+
+    const target = await resolveProjectTarget(root, { command: "init", interactive: false });
+
+    expect(target.kind).toBe("needs-init");
+    if (target.kind === "needs-init") {
+      expect(target.package.dir).toBe("apps/api");
+    }
+  });
 });

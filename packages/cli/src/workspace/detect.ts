@@ -58,7 +58,8 @@ export async function findWorkspaceRoot(startDir: string): Promise<string | null
 
 /**
  * Extracts the `packages:` list from a pnpm-workspace.yaml. Only the list is
- * read, so this stays a focused parser rather than a general YAML reader.
+ * read, so this stays a focused parser rather than a general YAML reader. It
+ * handles the block form (indented or flush) and inline flow arrays.
  */
 export function parsePnpmWorkspacePackages(content: string): string[] {
   const patterns: string[] = [];
@@ -69,22 +70,36 @@ export function parsePnpmWorkspacePackages(content: string): string[] {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
 
-    const keyMatch = line.match(/^(\s*)([A-Za-z0-9_-]+)\s*:/);
+    const keyMatch = line.match(/^(\s*)([A-Za-z0-9_-]+)\s*:(.*)$/);
     if (keyMatch) {
       packagesIndent = keyMatch[1].length;
       inPackages = keyMatch[2] === "packages";
+      if (inPackages) patterns.push(...parseFlowList(keyMatch[3]));
       continue;
     }
 
     if (!inPackages) continue;
 
     const itemMatch = line.match(/^(\s*)-\s*(.+?)\s*(?:#.*)?$/);
-    if (!itemMatch || itemMatch[1].length <= packagesIndent) continue;
+    if (!itemMatch || itemMatch[1].length < packagesIndent) continue;
 
     patterns.push(itemMatch[2].trim().replace(/^["']|["']$/g, ""));
   }
 
   return patterns;
+}
+
+/** Reads a YAML flow sequence such as `["apps/*", "packages/*"]`. */
+function parseFlowList(value: string): string[] {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("[")) return [];
+
+  return trimmed
+    .replace(/^\[/, "")
+    .replace(/\].*$/, "")
+    .split(",")
+    .map((item) => item.trim().replace(/^["']|["']$/g, ""))
+    .filter((item) => item.length > 0);
 }
 
 /** Resolves the workspace's package globs and the tool that owns the layout. */
@@ -139,40 +154,71 @@ function dedupe(patterns: string[]): string[] {
   return Array.from(new Set(patterns));
 }
 
-/** Expands workspace globs into the packages that have a package.json. */
+/** Expands workspace globs into the packages that have a manifest. */
 export async function listWorkspacePackages(
   root: string,
-  patterns: string[]
+  patterns: string[],
+  manager: WorkspaceManager = "npm"
 ): Promise<WorkspacePackage[]> {
-  if (patterns.length === 0) return [];
+  const dirs = new Set<string>();
 
-  let dirs: string[];
-  try {
-    dirs = await glob(patterns, {
-      cwd: root,
-      onlyDirectories: true,
-      ignore: ["**/node_modules/**", "**/.git/**"]
-    });
-  } catch {
-    return [];
+  for (const dir of await expandPatterns(root, patterns)) dirs.add(dir);
+  if (manager === "nx") {
+    for (const dir of await discoverNxProjectDirs(root)) dirs.add(dir);
   }
 
   const packages: WorkspacePackage[] = [];
-  for (const dir of dirs.sort()) {
-    const normalized = dir.replace(/\\/g, "/").replace(/\/+$/, "");
-    const absDir = join(root, normalized);
-    if (!existsSync(join(absDir, "package.json"))) continue;
-
+  for (const dir of Array.from(dirs).sort()) {
+    const absDir = join(root, dir);
     const pkg = await readJson<WorkspacePackageJson>(join(absDir, "package.json"));
+    const project =
+      manager === "nx" ? await readJson<{ name?: string }>(join(absDir, "project.json")) : null;
+    if (!pkg && !project) continue;
+
     packages.push({
-      name: pkg?.name ?? null,
-      dir: normalized,
+      name: pkg?.name ?? project?.name ?? null,
+      dir,
       absDir,
       hasConfig: existsSync(join(absDir, "blockend.json"))
     });
   }
 
   return packages;
+}
+
+async function expandPatterns(root: string, patterns: string[]): Promise<string[]> {
+  if (patterns.length === 0) return [];
+
+  try {
+    const dirs = await glob(patterns, {
+      cwd: root,
+      onlyDirectories: true,
+      ignore: ["**/node_modules/**", "**/.git/**"]
+    });
+    return dirs.map(normalizeDir).filter((dir): dir is string => dir !== null);
+  } catch {
+    return [];
+  }
+}
+
+/** Integrated Nx projects are declared by a `project.json`, not a workspace glob. */
+async function discoverNxProjectDirs(root: string): Promise<string[]> {
+  try {
+    const files = await glob("**/project.json", {
+      cwd: root,
+      ignore: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/.nx/**"]
+    });
+    return files
+      .map((file) => normalizeDir(dirname(file.replace(/\\/g, "/"))))
+      .filter((dir): dir is string => dir !== null);
+  } catch {
+    return [];
+  }
+}
+
+function normalizeDir(dir: string): string | null {
+  const normalized = dir.replace(/\\/g, "/").replace(/\/+$/, "");
+  return normalized === "" || normalized === "." ? null : normalized;
 }
 
 /**
@@ -184,7 +230,7 @@ export async function detectWorkspace(cwd: string): Promise<WorkspaceContext | n
   if (!root) return null;
 
   const { manager, patterns } = await readWorkspacePatterns(root);
-  const packages = await listWorkspacePackages(root, patterns);
+  const packages = await listWorkspacePackages(root, patterns, manager);
 
   return { manager, root, patterns, packages };
 }

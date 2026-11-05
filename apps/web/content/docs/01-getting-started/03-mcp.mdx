@@ -149,7 +149,8 @@ In a monorepo, each workspace package has its own `blockend.json`, and a block i
 - `detect_project` on the workspace root returns a `workspace` object with the `manager`, `root`, and a `packages[]` list (each entry has a `dir`).
 - Pass `projectPath` as `<root>/<dir>` (for example `<root>/apps/api`) to `add_block`, `add_blocks`, `add_recipe`, `diff_block`, `doctor`, `update_check`, and `update_apply`.
 - `list_blocks` also takes an optional `projectPath` for this.
-- If a tool targets a workspace root, it returns a message listing the packages and the command to run with `--cwd` instead of guessing.
+- `add_block`, `add_blocks`, `add_recipe`, `diff_block`, `update_check`, `update_apply`, and `list_blocks` aimed at a workspace root return a message listing the packages and the `--cwd` command to run instead of guessing.
+- Two tools behave differently by design: `detect_project` returns the workspace discovery itself (as above), and `doctor` searches upward for `blockend.json` and reports it missing at a root, so point it at a package path.
 
 ## Safety
 

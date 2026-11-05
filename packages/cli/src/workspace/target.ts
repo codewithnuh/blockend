@@ -27,24 +27,18 @@ export async function resolveProjectTarget(
   cwd: string,
   options: ResolveTargetOptions
 ): Promise<ProjectTarget> {
-  const configPath = await findUp("blockend.json", cwd);
   const workspace = await detectWorkspace(cwd);
 
+  // Single project: the nearest config, searching upward, is the target.
   if (!workspace) {
+    const configPath = await findUp("blockend.json", cwd);
     return configPath
       ? { kind: "package", rootDir: dirname(configPath), configPath, workspace: null }
       : { kind: "no-config" };
   }
 
-  if (configPath && resolve(dirname(configPath)) !== resolve(workspace.root)) {
-    return {
-      kind: "package",
-      rootDir: dirname(configPath),
-      configPath,
-      workspace
-    };
-  }
-
+  // In a workspace only a package's own config is valid, so an ancestor config
+  // (including one above the workspace root) is never inherited.
   const currentPackage = findContainingPackage(workspace, cwd);
   if (currentPackage && resolve(currentPackage.absDir) !== resolve(workspace.root)) {
     return packageTarget(currentPackage, workspace);

@@ -175,4 +175,33 @@ describe("detectProject - ProjectContext detection interface", () => {
     expect(context.workspace?.root).toBe(root);
     expect(context.workspace?.packages.map((pkg) => pkg.dir)).toEqual(["apps/api"]);
   });
+
+  it("rebases an inherited path alias to the inheriting package", async () => {
+    const root = await createProject({
+      "tsconfig.base.json": JSON.stringify({
+        compilerOptions: { baseUrl: ".", paths: { "@/*": ["./src/*"] } }
+      }),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/package.json": JSON.stringify({ name: "api" }),
+      "apps/api/tsconfig.json": JSON.stringify({ extends: "../../tsconfig.base.json" }),
+      "apps/api/src/index.ts": ""
+    });
+
+    const context = await detectProject(join(root, "apps", "api"), { blocksDir: "src/blocks" });
+
+    // The base maps "@/..." to the root's src, so it cannot describe this package.
+    expect(context.blocksAlias).toBeUndefined();
+  });
+
+  it("keeps a locally declared path alias for the package", async () => {
+    const root = await createProject({
+      "package.json": JSON.stringify({ name: "solo" }),
+      "tsconfig.json": JSON.stringify({ compilerOptions: { paths: { "@/*": ["./src/*"] } } }),
+      "src/index.ts": ""
+    });
+
+    const context = await detectProject(root, { blocksDir: "src/blocks" });
+
+    expect(context.blocksAlias).toBe("@/blocks");
+  });
 });

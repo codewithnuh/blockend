@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { createRequire } from "module";
-import { dirname, join, resolve } from "path";
+import { dirname, join, relative, resolve } from "path";
 
 export interface TsConfig {
   extends?: string | string[];
@@ -39,8 +39,11 @@ export async function readCompilerConfig(cwd: string): Promise<CompilerConfig | 
     const config = await parseConfigFile(configPath);
     if (!config) continue;
 
-    const inherited = await resolveCompilerOptions(configPath, new Set(), 0);
-    return { kind, config: { ...config, compilerOptions: inherited } };
+    const compilerOptions = await resolveCompilerOptions(configPath, new Set(), 0);
+    const paths = await resolveEffectivePaths(configPath, dirname(configPath));
+    if (paths) compilerOptions.paths = paths;
+
+    return { kind, config: { ...config, compilerOptions } };
   }
 
   return null;
@@ -60,7 +63,7 @@ async function resolveCompilerOptions(
   filePath: string,
   seen: Set<string>,
   depth: number
-): Promise<TsConfig["compilerOptions"]> {
+): Promise<NonNullable<TsConfig["compilerOptions"]>> {
   if (depth > MAX_EXTENDS_DEPTH || seen.has(filePath)) return {};
   seen.add(filePath);
 
@@ -75,6 +78,75 @@ async function resolveCompilerOptions(
   }
 
   return { ...merged, ...config.compilerOptions };
+}
+
+/**
+ * Path aliases are relative to the config that declares them, so a mapping
+ * inherited from another directory must be re-expressed relative to the
+ * inheriting package before it can describe that package's files.
+ */
+async function resolveEffectivePaths(
+  configPath: string,
+  packageDir: string
+): Promise<Record<string, string[]> | undefined> {
+  const declaration = await findPathsDeclaration(configPath, new Set(), 0);
+  if (!declaration) return undefined;
+  if (resolve(declaration.dir) === resolve(packageDir)) return declaration.paths;
+
+  const fromDir = declaration.baseUrl
+    ? resolve(declaration.dir, declaration.baseUrl)
+    : declaration.dir;
+
+  const rebased: Record<string, string[]> = {};
+  for (const [alias, targets] of Object.entries(declaration.paths)) {
+    rebased[alias] = Array.isArray(targets)
+      ? targets.map((target) =>
+          typeof target === "string" ? rebaseTarget(target, fromDir, packageDir) : target
+        )
+      : targets;
+  }
+  return rebased;
+}
+
+/** Finds the nearest config in the chain that declares `paths`. */
+async function findPathsDeclaration(
+  filePath: string,
+  seen: Set<string>,
+  depth: number
+): Promise<{ paths: Record<string, string[]>; dir: string; baseUrl?: string } | null> {
+  if (depth > MAX_EXTENDS_DEPTH || seen.has(filePath)) return null;
+  seen.add(filePath);
+
+  const config = await parseConfigFile(filePath);
+  if (!config) return null;
+
+  if (config.compilerOptions?.paths) {
+    return {
+      paths: config.compilerOptions.paths,
+      dir: dirname(filePath),
+      baseUrl: config.compilerOptions.baseUrl
+    };
+  }
+
+  for (const spec of toArray(config.extends)) {
+    const target = resolveExtendsTarget(spec, dirname(filePath));
+    if (!target) continue;
+    const found = await findPathsDeclaration(target, seen, depth + 1);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function rebaseTarget(target: string, fromDir: string, toDir: string): string {
+  const starIndex = target.indexOf("*");
+  const dirPart = starIndex >= 0 ? target.slice(0, starIndex) : target;
+  const tail = starIndex >= 0 ? target.slice(starIndex) : "";
+
+  const rebased = relative(toDir, resolve(fromDir, dirPart)).replace(/\\/g, "/");
+  const prefix = rebased === "" ? "" : rebased + (dirPart.endsWith("/") ? "/" : "");
+
+  return `${prefix}${tail}`;
 }
 
 function toArray(value: string | string[] | undefined): string[] {

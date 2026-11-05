@@ -49,6 +49,19 @@ describe("parsePnpmWorkspacePackages", () => {
 
     expect(parsePnpmWorkspacePackages(content)).toEqual(["apps/*", "!**/test/**"]);
   });
+
+  it("reads an inline flow array", () => {
+    expect(parsePnpmWorkspacePackages("packages: ['apps/*', \"packages/*\"]")).toEqual([
+      "apps/*",
+      "packages/*"
+    ]);
+  });
+
+  it("reads a flush block sequence with no indentation", () => {
+    const content = ["packages:", "- 'apps/*'", "- packages/*"].join("\n");
+
+    expect(parsePnpmWorkspacePackages(content)).toEqual(["apps/*", "packages/*"]);
+  });
 });
 
 describe("findWorkspaceRoot", () => {
@@ -142,5 +155,20 @@ describe("listWorkspacePackages", () => {
     expect(workspace?.manager).toBe("pnpm");
     expect(workspace?.root).toBe(root);
     expect(workspace?.packages.map((pkg) => pkg.dir)).toEqual(["apps/api"]);
+  });
+
+  it("discovers Nx projects from their project.json settings", async () => {
+    const root = await createProject({
+      "nx.json": JSON.stringify({}),
+      "package.json": JSON.stringify({ name: "root" }),
+      "apps/api/project.json": JSON.stringify({ name: "api" }),
+      "apps/web/project.json": JSON.stringify({ name: "web" })
+    });
+
+    const workspace = await detectWorkspace(root);
+
+    expect(workspace?.manager).toBe("nx");
+    expect(workspace?.packages.map((pkg) => pkg.dir)).toEqual(["apps/api", "apps/web"]);
+    expect(workspace?.packages.map((pkg) => pkg.name)).toEqual(["api", "web"]);
   });
 });
